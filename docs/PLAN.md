@@ -170,6 +170,13 @@ for stop in bombe.run(wheel_orders="army"):                   # 구동
 
 완료 기준: Phase 1.7의 벡터 전체에서 RTL 결과가 Rust 코어와 일치하고, FPGA에서 3로터 탐색이 동작한다.
 
+진행 상황 (2026-11-14 착수):
+
+- 도구: WSL(Ubuntu 24.04)에 OSS CAD Suite 2026-11-01 빌드를 `~/opt/oss-cad-suite`에 설치(sudo 불필요). Verilator 5.053(주 시뮬레이터), Icarus 14, Yosys 0.70. 테스트벤치는 cocotb(WSL 홈의 가상환경). 빌드 디렉토리는 WSL 홈에 둔다(Dropbox 잠금 회피).
+- 구조와 포트 계약: `rtl/README.md`. 배선표는 `rtl/gen/gen_wirings.py`가 `data/wirings/enigma.txt`에서 `rtl/src/wirings_pkg.sv`를 생성(원본 하나 유지).
+- `scrambler`(조합논리 순열) → `bombe_core`(676비트 상태를 클럭마다 전파, 고정점 도달 시 종료) → `bombe_sweep`(전체 드럼 위치 순회, valid/ready로 정지 출력).
+- 남은 결정: FPGA 보드(오픈소스 툴체인이 지원하는 Lattice ECP5/iCE40 계열이 무난), 병렬 인스턴스 수.
+
 ### Phase 3 — 실물 (투트랙: 기어식 + 릴레이식)
 
 같은 봄베를 두 가지 방식으로 만든다. 둘 다 전기기계식이며(전기 회로 + 움직이는 기계 부품), 움직이는 부품이 회전 드럼이냐 릴레이 접점이냐가 다르다.
@@ -245,7 +252,8 @@ Rust 코어를 WASM으로 빌드하고 TypeScript로 드럼 회전·통전 전�
 |---|---|---|
 | 버전 관리 | 현재 폴더는 git 저장소가 아니며 Dropbox 안에 있다. Dropbox 안의 git 저장소는 동기화 충돌로 `.git`이 손상될 수 있고 Rust `target/` 폴더가 대량으로 동기화된다. 권장: git 사용 + 원격 저장소 백업 + `target/`은 Dropbox 동기화 제외 | Phase 0 |
 | 4로터 봄베 기준 모델 | 미 해군식만 할지, 영국식 4로터 변형도 포함할지 | Phase 1.5 전 |
-| RTL 도구·FPGA 보드 | 오픈소스(Verilator/Icarus) 또는 상용 도구 | Phase 2 전 |
+| RTL 도구 | **결정됨**: WSL + 오픈소스(OSS CAD Suite: Verilator, Icarus, Yosys) + cocotb | — |
+| FPGA 보드 | 미정. 합성 규모 추정 후 결정 | Phase 2 FPGA 단계 전 |
 | 실물 규모 | 트랙별 스크램블러 유닛 수, 4로터를 실물에 포함할지 | Phase 3.0 전 |
 | 기어식 제작 방식 | 드럼 크기(실물 크기 또는 축소), 드럼·기어·접점판을 3D 프린팅, CNC, PCB 중 무엇으로 만들지 | G.1 전 |
 | 릴레이식 구성 | 릴레이 종류(극 수, 전압), 접점망 구성 방식(단순 구성 또는 이진 시프트) | R.1 전 |
