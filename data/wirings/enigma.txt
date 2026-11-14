@@ -1,0 +1,27 @@
+# Enigma wiring tables — single source of truth for the Rust core and (later) the RTL.
+#
+# Columns: kind  name  wiring  turnover
+#   kind      rotor | greek | reflector
+#   wiring    output letter for inputs A..Z (rotor: entry side -> reflector side, at core offset 0)
+#   turnover  window letter(s) at which the rotor carries to its left neighbour on the next key press
+#             ("-" = never; greek wheels and reflectors do not step)
+#
+# Verified by tests in crates/christopher-core (permutation checks, AAAAA -> BDZGO,
+# thin-reflector + greek-wheel-at-A equivalence, and the historical messages in data/vectors/).
+
+rotor      I        EKMFLGDQVZNTOWYHXUSPAIBRCJ  Q
+rotor      II       AJDKSIRUXBLHWTMCQGZNPYFVOE  E
+rotor      III      BDFHJLCPRTXVZNYEIWGAKMUSQO  V
+rotor      IV       ESOVPZJAYQUIRHXLNFTGKDCMWB  J
+rotor      V        VZBRGITYUPSDNHLXAWMJQOFECK  Z
+rotor      VI       JPGVOUMFYQBENHZRDKASXLICTW  ZM
+rotor      VII      NZJHGRCXMYSWBOUFAIVLPEKQDT  ZM
+rotor      VIII     FKQHTLXOCBJSPDZRAMEWNIUYGV  ZM
+
+greek      BETA     LEYJVCNIXWPBQMDRTAKZGFUHOS  -
+greek      GAMMA    FSOKANUERHMBTIYCWLQPZXVGJD  -
+
+reflector  B        YRUHQSLDPXNGOKMIEBFZCWVJAT  -
+reflector  C        FVPJIAOYEDRZXWGCTKUQSBNMHL  -
+reflector  B-THIN   ENKQAUYWJICOPBLMDXZVFTHRGS  -
+reflector  C-THIN   RDOBJNTKVEHMLFCWZAXGYIPSUQ  -

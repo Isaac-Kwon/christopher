@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = ["crates/christopher-core", "crates/christopher-py"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+# Tests exercise the bombe search; keep them fast.
+[profile.test]
+opt-level = 3

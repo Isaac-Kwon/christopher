@@ -1,0 +1,220 @@
+% Project Christopher 참고문헌 (biblatex/biber)
+% docs/reference/*.md 에서 [@key] 로 인용한다.
+% note 필드의 "직접 열람하지 못함"은 다른 출처의 인용을 거쳐 옮긴 문헌이라는 뜻이다.
+
+% ---------- 1차 자료 ----------
+
+@report{us6812report1944,
+  author      = {{6812th Signal Security Detachment}},
+  title       = {The {US} 6812 Division Bombe Report, Eastcote 1944},
+  institution = {United States Army, Signal Security Agency},
+  type        = {Technical report},
+  year        = {1944},
+  url         = {https://codesandciphers.org.uk/documents/bmbrpt/bmbpg002.htm},
+  urldate     = {2026-11-14},
+  note        = {Tony Sale 전사본(Codes and Ciphers). 본문 날짜는 1944-10-01이나 1945년 5월까지의 내용이 들어 있다. 인용 쪽수는 원문 쪽수이며 전사본 페이지 번호(bmbpgNNN)와 다르다. 그림은 열람하지 못함},
+}
+
+@report{desch1942memo,
+  author      = {Desch, Joseph R.},
+  title       = {Memo of Present Plans for an Electro-Mechanical Analytical Machine},
+  institution = {National Cash Register Company},
+  year        = {1942},
+  month       = sep,
+  editor      = {Erskine, Ralph and Marks, Philip and Weierud, Frode},
+  url         = {https://www.cryptocellar.org/us-bombe/desch.pdf},
+  urldate     = {2026-11-14},
+  note        = {1942-09-15. 편집자 재타이핑본(2000), 편집자 주 포함},
+}
+
+@report{turing1942ncr,
+  author      = {Turing, Alan M.},
+  title       = {Visit to National Cash Register Corporation of Dayton, Ohio},
+  institution = {Government Code and Cypher School},
+  year        = {1942},
+  month       = dec,
+  editor      = {Erskine, Ralph and Marks, Philip and Weierud, Frode},
+  url         = {https://www.cryptocellar.org/us-bombe/turncr.pdf},
+  urldate     = {2026-11-14},
+  note        = {편집자 재타이핑본(2000), 편집자 주 포함},
+}
+
+@report{wenger1944history,
+  author      = {Wenger, J. N. and Engstrom, H. T. and Meader, R. I.},
+  title       = {History of the Bombe Project},
+  institution = {United States Navy, Op-20-G},
+  type        = {Memorandum for the Director of Naval Communications},
+  year        = {1944},
+  month       = may,
+  url         = {https://www.cryptocellar.org/us-bombe/bombe-history.pdf},
+  urldate     = {2026-11-14},
+  note        = {1944-05-30. NARA RG 457, Box 1414. Mariners' Museum 전사본},
+}
+
+% ---------- 2차 자료: 영국 봄베 ----------
+
+@online{ellsbury1998bombe,
+  author  = {Ellsbury, Graham},
+  title   = {The {Turing} Bombe: What it was and how it worked},
+  year    = {1998},
+  url     = {http://www.ellsbury.com/bombe1.htm},
+  urldate = {2026-11-14},
+  note    = {Part 1–5 (bombe1.htm – bombe5.htm)},
+}
+
+@article{carter2010bombe,
+  author       = {Carter, Frank},
+  title        = {The {Turing} Bombe},
+  journaltitle = {The Rutherford Journal},
+  volume       = {3},
+  year         = {2010},
+  url          = {http://www.rutherfordjournal.org/article030108.html},
+  urldate      = {2026-11-14},
+}
+
+@report{carter-stops,
+  author      = {Carter, Frank},
+  title       = {From Bombe `stops' to {Enigma} keys},
+  institution = {Bletchley Park Trust},
+  type        = {Technical paper},
+  note        = {직접 열람하지 못함. 튜링의 정지 수 추정표는 Wikipedia ``Bombe'' 문서가 이 문헌 p.~3을 인용한 것을 옮겼다. 발행 연도 미확인},
+}
+
+@online{sale-ringstellung,
+  author  = {Sale, Tony},
+  title   = {Virtual Wartime {Bletchley Park}: The Bombe and the Ringstellung problem},
+  url     = {https://codesandciphers.org.uk/virtualbp/hsbombe/hsbombe3.htm},
+  urldate = {2026-11-14},
+  note    = {Codes and Ciphers. 작성 연도 표기 없음},
+}
+
+@online{sale-checking,
+  author  = {Sale, Tony},
+  title   = {Virtual Wartime {Bletchley Park}: Exploring the {Turing} Bombe in action (high speed Bombe simulator pages)},
+  url     = {https://codesandciphers.org.uk/virtualbp/hsbombe/hsbombe4.htm},
+  urldate = {2026-11-14},
+  note    = {Codes and Ciphers. hsbombe4.htm, hsbombe5.htm. 작성 연도 표기 없음},
+}
+
+@online{jackson-bh09,
+  author       = {Jackson, John},
+  title        = {Bombe History 9: Bombe Rebuild Machine},
+  organization = {The National Museum of Computing},
+  url          = {https://www.tnmoc.org/bh-9-bombe-rebuild-machine},
+  urldate      = {2026-11-14},
+}
+
+@online{jackson-bh10,
+  author       = {Jackson, John},
+  title        = {Bombe History 10: Bombe Description},
+  organization = {The National Museum of Computing},
+  url          = {https://www.tnmoc.org/bh-10-bombe-description},
+  urldate      = {2026-11-14},
+}
+
+@online{jackson-bh11,
+  author       = {Jackson, John},
+  title        = {Bombe History 11: Bombe Speed},
+  organization = {The National Museum of Computing},
+  url          = {https://www.tnmoc.org/bh-11-bombe-speed},
+  urldate      = {2026-11-14},
+}
+
+@online{jackson-bh12,
+  author       = {Jackson, John},
+  title        = {Bombe History 12: Types of Bombe},
+  organization = {The National Museum of Computing},
+  url          = {https://www.tnmoc.org/bh-12-types-of-bombe},
+  urldate      = {2026-11-14},
+}
+
+@online{jackson-bh13,
+  author       = {Jackson, John},
+  title        = {Bombe History 13: {US} Machines},
+  organization = {The National Museum of Computing},
+  url          = {https://www.tnmoc.org/bh-13-us-machines},
+  urldate      = {2026-11-14},
+}
+
+@online{jackson-bh14,
+  author       = {Jackson, John},
+  title        = {Bombe History 14: Bombe Numbers},
+  organization = {The National Museum of Computing},
+  url          = {https://www.tnmoc.org/bh-14-bombe-numbers},
+  urldate      = {2026-11-14},
+}
+
+@online{bombe-rebuild-drums,
+  author  = {{Turing Welchman Bombe Rebuild Project}},
+  title   = {Wiring Drums},
+  url     = {https://bombe.org.uk/?p=2727},
+  urldate = {2026-11-14},
+  note    = {bombe.org.uk. 작성자·작성일 표기 없음},
+}
+
+@online{ekhall-hallenberg-tutorial,
+  author  = {Ekhall, Magnus and Hallenberg, Fredrik},
+  title   = {Turing Bombe Tutorial},
+  year    = {2015},
+  url     = {https://www.lysator.liu.se/~koma/turingbombe/TuringBombeTutorial.pdf},
+  urldate = {2026-11-14},
+  note    = {봄베·체킹 머신 시뮬레이터 사용 설명서, 2014–2015},
+}
+
+@online{cryptomuseum-bombe,
+  author  = {{Crypto Museum}},
+  title   = {Bombe},
+  url     = {https://www.cryptomuseum.com/crypto/bombe/index.htm},
+  urldate = {2026-11-14},
+}
+
+@online{wikipedia-bombe,
+  author  = {{Wikipedia contributors}},
+  title   = {Bombe},
+  url     = {https://en.wikipedia.org/wiki/Bombe},
+  urldate = {2026-11-14},
+  note    = {3차 자료. 직접 열람하지 못한 문헌(Carter, Wenger 1945, Wilcox, Welchman, Budiansky)의 수치를 옮길 때만 사용},
+}
+
+% ---------- 2차 자료: 미 해군·미 육군 봄베 ----------
+
+@inproceedings{ekhall-hallenberg2018,
+  author    = {Ekhall, Magnus and Hallenberg, Fredrik},
+  title     = {{US} {Navy} Cryptanalytic Bombe -- A Theory of Operation and Computer Simulation},
+  booktitle = {Proceedings of the 1st Conference on Historical Cryptology ({HistoCrypt} 2018)},
+  series    = {Linköping Electronic Conference Proceedings},
+  number    = {149},
+  pages     = {103--108},
+  year      = {2018},
+  location  = {Uppsala, Sweden},
+  url       = {https://ep.liu.se/ecp/149/019/ecp18149019.pdf},
+  urldate   = {2026-11-14},
+}
+
+@online{mccarthy2022fourwheel,
+  author  = {McCarthy, Jerry},
+  title   = {{US} {Navy} Cryptanalytic Bombe -- How to operate the Simulator written by {Magnus Ekhall} and {Fredrik Hallenberg}},
+  year    = {2022},
+  url     = {https://www.lysator.liu.se/~koma/turingbombe/4WheelBombeTutorial.TNR.Iss1.pdf},
+  urldate = {2026-11-14},
+  note    = {Issue 1, 2022-02-24},
+}
+
+@inproceedings{dturing2021army,
+  author    = {Turing, Dermot},
+  title     = {The {American} {Army} Bombe},
+  booktitle = {Proceedings of the 4th International Conference on Historical Cryptology ({HistoCrypt} 2021)},
+  series    = {Linköping Electronic Conference Proceedings},
+  year      = {2021},
+  url       = {https://ecp.ep.liu.se/index.php/histocrypt/article/download/167/123},
+  urldate   = {2026-11-14},
+  note      = {회의 회차·연도는 URL과 본문의 열람일(2021-01)로 추정했다. 쪽수 미확인},
+}
+
+@report{wilcox2006solving,
+  author      = {Wilcox, Jennifer E.},
+  title       = {Solving the {Enigma}: History of the Cryptanalytic Bombe},
+  institution = {Center for Cryptologic History, National Security Agency},
+  year        = {2006},
+  note        = {직접 열람하지 못함(NSA·국방부 사이트 접근 거부). 미 해군 봄베의 대수·속도는 Ekhall \& Hallenberg (2018)와 Wikipedia의 인용을 거쳐 옮겼다},
+}

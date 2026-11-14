@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""Build a German letter-bigram count table from plain-text prose.
+
+Usage (standard library only):
+    python -I make_bigrams.py TEXT.txt [TEXT2.txt ...] > german_bigrams.txt
+    python -I make_bigrams.py --x-separators TEXT.txt [...] > german_bigrams.txt
+
+Each input is a Project Gutenberg plain-text file (UTF-8). The licence
+header and footer are removed (everything outside the lines between the
+"*** START OF" and "*** END OF" markers). The remaining text is
+preprocessed as Enigma operators did:
+
+    - uppercase; A-umlaut -> AE, O-umlaut -> OE, U-umlaut -> UE, sharp s -> SS
+
+Pass 1 (always): every character that is not A..Z is dropped (spaces,
+punctuation, digits), so words run together.
+
+Pass 2 (--x-separators): every run of non-letter characters that lies between
+two letters (spaces, punctuation, line breaks) becomes a single X, the way
+German military Enigma texts used X as a word/sentence separator. Leading and
+trailing non-letter runs are dropped.
+
+With --x-separators the output table is the SUM of the two passes over the
+same texts. Adjacent letter pairs are counted within each text's continuous
+run (no pair spans two texts) and within each pass.
+
+Output: '#' comment lines (sources, preprocessing, letter totals), then 26
+lines, one per first letter A..Z, each with 26 whitespace-separated counts
+for the second letter A..Z.
+"""
+import argparse
+import re
+
+ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+INDEX = {c: i for i, c in enumerate(ALPHABET)}
+
+START_RE = re.compile(r"\*\*\*\s*START OF", re.IGNORECASE)
+END_RE = re.compile(r"\*\*\*\s*END OF", re.IGNORECASE)
+TOKEN_RE = re.compile(r"[A-Z]+|[^A-Z]+")
+
+# Source metadata for the known input files (matched by basename).
+SOURCES = {
+    "pg2403.txt": ("Die Wahlverwandtschaften", "Johann Wolfgang von Goethe",
+                   "https://www.gutenberg.org/ebooks/2403"),
+    "pg5323.txt": ("Effi Briest", "Theodor Fontane",
+                   "https://www.gutenberg.org/ebooks/5323"),
+    "pg69327.txt": ("Der Prozess: Roman", "Franz Kafka",
+                    "https://www.gutenberg.org/ebooks/69327"),
+}
+
+
+def strip_boilerplate(lines):
+    """Return the lines strictly between the START and END markers."""
+    start = end = None
+    for i, line in enumerate(lines):
+        if start is None:
+            if START_RE.search(line):
+                start = i
+        elif END_RE.search(line):
+            end = i
+            break
+    if start is None or end is None:
+        raise SystemExit("error: START/END licence markers not found")
+    return lines[start + 1:end]
+
+
+def normalise(text):
+    """Uppercase and transliterate sharp s and umlauts (keeps other chars)."""
+    text = text.replace("ß", "SS").replace("ẞ", "SS")
+    text = text.upper()
+    return text.replace("Ä", "AE").replace("Ö", "OE").replace("Ü", "UE")
+
+
+def letter_run(text):
+    """Pass 1: keep only A..Z; non-letters are dropped."""
+    return "".join(ch for ch in normalise(text) if "A" <= ch <= "Z")
+
+
+def letter_run_x(text):
+    """Pass 2: each non-letter run between two letters becomes one X."""
+    tokens = TOKEN_RE.findall(normalise(text))
+    out = []
+    last = len(tokens) - 1
+    for i, tok in enumerate(tokens):
+        if "A" <= tok[0] <= "Z":
+            out.append(tok)
+        elif 0 < i < last:
+            out.append("X")
+    return "".join(out)
+
+
+def count_bigrams(run, counts):
+    """Add adjacent-pair counts of run into the 26x26 counts matrix."""
+    n = 0
+    for a, b in zip(run, run[1:]):
+        counts[INDEX[a]][INDEX[b]] += 1
+        n += 1
+    return n
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--x-separators", action="store_true",
+                        help="add pass 2 (non-letter runs become X) and output the sum")
+    parser.add_argument("paths", nargs="+", metavar="TEXT.txt")
+    args = parser.parse_args(argv)
+
+    counts = [[0] * 26 for _ in range(26)]
+    total_letters = 0
+    total_pairs = 0
+    per_file = []
+
+    for path in args.paths:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+        body_text = "\n".join(strip_boilerplate(lines))
+
+        name = path.replace("\\", "/").rsplit("/", 1)[-1]
+        run1 = letter_run(body_text)
+        pairs1 = count_bigrams(run1, counts)
+        entry = {"name": name, "p1_letters": len(run1), "p1_pairs": pairs1,
+                 "p2_letters": 0, "p2_pairs": 0}
+        total_letters += len(run1)
+        total_pairs += pairs1
+
+        if args.x_separators:
+            run2 = letter_run_x(body_text)
+            pairs2 = count_bigrams(run2, counts)
+            entry["p2_letters"] = len(run2)
+            entry["p2_pairs"] = pairs2
+            total_letters += len(run2)
+            total_pairs += pairs2
+
+        per_file.append(entry)
+
+    print("# German letter-bigram counts, first letter A..Z (rows), second letter A..Z (columns)")
+    print("# Generated by data/language/make_bigrams.py (python -I, standard library only).")
+    print("# Sources (Project Gutenberg, public domain, plain-text UTF-8):")
+    for e in per_file:
+        if e["name"] in SOURCES:
+            title, author, url = SOURCES[e["name"]]
+            print("#   %s: %s by %s, %s" % (e["name"], title, author, url))
+        else:
+            print("#   %s (no metadata recorded)" % e["name"])
+    print("# Preprocessing: Gutenberg licence header/footer removed (outside the START/END markers);")
+    print("#   uppercased; A-umlaut->AE, O-umlaut->OE, U-umlaut->UE, sharp s->SS.")
+    if args.x_separators:
+        print("# Table = SUM of two passes over the same texts:")
+        print("#   pass 1: all non-letters dropped, words run together.")
+        print("#   pass 2: each run of non-letters between two letters (spaces, punctuation,")
+        print("#           line breaks) becomes a single X (word/sentence separator as in Enigma texts).")
+        print("#   Adjacent letter pairs are counted within each text's continuous run per pass.")
+    else:
+        print("#   Pass 1 only: all non-letters dropped, so words run together;")
+        print("#   adjacent letter pairs counted within each text's continuous letter run.")
+    for e in per_file:
+        if args.x_separators:
+            print("#   %s: pass 1 %d letters, %d pairs; pass 2 %d letters, %d pairs"
+                  % (e["name"], e["p1_letters"], e["p1_pairs"], e["p2_letters"], e["p2_pairs"]))
+        else:
+            print("#   %s: %d letters, %d pairs" % (e["name"], e["p1_letters"], e["p1_pairs"]))
+    print("# Total letters counted: %d (total adjacent pairs counted: %d)" % (total_letters, total_pairs))
+
+    for row in counts:
+        print(" ".join(str(v) for v in row))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,40 @@
+[
+  {
+    "id": "m4-triton-shark-1945-03-06",
+    "machine": "m4",
+    "reflector": "B-thin",
+    "greek": "gamma",
+    "rotors": [
+      "IV",
+      "V",
+      "III"
+    ],
+    "rings": "AAPU",
+    "plugboard": "AX BZ CY DG ET IP JN OQ RV SW",
+    "start": "ZKSA",
+    "indicator_notes": "Published M4 Shark (Triton) signal of 6 March 1945, header 'SHARK SIGNAL 6 MAR 45: 1414/6/36 90'. The published machine settings (cryptocellar.org, Jason Parker-Burlingham's break, 25 Oct 2026) are: M4, thin reflector B, Greek wheel gamma, rotors IV V III, rings A A P U, start Z K S A, plugs AX BZ CY DG ET IP JN OQ RV SW. 'start' ZKSA is the message-body starting position as stated by the source (greek Z, then K S A). Encrypted indicator: the first two groups CXSO UNVZ (8 letters). The final two groups of the published 90-group block, also CXSO UNVZ, are a repeat and are excluded from the body. The source does not give a separate Grundstellung. Body position check: decrypting ciphertext letters 9-352 with ZKSA reproduces the published plaintext exactly (verified independently with a software M4 simulation).",
+    "ciphertext": "NEWMESUCIIFPRLEETPNZLPYJWDKLLDUJURJLBUKFWNKRSPENZUPZLWJFGCHHJMELKFKPWCMDRGAFUMZEVOENUUQGTXIPZQKPSRAMCEWJNIFRSCXXNRCQTYABYRDTIRZFVJIJJGHUGKJUTPPYPOFNLLJIQCOEDQAMEKSYZSWZZJGFERGGLJTLAWUPHBSTLIUPGJTOBBYCNTSTKPBUESSKEYDRZDSADABETWRUKDHCZPQLZCXMYVIVWBBOHVJBKTZWMUTKYJJQZVFCEDGHSQWEODAOHOBTESCLAAREEAKHSSQNIPCIXHJWGCWLWFTZZDGPKIXEPATDAXEYJDFGSDUNFUKR",
+    "plaintext": "EULAUFENNACHPERIODEJBRUNOJXXEINSKKFUNKFEUERGEUPPEEINSEINSAMSIEBENXMAERZVONEINSBISDREIGEINSZWOBISEINSVIERYACHTXNULVIERDREINULBISNULSECHSDREINULYNEUNXEINSNULBISEINSDWOYZWOZWOBISZWOVGERXZWOKKFUNKFEUERGRUPPEECNSZWVAMSIEBENRMJERZVONEINSBSSDREIYACHTXNULVIERDREINULBISNULSECHSBREINULYEINSVIERIREINULBISEIOSSECHSDREINZLYNEUNXKKFORTKKEINSNULBISEIESZWOBV",
+    "source": "https://cryptocellar.org/bgac/m4-messages.html (ciphertext); https://cryptocellar.org/bgac/the-m4-triton-break.html (settings and raw plaintext)",
+    "notes": "Plaintext is the raw decryption 'with no corrections applied or encoding undone' as published (344 letters, 86 groups). The source also gives a corrected, word-divided version (14 letters changed, not itemised) which is not used here. The message uses 4-letter groups. The page's own claim that the solver used an AI model is not relied upon for this record."
+  },
+  {
+    "id": "barbarossa-heeresgruppe-nord-1941-07-08-nr23",
+    "machine": "enigma-i",
+    "reflector": "B",
+    "greek": null,
+    "rotors": [
+      "IV",
+      "III",
+      "II"
+    ],
+    "rings": "PKF",
+    "plugboard": "CY EL FH GS IJ KQ MW PV RZ TU",
+    "start": "PIK",
+    "indicator_notes": "Heeresgruppe Nord key table for 8 July 1941 (Schluesseltafel): 'B432 pkf', plugs CY EL FH GS IJ KQ MW PV RZ TU. Message Nr. 23, Kenngruppe KHLPT, indicator OKF QLV, Start PIK, Stop PMA (the PIK/PMA pair is printed on the line above the Nr. 23 row in the PDF layout). The source lists Start PIK, which is taken as the message-body start position. The source does not state how the indicator decodes, and the Grundstellung is not given separately. Rotor order is read left-to-right as IV III II (source 'B432'). A check decryption of the 120-letter body with these settings gives German text beginning INFX RG T X EINS X DREI X, which supports the reading, but that check is not a published plaintext.",
+    "ciphertext": "CWSEBDDIRBZUUBGKJANBVGIVDVDZZIGAKBZCJMMVEMVXLTHNLDYGRVQAKJMRVZIXHMDNOMTAUTPZDWOINNMOLAHCDKCZTPPEORFIBXCMNWQNIDDCHPTXQQBC",
+    "plaintext": "",
+    "source": "https://cryptocellar.org/bgac/heeresgruppe-nord-july-1941.pdf (key table for 08.07.1941 and Nr. 23 transcript)",
+    "notes": "Kenngruppe KHLPT stripped; the ciphertext is the 120-letter body reported as '125 / 120' in the key table. No published plaintext for Nr. 23 was found in the sources read, so 'plaintext' is empty. The task's 'Barbarossa operation' two-part message was not located with settings and plaintext. Rotor order and start-position readings are inferred from the table layout (see indicator_notes) and were only checked by plausibility of decryption, so treat 'rotors' and 'start' as the less certain fields."
+  }
+]

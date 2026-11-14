@@ -1,0 +1,14 @@
+[package]
+name = "christopher-py"
+description = "Python bindings for christopher-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+christopher-core = { path = "../christopher-core" }
+pyo3 = { version = "0.30", features = ["abi3-py310"] }
