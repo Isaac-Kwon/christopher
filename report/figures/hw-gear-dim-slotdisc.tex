@@ -1,0 +1,65 @@
+% 주기 축 슬롯 원판의 트랙 배치. 그림 fig:hw-gear-dim-slotdisc
+% 각도는 결정 0001의 60 rpm 시각표를 주기 축의 각도로 옮긴 것이다(한 위치 12도 = 38.46 ms, 1 ms = 0.312도).
+% 근거: hardware/gear/layout.md 3.8절.
+\begin{tikzpicture}[
+    dl/.style={font=\tiny,text=black,inner sep=1pt},
+    lab/.style={font=\scriptsize,align=left}]
+  % ================= (가) 원판 =================
+  \begin{scope}[scale=0.032]
+    \node[font=\footnotesize\bfseries,anchor=west] at (-110,112) {(가) 원판 (\O160, 주기 축 한 바퀴 = 30칸)};
+    \draw[draw=cgray,fill=clight] (0,0) circle (80);
+    \draw[draw=cgray,fill=white] (0,0) circle (10);
+    \foreach \k in {0,...,25} {
+      \draw[cblue,line width=1.6pt] ({90-\k*12+0.936}:72) arc ({90-\k*12+0.936}:{90-\k*12-0.936}:72);
+      \draw[cgreen,line width=1.6pt] ({90-\k*12-2.808}:62) arc ({90-\k*12-2.808}:{90-\k*12-4.992}:62);
+      \draw[cred,line width=1.6pt] ({90-\k*12-5.616}:52) arc ({90-\k*12-5.616}:{90-\k*12-9.360}:52);
+    }
+    % 자리올림 구간 316.2 - 343.8도
+    \draw[corange,line width=2.2pt] ({90-316.2}:87) arc ({90-316.2}:{90-343.8}:87);
+    % 기준 표시와 회전 방향
+    \draw[cgray,line width=0.4pt] (0,80) -- (0,92);
+    \node[dl,anchor=south] at (0,92) {0° ($k = 0$)};
+    \draw[->,cgray] (20:95) arc (20:-20:95);
+    % 범례
+    \node[lab,anchor=west,text=cblue] at (118,60) {\code{STROBE}: 반지름 72, 슬롯 26개, 각폭 1.87°};
+    \node[lab,anchor=west,text=cgreen] at (118,35) {\code{JUDGE}: 반지름 62, 슬롯 26개, 각폭 2.18°};
+    \node[lab,anchor=west,text=cred] at (118,10) {\code{CLEAR}: 반지름 52, 슬롯 26개, 각폭 3.74°};
+    \node[lab,anchor=west,text=corange] at (118,-15) {자리올림 1의 맞물림: 316°--344° (가운데 330°)};
+    \node[lab,anchor=west,text=cgray] at (118,-40) {슬롯이 없는 네 칸: $k = 26$--$29$ (312°--348°)};
+    \node[lab,anchor=west,text=cgray] at (118,-65) {센서 세 개는 한 반지름 선 위에 나란히 둔다};
+  \end{scope}
+  % ================= (나) 한 위치의 확대 =================
+  \begin{scope}[shift={(0.6,-5.6)},x=0.85cm,y=1cm]
+    \node[font=\footnotesize\bfseries,anchor=west] at (-4.1,2.0) {(나) 한 위치(12°)의 확대. 0°는 접점이 패드 가운데에 오는 순간};
+    % 가로축: 1도 = 0.85 cm, -1.9도 ... 12.6도
+    \draw[cgray] (-2.0,0) -- (12.7,0);
+    % 완전 접촉
+    \draw[draw=cgray,fill=clight] (-1.872,1.05) rectangle (1.872,1.45);
+    \node[dl] at (0,1.25) {완전 접촉 (안쪽 링)};
+    % STROBE, JUDGE, CLEAR
+    \draw[draw=cblue,fill=cbluebg] (-0.936,0.45) rectangle (0.936,0.85);
+    \node[dl,text=cblue] at (0,0.65) {\code{STROBE}};
+    \draw[draw=cgreen,fill=cgreenbg] (2.808,0.45) rectangle (4.992,0.85);
+    \node[dl,text=cgreen] at (3.9,0.65) {\code{JUDGE}};
+    \draw[draw=cred,fill=credbg] (5.616,0.45) rectangle (9.360,0.85);
+    \node[dl,text=cred] at (7.488,0.65) {\code{CLEAR}};
+    \draw[draw=cblue,fill=cbluebg] (11.064,0.45) rectangle (12.7,0.85);
+    \draw[draw=cgray,fill=clight] (10.128,1.05) rectangle (12.7,1.45);
+    % 눈금: 각도(아래)와 시각(위)
+    \foreach \a/\t in {-0.936/{$-0.94$°}, 0.936/{$+0.94$°}, 2.808/{2.81°}, 4.992/{4.99°},
+                       5.616/{5.62°}, 9.360/{9.36°}, 11.064/{11.06°}} {
+      \draw[cgray,line width=0.3pt] (\a,0.45) -- (\a,-0.08);
+      \node[dl,rotate=90,anchor=east] at (\a,-0.12) {\t};
+    }
+    \node[dl,anchor=east] at (-2.1,0.65) {신호};
+    \node[dl,anchor=east] at (-2.1,1.25) {접점};
+    \node[dl,anchor=east] at (-2.1,-0.45) {각도};
+    \node[dl,anchor=east] at (-2.1,-1.25) {시각 (ms)};
+    \foreach \a/\m in {-0.936/0, 0.936/6, 2.808/12, 4.992/19, 5.616/21, 9.360/33, 11.064/38.5} {
+      \node[dl,rotate=90,anchor=east] at (\a,-1.05) {\m};
+    }
+    \draw[<->,cgray,line width=0.4pt] (0,-1.75) -- (12,-1.75) node[midway,dl,fill=white] {한 위치 12° = 38.46 ms (60 rpm)};
+    \draw[cgray,line width=0.3pt] (0,0) -- (0,-1.85);
+    \draw[cgray,line width=0.3pt] (12,0) -- (12,-1.85);
+  \end{scope}
+\end{tikzpicture}

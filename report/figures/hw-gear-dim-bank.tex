@@ -1,0 +1,91 @@
+% 기어식 기계(12자리 프레임, 6열 장착)의 개략 치수: 앞과 위. 단위 mm. 그림 fig:hw-gear-dim-bank
+% 수치의 근거는 hardware/gear/layout.md 3.6, 3.9-3.11절.
+\begin{tikzpicture}[x=0.0068cm,y=0.0068cm,
+    dim/.style={<->,cgray,line width=0.4pt},
+    dl/.style={font=\tiny,text=black,inner sep=1pt},
+    lab/.style={font=\tiny,align=center}]
+  % ================= (가) 앞 =================
+  \node[font=\footnotesize\bfseries,anchor=west] at (0,1010) {(가) 앞};
+  \draw[draw=cgray,fill=clight,line width=0.6pt] (0,0) rectangle (1960,950);
+  % 패널
+  \draw[draw=cgray,fill=white] (40,50) rectangle (1720,470);
+  \node[lab] at (880,260) {공통부 패널 1,680 $\times$ 420\\유닛 잭 12쌍(열 바로 아래), 글자 잭, 레지스터 램프};
+  % 덮개
+  \draw[draw=cblue,dashed] (30,485) rectangle (1730,940);
+  % 드럼: 6열 장착 + 빈 6자리
+  \foreach \c in {0,...,5} {
+    \foreach \y in {580,700,820} { \draw[draw=cgray,fill=cbluebg] (100+\c*120,\y) circle (50); }
+  }
+  \foreach \c in {6,...,11} {
+    \foreach \y in {580,700,820} { \draw[draw=cgray,dashed] (100+\c*120,\y) circle (50); }
+  }
+  % 구동부
+  \draw[draw=corange,fill=corangebg] (1480,490) rectangle (1720,930);
+  \foreach \y in {580,700,820} { \draw[draw=cgray,fill=cyellowbg] (1540,\y) circle (35); }
+  \node[lab,text=corange] at (1650,700) {기어\\창};
+  \node[lab,text=corange] at (1600,905) {구동부};
+  % 조작부 열
+  \draw[draw=cgray,fill=white] (1780,720) rectangle (1940,900);
+  \node[lab] at (1860,810) {화면};
+  \draw[draw=cred,fill=credbg] (1860,600) circle (32);
+  % 치수: 가로
+  \foreach \x in {0,40,1480,1720,1760,1960} { \draw[cgray,line width=0.3pt] (\x,-10) -- (\x,-75); }
+  \draw[dim] (0,-60) -- (40,-60) node[midway,below=1pt,dl] {40};
+  \draw[dim] (40,-60) -- (1480,-60) node[midway,dl,fill=white] {12 $\times$ 120 = 1,440};
+  \draw[dim] (1480,-60) -- (1720,-60) node[midway,dl,fill=white] {240};
+  \draw[dim] (1720,-60) -- (1760,-60) node[midway,below=1pt,dl] {40};
+  \draw[dim] (1760,-60) -- (1960,-60) node[midway,dl,fill=white] {200};
+  \draw[cgray,line width=0.3pt] (0,-75) -- (0,-150);
+  \draw[cgray,line width=0.3pt] (1960,-75) -- (1960,-150);
+  \draw[dim] (0,-135) -- (1960,-135) node[midway,dl,fill=white] {1,960 (6자리 프레임이면 1,240)};
+  % 치수: 세로
+  \foreach \y in {0,50,470,950} { \draw[cgray,line width=0.3pt] (1970,\y) -- (2050,\y); }
+  \draw[dim] (2030,0) -- (2030,50);
+  \draw[dim] (2030,50) -- (2030,470) node[midway,dl,fill=white] {420};
+  \draw[dim] (2030,470) -- (2030,950) node[midway,dl,fill=white] {480};
+  \draw[dim] (2120,0) -- (2120,950) node[midway,dl,fill=white] {950};
+  \draw[cgray,line width=0.3pt] (2050,0) -- (2135,0);
+  \draw[cgray,line width=0.3pt] (2050,950) -- (2135,950);
+  \node[dl,anchor=west] at (2040,25) {50};
+  % ================= (나) 위 =================
+  \begin{scope}[shift={(0,-720)}]
+    \node[font=\footnotesize\bfseries,anchor=west] at (0,395) {(나) 위 (아래쪽이 관람객 쪽)};
+    % 패널 돌출부
+    \draw[draw=cgray,dashed] (40,-70) rectangle (1720,0);
+    \node[lab,text=cgray] at (880,-35) {패널 (뱅크 아래, 70 돌출)};
+    % 뱅크
+    \draw[draw=cgray,fill=clight,line width=0.6pt] (0,0) rectangle (1960,330);
+    \draw[cblue,line width=0.8pt] (30,2.5) -- (1730,2.5);
+    % 열 모듈: 드럼, 앞판, 뒤판
+    \foreach \c in {0,...,5} {
+      \draw[draw=cgray,fill=cbluebg] (50+\c*120,36) rectangle (150+\c*120,78);
+      \draw[draw=cgray,fill=white] (42+\c*120,105) rectangle (158+\c*120,113);
+      \draw[draw=cgray,fill=white] (42+\c*120,163) rectangle (158+\c*120,171);
+      \draw[cgray,line width=0.8pt] (100+\c*120,78) -- (100+\c*120,196);
+    }
+    \foreach \c in {6,...,11} {
+      \draw[draw=cgray,dashed] (42+\c*120,105) rectangle (158+\c*120,171);
+    }
+    % 라인 축과 베어링 브래킷
+    \draw[shaft] (60,214) -- (1700,214);
+    \foreach \b in {0,...,6} { \draw[draw=cgray,fill=white] (34+\b*240,202) rectangle (46+\b*240,226); }
+    % 구동부
+    \draw[draw=corange,fill=corangebg] (1480,60) rectangle (1720,326);
+    \draw[shaft] (1480,214) -- (1700,214);
+    \draw[draw=cgray,fill=white] (1620,250) rectangle (1715,315);
+    \node[lab] at (1667,282) {모터};
+    \draw[draw=cgray,fill=cyellowbg] (1505,36) rectangle (1575,61);
+    % 조작부 열
+    \draw[draw=cgray] (1760,0) -- (1760,330);
+    % 치수
+    \foreach \y in {-70,0,330} { \draw[cgray,line width=0.3pt] (-10,\y) -- (-110,\y); }
+    \draw[dim] (-50,0) -- (-50,330) node[midway,dl,fill=white] {330};
+    \draw[dim] (-50,-70) -- (-50,0);
+    \node[dl,anchor=east] at (-58,-35) {70};
+    \draw[cgray,line width=0.3pt] (1970,214) -- (2050,214);
+    \draw[cgray,line width=0.3pt] (1970,0) -- (2050,0);
+    \draw[dim] (2030,0) -- (2030,214) node[midway,dl,fill=white] {214};
+    \node[dl,anchor=west] at (2040,214) {라인 축};
+    \node[dl,anchor=west] at (2040,0) {덮개};
+  \end{scope}
+\end{tikzpicture}

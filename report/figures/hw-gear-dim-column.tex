@@ -1,0 +1,93 @@
+% 기어식 열 모듈의 개략 치수 (앞, 옆). 단위 mm. 그림 fig:hw-gear-dim-column
+% 수치의 근거는 hardware/gear/layout.md 3.1-3.5절. 도면이 아니라 치수를 넣은 배치도다.
+\begin{tikzpicture}[x=0.025cm,y=0.025cm,
+    dim/.style={<->,cgray,line width=0.4pt},
+    dl/.style={font=\tiny,text=black,inner sep=1pt},
+    lab/.style={font=\scriptsize,align=left},
+    rl/.style={font=\tiny,rotate=90,anchor=west,inner sep=1pt}]
+  % ================= (가) 앞에서 본 모습 =================
+  \node[font=\footnotesize\bfseries,anchor=west] at (-120,285) {(가) 앞};
+  \draw[draw=cgray,fill=clight] (-58,-200) rectangle (58,200);
+  \foreach \y in {120,0,-120} {
+    \draw[draw=cgreen,dashed] (-55,\y-55) rectangle (55,\y+55);
+    \draw[draw=cgray,fill=cbluebg] (0,\y) circle (50);
+    \draw[draw=corange,dashed] (0,\y) circle (48);
+    \draw[draw=cgray,fill=white] (0,\y) circle (35);
+    \draw[draw=cgray,fill=clight] (0,\y) circle (16);
+    \foreach \sx/\sy in {-48/-48,48/-48,-48/48,48/48} { \fill[cgray] (\sx,\y+\sy) circle (2.5); }
+  }
+  % 치수: 세로
+  \draw[dim] (-80,0) -- (-80,120) node[midway,dl,fill=white] {120};
+  \draw[dim] (-80,-120) -- (-80,0) node[midway,dl,fill=white] {120};
+  \draw[dim] (-105,-200) -- (-105,200) node[midway,dl,fill=white] {400};
+  \foreach \y in {120,0,-120} { \draw[cgray,line width=0.3pt] (-84,\y) -- (-52,\y); }
+  % 치수: 가로
+  \draw[dim] (-58,-222) -- (58,-222) node[midway,dl,fill=white] {116};
+  \draw[dim] (0,-250) -- (120,-250) node[midway,dl,fill=white] {열 피치 120};
+  \draw[cgray,line width=0.3pt] (0,-205) -- (0,-254);
+  \draw[cgray,line width=0.3pt] (120,-230) -- (120,-254);
+  \draw[dim] (-50,222) -- (50,222) node[midway,dl,fill=white] {몸체 \O100};
+  \draw[dim] (-35,248) -- (35,248) node[midway,dl,fill=white] {손잡이 \O70};
+  % ================= (나) 옆에서 본 모습 =================
+  \begin{scope}[shift={(300,0)}]
+    \node[font=\footnotesize\bfseries,anchor=west] at (-115,285) {(나) 옆 (왼쪽이 관람객 쪽)};
+    % 덮개, 판
+    \draw[draw=cblue,dashed] (-105,-205) rectangle (-100,205);
+    \draw[draw=cgray,fill=clight] (0,-200) rectangle (8,200);
+    \draw[draw=cgray,fill=clight] (58,-200) rectangle (66,200);
+    \foreach \y in {185,-185} { \draw[draw=cgray,fill=white] (8,\y-5) rectangle (58,\y+5); }
+    \foreach \y in {120,0,-120} {
+      % 축
+      \draw[cgray,line width=1.2pt] (-63,\y) -- (95,\y);
+      % 드럼: 노브, 손잡이, 받침
+      \draw[draw=cgray,fill=clight] (-69,\y-16) rectangle (-55,\y+16);
+      \draw[draw=cgray,fill=white] (-55,\y-35) rectangle (-37,\y+35);
+      \draw[draw=cgray,fill=cbluebg] (-37,\y-50) rectangle (-27,\y+50);
+      \draw[corange,line width=1.0pt] (-27,\y-48) -- (-27,\y+48);
+      % 인덱스 원판과 플랜지
+      \draw[draw=cred,fill=credbg] (-27,\y-17) rectangle (-18,\y+17);
+      % 접점 보드 (가운데 구멍)
+      \draw[draw=cgreen,fill=cgreenbg] (-21.6,\y+19) rectangle (-20,\y+55);
+      \draw[draw=cgreen,fill=cgreenbg] (-21.6,\y-55) rectangle (-20,\y-19);
+      \foreach \r in {22,29,36,43} {
+        \draw[cgreen,line width=0.5pt] (-21.6,\y+\r) -- (-27,\y+\r);
+        \draw[cgreen,line width=0.5pt] (-21.6,\y-\r) -- (-27,\y-\r);
+      }
+      % 보드 기둥
+      \draw[cgray,line width=0.8pt] (-20,\y+48) -- (0,\y+48);
+      \draw[cgray,line width=0.8pt] (-20,\y-48) -- (0,\y-48);
+      % 마이터와 라인 축
+      \draw[draw=cblue,fill=cbluebg] (69,\y-13) rectangle (82,\y+13);
+      \draw[draw=cblue,fill=cbluebg] (82,\y-25) rectangle (94,\y+25);
+      \draw[draw=cblue,dashed] (109,\y) circle (25);
+      \draw[draw=cgray,fill=cgray] (109,\y) circle (10);
+    }
+    % 부품 이름 (세로쓰기)
+    \node[rl,text=cblue] at (-102.5,212) {투명 덮개};
+    \node[rl] at (-46,212) {드럼};
+    \node[rl,text=cred] at (-25,212) {인덱스};
+    \node[rl,text=cgreen] at (-12,212) {접점 보드};
+    \node[rl] at (4,212) {앞판};
+    \node[rl] at (62,212) {뒤판};
+    \node[rl,text=cblue] at (84,212) {마이터};
+    \node[rl] at (109,212) {라인 축 \O20};
+    % 치수: 깊이
+    \foreach \u in {-69,-27,0,8,58,66,109} { \draw[cgray,line width=0.3pt] (\u,-205) -- (\u,-228); }
+    \draw[dim] (-69,-224) -- (-27,-224) node[midway,below=1pt,dl] {42};
+    \draw[dim] (-27,-224) -- (0,-224) node[midway,below=1pt,dl] {27};
+    \draw[dim] (0,-224) -- (8,-224) node[midway,below=1pt,dl] {8};
+    \draw[dim] (8,-224) -- (58,-224) node[midway,below=1pt,dl] {50};
+    \draw[dim] (58,-224) -- (66,-224) node[midway,below=1pt,dl] {8};
+    \draw[dim] (66,-224) -- (109,-224) node[midway,below=1pt,dl] {43};
+    \draw[cgray,line width=0.3pt] (-105,-205) -- (-105,-262);
+    \draw[cgray,line width=0.3pt] (109,-232) -- (109,-262);
+    \draw[dim] (-105,-258) -- (109,-258) node[midway,dl,fill=white] {덮개 앞면에서 라인 축까지 214};
+    % 기준면
+    \draw[cred,line width=0.4pt,dashed] (0,-200) -- (0,-240);
+    \node[dl,text=cred,anchor=north] at (0,-272) {기준면 A (Z = 0), 패드 면은 Z = +27};
+    % 행 이름
+    \node[lab,anchor=west] at (135,120) {위 (빠름)};
+    \node[lab,anchor=west] at (135,0) {가운데};
+    \node[lab,anchor=west] at (135,-120) {아래 (느림)};
+  \end{scope}
+\end{tikzpicture}
