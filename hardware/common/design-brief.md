@@ -1,7 +1,7 @@
 # 전시용 봄베 3종 설계 개요 (Design Brief)
 
 작성일: 2026-11-15 · 단계: Phase 3 개념 설계(CAD 이전) · 대상: 기어식·릴레이식·FPGA 전시물 공통
-관련 문서: `docs/PLAN.md` Phase 3, `docs/decisions/0001`–`0003`(테스트 레지스터 타이밍, 기어식 상세, 인터페이스), `docs/reference/bombe-mechanics.md`, `docs/reference/four-rotor-and-relay-bombes.md`, `hardware/gear/concept.md`, `hardware/relay/concept.md` · 인용 키는 `report/references.bib`
+관련 문서: `docs/PLAN.md` Phase 3, `docs/decisions/0001`–`0003`(테스트 레지스터 타이밍, 기어식 상세, 인터페이스), `docs/reference/bombe-mechanics.md`, `docs/reference/four-rotor-and-relay-bombes.md`, `hardware/gear/concept.md`, `hardware/relay/concept.md`, 개략 치수 `hardware/gear/layout.md`·`hardware/relay/layout.md`, 전원부 `hardware/common/power-unit.md` · 인용 키는 `report/references.bib`
 
 **표기.** 문장 끝의 `[@key]`는 출처가 있는 사실이다. **(추정)** 은 이 문서의 공학적 추정이며 시제품에서 실측해 확정해야 한다. **(측정)** 은 이 프로젝트의 소프트웨어 코어로 계산한 값이다. 가격은 모두 견적 전의 개략값(±50%)이다.
 
@@ -191,7 +191,7 @@
 | 미 육군 릴레이 봄베(실물) | 41.8 | 24 ms | 7분 | [@dturing2021army], 위치/초는 이 문서의 나눗셈 |
 | 미 해군 봄베(실물, 3휠 구동) | 약 350 (정격 약 750) | — | 약 50초 | [@ekhall-hallenberg2018; @wikipedia-bombe] (간접 인용) |
 | **기어식(제안)** | 22.5 | 44 ms | 13.0분 | 빠른 드럼 60 rpm, 30칸 주기 **(추정)** |
-| **릴레이식(제안, 빠른 모드)** | 40 | 25 ms | 7.3분 | 신호 릴레이 동작 시간 합산 **(추정)** |
+| **릴레이식(제안, 빠른 모드)** | 40 | 25 ms | 7.3분 | 신호 릴레이 동작 시간 합산 **(추정)**. 목표값이다. 결정 0003의 최소 폭을 보정 없이 지키는 기본값은 35 ms(28.6 위치/초, 구간 24초, 전체 10.3분)다 (`hardware/relay/concept.md` 6절) |
 | 릴레이식(관찰 모드) | 4 | 250 ms | — | 딸깍 소리를 하나씩 들을 수 있는 속도 **(추정)** |
 | **FPGA** | 약 330만 (엔진 1대) | 0.3 µs | 5.3 ms | 50 MHz, 위치당 약 15클럭 (`docs/PLAN.md` Phase 2) |
 
@@ -236,7 +236,7 @@
 | 과부하·걸림 | 구동계에 토크 제한 요소(슬립 클러치 또는 전단 핀) + 모터 전류 제한. 실물도 기어 쌍마다 한쪽을 파이버 기어로 해 걸리면 먼저 부서지게 했다 [@us6812report1944, pp.70–73] |
 | 비상 | 잠금형 비상 정지 버튼(`ESTOP`)을 기계마다 전면에. 모터 전원과 비상 정지 레일(`+24V_SW`)을 함께 끊는다. 타이밍 신호가 사라지므로 시험 전압도 걸리지 않고, 레지스터의 표시는 남는다(결정 0003 4.6절) |
 | 브러시·핀 | 스프링 접점을 관람객이 만지는 드럼이 아니라 기계 쪽 교체형 모듈에 둔다(`hardware/gear/concept.md` 3절) |
-| 열(릴레이식) | 6유닛에서 코일 소비 약 0.2–0.3 kW **(추정)**. 통풍, 보드 온도 감시, 유휴 시 자동 대기 |
+| 열(릴레이식) | 6유닛에서 코일 소비 평균 약 0.2–0.3 kW, 12유닛에서 0.4–0.6 kW **(계산)**. 아래에서 위로 가는 통풍(팬 2 / 4개), 온도 감시, 유휴 시 자동 대기 (`hardware/relay/layout.md` 3.7절) |
 | 소음 | 릴레이식 빠른 모드의 소음도를 시제품에서 측정하고 덮개로 조절 |
 
 전시 장소의 안전 기준(전기·기계)은 장소가 정해지면 따로 확인해야 한다.

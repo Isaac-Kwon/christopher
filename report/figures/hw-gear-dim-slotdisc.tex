@@ -1,5 +1,7 @@
 % 주기 축 슬롯 원판의 트랙 배치. 그림 fig:hw-gear-dim-slotdisc
-% 각도는 결정 0001의 60 rpm 시각표를 주기 축의 각도로 옮긴 것이다(한 위치 12도 = 38.46 ms, 1 ms = 0.312도).
+% 각도는 60 rpm 시각표를 주기 축의 각도로 옮긴 것이다(한 위치 12도 = 38.46 ms, 1 ms = 0.312도).
+% 슬롯 = 커넥터 면(결정 0003 3.4절): JUDGE +2.03 ... +4.52도(2.50도), CLEAR +4.99 ... +9.05도(4.06도).
+% STROBE는 기본 -0.94 ... +0.94도이고 실측으로 보정한다(대표 -1.72 ... +0.47도). 접점 면은 결정 0001의 시각표.
 % 근거: hardware/gear/layout.md 3.8절.
 \begin{tikzpicture}[
     dl/.style={font=\tiny,text=black,inner sep=1pt},
@@ -11,8 +13,8 @@
     \draw[draw=cgray,fill=white] (0,0) circle (10);
     \foreach \k in {0,...,25} {
       \draw[cblue,line width=1.6pt] ({90-\k*12+0.936}:72) arc ({90-\k*12+0.936}:{90-\k*12-0.936}:72);
-      \draw[cgreen,line width=1.6pt] ({90-\k*12-2.808}:62) arc ({90-\k*12-2.808}:{90-\k*12-4.992}:62);
-      \draw[cred,line width=1.6pt] ({90-\k*12-5.616}:52) arc ({90-\k*12-5.616}:{90-\k*12-9.360}:52);
+      \draw[cgreen,line width=1.6pt] ({90-\k*12-2.028}:62) arc ({90-\k*12-2.028}:{90-\k*12-4.524}:62);
+      \draw[cred,line width=1.6pt] ({90-\k*12-4.992}:52) arc ({90-\k*12-4.992}:{90-\k*12-9.048}:52);
     }
     % 자리올림 구간 316.2 - 343.8도
     \draw[corange,line width=2.2pt] ({90-316.2}:87) arc ({90-316.2}:{90-343.8}:87);
@@ -21,41 +23,52 @@
     \node[dl,anchor=south] at (0,92) {0° ($k = 0$)};
     \draw[->,cgray] (20:95) arc (20:-20:95);
     % 범례
-    \node[lab,anchor=west,text=cblue] at (118,60) {\code{STROBE}: 반지름 72, 슬롯 26개, 각폭 1.87°};
-    \node[lab,anchor=west,text=cgreen] at (118,35) {\code{JUDGE}: 반지름 62, 슬롯 26개, 각폭 2.18°};
-    \node[lab,anchor=west,text=cred] at (118,10) {\code{CLEAR}: 반지름 52, 슬롯 26개, 각폭 3.74°};
+    \node[lab,anchor=west,text=cblue] at (118,60) {\code{STROBE}: 반지름 72, 슬롯 26개, 각폭 1.87° (0 … $+1.5$° 조절)};
+    \node[lab,anchor=west,text=cgreen] at (118,35) {\code{JUDGE}: 반지름 62, 슬롯 26개, 각폭 2.50°};
+    \node[lab,anchor=west,text=cred] at (118,10) {\code{CLEAR}: 반지름 52, 슬롯 26개, 각폭 4.06°};
     \node[lab,anchor=west,text=corange] at (118,-15) {자리올림 1의 맞물림: 316°--344° (가운데 330°)};
     \node[lab,anchor=west,text=cgray] at (118,-40) {슬롯이 없는 네 칸: $k = 26$--$29$ (312°--348°)};
-    \node[lab,anchor=west,text=cgray] at (118,-65) {센서 세 개는 한 반지름 선 위에 나란히 둔다};
+    \node[lab,anchor=west,text=cgray] at (118,-65) {센서 셋은 나란히. \code{STROBE}의 센서만 따로 돌려 맞춘다};
   \end{scope}
   % ================= (나) 한 위치의 확대 =================
   \begin{scope}[shift={(0.6,-5.6)},x=0.85cm,y=1cm]
-    \node[font=\footnotesize\bfseries,anchor=west] at (-4.1,2.0) {(나) 한 위치(12°)의 확대. 0°는 접점이 패드 가운데에 오는 순간};
-    % 가로축: 1도 = 0.85 cm, -1.9도 ... 12.6도
+    \node[font=\footnotesize\bfseries,anchor=west] at (-4.1,2.6) {(나) 한 위치(12°)의 확대. 0°는 접점이 패드 가운데에 오는 순간};
+    % 가로축: 1도 = 0.85 cm, -2.0도 ... 12.7도
     \draw[cgray] (-2.0,0) -- (12.7,0);
     % 완전 접촉
-    \draw[draw=cgray,fill=clight] (-1.872,1.05) rectangle (1.872,1.45);
-    \node[dl] at (0,1.25) {완전 접촉 (안쪽 링)};
-    % STROBE, JUDGE, CLEAR
-    \draw[draw=cblue,fill=cbluebg] (-0.936,0.45) rectangle (0.936,0.85);
-    \node[dl,text=cblue] at (0,0.65) {\code{STROBE}};
-    \draw[draw=cgreen,fill=cgreenbg] (2.808,0.45) rectangle (4.992,0.85);
-    \node[dl,text=cgreen] at (3.9,0.65) {\code{JUDGE}};
-    \draw[draw=cred,fill=credbg] (5.616,0.45) rectangle (9.360,0.85);
-    \node[dl,text=cred] at (7.488,0.65) {\code{CLEAR}};
-    \draw[draw=cblue,fill=cbluebg] (11.064,0.45) rectangle (12.7,0.85);
-    \draw[draw=cgray,fill=clight] (10.128,1.05) rectangle (12.7,1.45);
-    % 눈금: 각도(아래)와 시각(위)
-    \foreach \a/\t in {-0.936/{$-0.94$°}, 0.936/{$+0.94$°}, 2.808/{2.81°}, 4.992/{4.99°},
-                       5.616/{5.62°}, 9.360/{9.36°}, 11.064/{11.06°}} {
+    \draw[draw=cgray,fill=clight] (-1.872,1.65) rectangle (1.872,2.05);
+    \node[dl] at (0,1.85) {완전 접촉 (안쪽 링)};
+    \draw[draw=cgray,fill=clight] (10.128,1.65) rectangle (12.7,2.05);
+    % 접점 면: 레지스터 안의 접점이 닫힌 구간 (결정 0001)
+    \draw[draw=cblue,dashed] (-0.936,1.05) rectangle (0.936,1.45);
+    \node[dl,text=cblue] at (0,1.25) {0--6};
+    \draw[draw=cgreen,dashed] (2.808,1.05) rectangle (4.992,1.45);
+    \node[dl,text=cgreen] at (3.9,1.25) {12--19};
+    \draw[draw=cred,dashed] (5.616,1.05) rectangle (9.360,1.45);
+    \node[dl,text=cred] at (7.488,1.25) {21--33 ms};
+    \draw[draw=cblue,dashed] (12.7,1.05) -- (11.064,1.05) -- (11.064,1.45) -- (12.7,1.45);
+    % 슬롯 = 커넥터 면 (결정 0003)
+    \draw[draw=cblue,fill=cbluebg] (-1.716,0.45) rectangle (0.468,0.85);
+    \node[dl,text=cblue] at (-0.624,0.65) {\code{STROBE}};
+    \draw[draw=cgreen,fill=cgreenbg] (2.028,0.45) rectangle (4.524,0.85);
+    \node[dl,text=cgreen] at (3.276,0.65) {\code{JUDGE}};
+    \draw[draw=cred,fill=credbg] (4.992,0.45) rectangle (9.048,0.85);
+    \node[dl,text=cred] at (7.02,0.65) {\code{CLEAR}};
+    \draw[draw=cblue,fill=cbluebg] (10.284,0.45) rectangle (12.468,0.85);
+    % 눈금: 슬롯 가장자리의 각도(아래)와 시각(그 아래). 4.52와 4.99의 글자는 겹치지 않게 조금 벌렸다.
+    \foreach \a in {-1.716, 0.468, 2.028, 4.524, 4.992, 9.048, 10.284} {
       \draw[cgray,line width=0.3pt] (\a,0.45) -- (\a,-0.08);
+    }
+    \foreach \a/\t in {-1.716/{$-1.72$°}, 0.468/{$+0.47$°}, 2.028/{2.03°}, 4.39/{4.52°},
+                       5.13/{4.99°}, 9.048/{9.05°}, 10.284/{10.28°}} {
       \node[dl,rotate=90,anchor=east] at (\a,-0.12) {\t};
     }
-    \node[dl,anchor=east] at (-2.1,0.65) {신호};
-    \node[dl,anchor=east] at (-2.1,1.25) {접점};
+    \node[dl,anchor=east] at (-2.1,0.65) {슬롯};
+    \node[dl,anchor=east] at (-2.1,1.25) {접점 면};
+    \node[dl,anchor=east] at (-2.1,1.85) {드럼 접점};
     \node[dl,anchor=east] at (-2.1,-0.45) {각도};
     \node[dl,anchor=east] at (-2.1,-1.25) {시각 (ms)};
-    \foreach \a/\m in {-0.936/0, 0.936/6, 2.808/12, 4.992/19, 5.616/21, 9.360/33, 11.064/38.5} {
+    \foreach \a/\m in {-1.716/{$-2.5$}, 0.468/{4.5}, 2.028/{9.5}, 4.39/{17.5}, 5.13/{19}, 9.048/{32}, 10.284/{36.0}} {
       \node[dl,rotate=90,anchor=east] at (\a,-1.05) {\m};
     }
     \draw[<->,cgray,line width=0.4pt] (0,-1.75) -- (12,-1.75) node[midway,dl,fill=white] {한 위치 12° = 38.46 ms (60 rpm)};

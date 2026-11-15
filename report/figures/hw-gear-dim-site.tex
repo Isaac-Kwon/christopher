@@ -1,6 +1,6 @@
 % 기어식 기계의 옆모습(높이)과 세 기계를 나란히 놓은 전시 공간. 단위 mm. 그림 fig:hw-gear-dim-site
 % 수치의 근거는 hardware/gear/layout.md 3.11절과 docs/decisions/0002 (받침대 400, 기계 폭 1,880).
-% 릴레이식과 FPGA 전시물의 폭은 추정이다.
+% 릴레이식의 폭 1,880은 hardware/relay/layout.md 3.11절. FPGA 전시물의 폭은 추정이다.
 \begin{tikzpicture}[x=0.0045cm,y=0.0045cm,
     dim/.style={<->,cgray,line width=0.4pt},
     dl/.style={font=\tiny,text=black,inner sep=1pt},
@@ -49,34 +49,34 @@
   % ================= (나) 전시 공간 =================
   \begin{scope}[shift={(1050,250)},scale=0.27]
     \node[font=\footnotesize\bfseries,anchor=west] at (0,3130) {(나) 세 기계를 나란히 놓은 전시 공간 (위에서 본 모습)};
-    \draw[draw=cgray,dashed] (0,0) rectangle (6680,2700);
+    \draw[draw=cgray,dashed] (0,0) rectangle (6760,2700);
     % 구역
-    \node[lab,text=cgray] at (3340,2300) {정비 통로 800};
-    \node[lab,text=cgray] at (3340,750) {관람객 구역 1,500};
+    \node[lab,text=cgray] at (3380,2300) {정비 통로 800};
+    \node[lab,text=cgray] at (3380,750) {관람객 구역 1,500};
     % 기계
     \draw[draw=cblue,fill=cbluebg] (500,1500) rectangle (2380,1900);
     \node[lab] at (1440,1700) {기어식};
-    \draw[draw=corange,fill=corangebg] (2980,1500) rectangle (4780,1900);
-    \node[lab] at (3880,1700) {릴레이식};
-    \draw[draw=cgreen,fill=cgreenbg] (5380,1500) rectangle (6180,1900);
-    \node[lab] at (5780,1700) {FPGA};
+    \draw[draw=corange,fill=corangebg] (2980,1500) rectangle (4860,1900);
+    \node[lab] at (3920,1700) {릴레이식};
+    \draw[draw=cgreen,fill=cgreenbg] (5460,1500) rectangle (6260,1900);
+    \node[lab] at (5860,1700) {FPGA};
     % 치수: 가로
-    \foreach \x in {0,500,2380,2980,4780,5380,6180,6680} { \draw[cgray,line width=0.3pt] (\x,-40) -- (\x,-330); }
+    \foreach \x in {0,500,2380,2980,4860,5460,6260,6760} { \draw[cgray,line width=0.3pt] (\x,-40) -- (\x,-330); }
     \draw[dim] (0,-250) -- (500,-250) node[midway,below=1pt,dl] {500};
     \draw[dim] (500,-250) -- (2380,-250) node[midway,dl,fill=white] {1,880};
     \draw[dim] (2380,-250) -- (2980,-250) node[midway,below=1pt,dl] {600};
-    \draw[dim] (2980,-250) -- (4780,-250) node[midway,dl,fill=white] {약 1,800};
-    \draw[dim] (4780,-250) -- (5380,-250) node[midway,below=1pt,dl] {600};
-    \draw[dim] (5380,-250) -- (6180,-250) node[midway,dl,fill=white] {약 800};
-    \draw[dim] (6180,-250) -- (6680,-250) node[midway,below=1pt,dl] {500};
+    \draw[dim] (2980,-250) -- (4860,-250) node[midway,dl,fill=white] {1,880};
+    \draw[dim] (4860,-250) -- (5460,-250) node[midway,below=1pt,dl] {600};
+    \draw[dim] (5460,-250) -- (6260,-250) node[midway,dl,fill=white] {약 800};
+    \draw[dim] (6260,-250) -- (6760,-250) node[midway,below=1pt,dl] {500};
     \draw[cgray,line width=0.3pt] (0,-330) -- (0,-760);
-    \draw[cgray,line width=0.3pt] (6680,-330) -- (6680,-760);
-    \draw[dim] (0,-680) -- (6680,-680) node[midway,dl,fill=white] {약 6,700};
+    \draw[cgray,line width=0.3pt] (6760,-330) -- (6760,-760);
+    \draw[dim] (0,-680) -- (6760,-680) node[midway,dl,fill=white] {약 6,800};
     % 치수: 세로
-    \foreach \y in {0,1500,1900,2700} { \draw[cgray,line width=0.3pt] (6720,\y) -- (7070,\y); }
-    \draw[dim] (6970,0) -- (6970,1500) node[midway,dl,fill=white] {1,500};
-    \draw[dim] (6970,1500) -- (6970,1900);
-    \draw[dim] (6970,1900) -- (6970,2700) node[midway,dl,fill=white] {800};
-    \node[dl,anchor=west] at (7020,1700) {400};
+    \foreach \y in {0,1500,1900,2700} { \draw[cgray,line width=0.3pt] (6800,\y) -- (7150,\y); }
+    \draw[dim] (7050,0) -- (7050,1500) node[midway,dl,fill=white] {1,500};
+    \draw[dim] (7050,1500) -- (7050,1900);
+    \draw[dim] (7050,1900) -- (7050,2700) node[midway,dl,fill=white] {800};
+    \node[dl,anchor=west] at (7100,1700) {400};
   \end{scope}
 \end{tikzpicture}
