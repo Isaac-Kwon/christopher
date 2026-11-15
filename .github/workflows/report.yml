@@ -1,0 +1,74 @@
+# 보고서(report/main.tex)와 입문 가이드(report/guide/main.tex)를 빌드해
+# 고정 Release "report-latest"에 올린다. 보고서가 바뀐 main push마다 덮어쓴다.
+name: report
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'report/**'
+      - '.github/workflows/report.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: report
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: texlive/texlive:latest
+    env:
+      CHRISTOPHER_REPORT_BUILD: ${{ github.workspace }}/build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 보고서 빌드
+        working-directory: report
+        run: latexmk
+
+      - name: 입문 가이드 빌드
+        working-directory: report/guide
+        run: latexmk
+
+      - name: PDF 모으기
+        run: |
+          mkdir -p out
+          cp build/christopher/report/main.pdf out/christopher-report.pdf
+          cp build/christopher/guide/main.pdf  out/christopher-guide.pdf
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pdf
+          path: out/
+
+      - name: 실패 시 로그 남기기
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latex-logs
+          path: build/**/*.log
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pdf
+          path: out
+
+      # 태그가 항상 이번 커밋을 가리키도록 지우고 새로 만든다.
+      - name: report-latest 갱신
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete report-latest --cleanup-tag --yes || true
+          gh release create report-latest out/*.pdf \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "보고서 최신판" \
+            --notes "main의 ${GITHUB_SHA::7} 커밋에서 자동으로 빌드한 PDF입니다. 보고서가 바뀔 때마다 덮어씁니다."
