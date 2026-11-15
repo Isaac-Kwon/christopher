@@ -139,3 +139,53 @@ def test_historical_m4_message():
     # "ciphertext" is the message body (the indicator groups are already stripped).
     assert e.encrypt(entry["ciphertext"]) == entry["plaintext"]
     assert e.reset().encrypt(entry["plaintext"]) == entry["ciphertext"]
+
+
+# --- sub-menus, test letter, slice runs -------------------------------------------------------
+
+def _slice_setup():
+    from christopher import Bombe, Enigma, Menu
+
+    key = dict(rotors=("III", "V", "II"), reflector="B", rings="GMC", positions="KDC",
+               plugboard="AQ BZ CR DM EV FW GK HN IU JP")
+    pt = "ANXOBERKOMMANDODERWEHRMACHTXWETTERVORHERSAGEFUERDIENORDSEEXHEUTEKLARXWINDAUSWESTX"
+    ct = Enigma("enigma-i", **key).encrypt(pt)
+    menu = Menu.from_crib(ct, "WETTERVORHERSAGEFUERDIE", 28).select(12)
+    return Bombe, Enigma, menu, ct, key
+
+
+def test_subset_keeps_crib_and_can_be_checked():
+    Bombe, _, menu, _, _ = _slice_setup()
+    keep = [e.pos for e in menu.edges][:9]
+    sub = menu.subset(keep)
+    assert [e.pos for e in sub.edges] == sorted(keep)
+    assert (sub.offset, sub.crib) == (menu.offset, menu.crib)
+    stops = Bombe("enigma-i").plug_up(sub).run("B III-V-II")
+    sols = [s for st in stops for s in st.check()]
+    assert any(s.plaintext[28:51] == "WETTERVORHERSAGEFUERDIE" for s in sols)
+    with pytest.raises(ValueError):
+        menu.subset([999])
+
+
+def test_with_test_letter():
+    _, _, menu, _, _ = _slice_setup()
+    other = next(ch for ch in menu.letters if ch != menu.test_letter)
+    m2 = menu.with_test(other, "B")
+    assert (m2.test_letter, m2.input_wire) == (other, "B")
+    assert m2.edges == menu.edges
+    with pytest.raises(ValueError):
+        menu.with_test("Q" if "Q" not in menu.letters else "J")
+
+
+def test_slice_run_fixed_right_drum():
+    Bombe, _, menu, _, _ = _slice_setup()
+    bombe = Bombe("enigma-i").plug_up(menu)
+    full = bombe.run("B III-V-II")
+    true = [s for s in full if s.check()]
+    assert true, "true stop expected in the full run"
+    right = true[0].position[-1]
+    sliced = bombe.run("B III-V-II", fixed_right=right)
+    assert bombe.positions_tested == 676
+    assert [s.position for s in sliced] == [s.position for s in full if s.position[-1] == right]
+    with pytest.raises(ValueError):
+        bombe.run("B III-V-II", fixed_right=26)

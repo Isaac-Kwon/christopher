@@ -188,16 +188,26 @@ class Bombe:
             raise ValueError("no menu plugged up: call bombe.plug_up(menu) first")
         return self.menu
 
-    def run(self, wheel_orders="all", turnover_at: int | None = None, parallel: bool = True) -> list[Stop]:
+    def run(
+        self,
+        wheel_orders="all",
+        turnover_at: int | None = None,
+        parallel: bool = True,
+        fixed_right: str | int | None = None,
+    ) -> list[Stop]:
         """Run every drum position of each wheel order (GIL released) and return the stops.
 
         ``wheel_orders`` is ``"all"``, ``"B II-IV-V"``, ``("B","II","IV","V")`` or a list of those.
         ``turnover_at`` assumes the middle rotor steps at that crib position (default: not within
-        the crib). The positions tried are counted in ``self.positions_tested``.
+        the crib). ``fixed_right`` runs only a *slice*: the right (slowest) drum stays at that core
+        letter/offset and the left and middle drums sweep 26 x 26 = 676 positions (the exhibit's
+        short run). The positions tried are counted in ``self.positions_tested``.
         """
         menu = self._need_menu()
         orders = _expand_orders(wheel_orders, self.model)
-        results = _core.run_bombe(menu._raw, [o._core() for o in orders], self.diagonal_board, turnover_at, parallel)
+        results = _core.run_bombe(
+            menu._raw, [o._core() for o in orders], self.diagonal_board, turnover_at, parallel, _core_offset(fixed_right)
+        )
         self.positions_tested = sum(n for n, _ in results)
         return [
             self._stop(o, pos, reg, turnover_at) for o, (_, stops) in zip(orders, results) for pos, reg in stops
@@ -246,6 +256,17 @@ class SearchReport:
         )
 
 
+def _core_offset(value: str | int | None) -> int | None:
+    """A drum core given as a letter ("X") or an offset (23)."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return letter(value)
+    if not 0 <= int(value) < 26:
+        raise ValueError(f"drum offset must be 0..25, got {value}")
+    return int(value)
+
+
 def search(
     ciphertext: str,
     crib: str,
@@ -256,10 +277,12 @@ def search(
     diagonal_board: bool = True,
     turnover_hypotheses: bool = False,
     parallel: bool = True,
+    fixed_right: str | int | None = None,
 ) -> SearchReport:
     """The whole pipeline: menu, bombe over the wheel orders (all CPU cores), checking machine.
 
-    ``max_edges=None`` keeps every crib letter as an edge.
+    ``max_edges=None`` keeps every crib letter as an edge. ``fixed_right`` restricts the run to the
+    slice with the right drum at that core letter/offset (see :meth:`Bombe.run`).
     """
     menu = Menu.from_crib(ciphertext, crib, offset)
     if max_edges:
@@ -267,7 +290,8 @@ def search(
     bombe = Bombe(model, diagonal_board).plug_up(menu)
     orders = None if _is_all(wheel_orders) else [o._core() for o in _expand_orders(wheel_orders, bombe.model)]
     n, positions, stops, sols = _core.run_search(
-        ciphertext, menu._raw, bombe.model, orders, diagonal_board, turnover_hypotheses, parallel
+        ciphertext, menu._raw, bombe.model, orders, diagonal_board, turnover_hypotheses, parallel,
+        _core_offset(fixed_right),
     )
     return SearchReport(
         n,

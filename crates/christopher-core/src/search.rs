@@ -22,11 +22,20 @@ pub struct SearchOptions {
     pub turnover_hypotheses: bool,
     /// Use all CPU cores.
     pub parallel: bool,
+    /// Slice run: keep the right (slow) drum at this core offset (see [`BombeOptions::fixed_right`]).
+    pub fixed_right: Option<u8>,
 }
 
 impl Default for SearchOptions {
     fn default() -> Self {
-        SearchOptions { orders: None, model: Model::EnigmaI, diagonal_board: true, turnover_hypotheses: false, parallel: true }
+        SearchOptions {
+            orders: None,
+            model: Model::EnigmaI,
+            diagonal_board: true,
+            turnover_hypotheses: false,
+            parallel: true,
+            fixed_right: None,
+        }
     }
 }
 
@@ -92,7 +101,7 @@ pub fn search(ciphertext: &[u8], menu: &Menu, opts: &SearchOptions) -> Result<Se
         })
         .collect();
     let results = par_map(&tasks, opts.parallel, |&(i, t, g)| {
-        let bo = BombeOptions { diagonal_board: opts.diagonal_board, turnover_at: t };
+        let bo = BombeOptions { diagonal_board: opts.diagonal_board, turnover_at: t, fixed_right: opts.fixed_right };
         let res = run_slice(&plugged, &orders[i], &bo, g);
         let sols: Vec<Solution> =
             res.stops.iter().flat_map(|s| check_stop(ciphertext, menu, s, opts.diagonal_board)).collect();

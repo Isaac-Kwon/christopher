@@ -97,7 +97,14 @@ fn solution_to_py(s: &Solution) -> SolutionT {
 }
 
 fn bombe_opts(diagonal_board: bool, turnover_at: Option<u16>) -> BombeOptions {
-    BombeOptions { diagonal_board, turnover_at }
+    BombeOptions { diagonal_board, turnover_at, fixed_right: None }
+}
+
+fn check_right(fixed_right: Option<u8>) -> PyResult<Option<u8>> {
+    match fixed_right {
+        Some(r) if r >= 26 => Err(PyValueError::new_err("fixed_right must be a core offset 0..26")),
+        r => Ok(r),
+    }
 }
 
 fn orders_from_py(orders: &[OrderT]) -> PyResult<Vec<WheelOrder>> {
@@ -181,6 +188,12 @@ fn menu_select(menu: MenuT, max_edges: usize) -> PyResult<MenuT> {
     Ok(menu_to_py(&menu_from_py(&menu)?.select(max_edges)))
 }
 
+/// Sub-menu of the edges at the given crib positions (0-based); keeps the crib, so it can be checked.
+#[pyfunction]
+fn menu_subset(menu: MenuT, positions: Vec<u16>) -> PyResult<MenuT> {
+    Ok(menu_to_py(&menu_from_py(&menu)?.subset(&positions).map_err(err)?))
+}
+
 /// `(loops, span, components)`; components are letter strings, largest first.
 #[pyfunction]
 fn menu_info(menu: MenuT) -> PyResult<(usize, usize, Vec<String>)> {
@@ -201,7 +214,7 @@ fn all_orders(model: &str) -> PyResult<Vec<OrderT>> {
 
 /// Run the bombe over each order; returns `(positions_tested, stops)` per order, same order.
 #[pyfunction]
-#[pyo3(signature = (menu, orders, diagonal_board=true, turnover_at=None, parallel=true))]
+#[pyo3(signature = (menu, orders, diagonal_board=true, turnover_at=None, parallel=true, fixed_right=None))]
 fn run_bombe(
     py: Python<'_>,
     menu: MenuT,
@@ -209,10 +222,11 @@ fn run_bombe(
     diagonal_board: bool,
     turnover_at: Option<u16>,
     parallel: bool,
+    fixed_right: Option<u8>,
 ) -> PyResult<Vec<(u64, Vec<StopT>)>> {
     let menu = menu_from_py(&menu)?;
     let orders = orders_from_py(&orders)?;
-    let opts = bombe_opts(diagonal_board, turnover_at);
+    let opts = BombeOptions { fixed_right: check_right(fixed_right)?, ..bombe_opts(diagonal_board, turnover_at) };
     let results = py.detach(|| search::run_orders(&menu, &orders, &opts, parallel));
     Ok(results
         .iter()
@@ -272,7 +286,7 @@ fn trace(
 ///
 /// Returns `(orders_tried, positions_tested, stops, solutions)`, solutions best first.
 #[pyfunction]
-#[pyo3(signature = (ciphertext, menu, model, orders=None, diagonal_board=true, turnover_hypotheses=false, parallel=true))]
+#[pyo3(signature = (ciphertext, menu, model, orders=None, diagonal_board=true, turnover_hypotheses=false, parallel=true, fixed_right=None))]
 #[allow(clippy::too_many_arguments)] // mirrors the Python keyword arguments
 fn run_search(
     py: Python<'_>,
@@ -283,6 +297,7 @@ fn run_search(
     diagonal_board: bool,
     turnover_hypotheses: bool,
     parallel: bool,
+    fixed_right: Option<u8>,
 ) -> PyResult<(usize, u64, Vec<FullStopT>, Vec<FullSolutionT>)> {
     let menu = menu_from_py(&menu)?;
     let ct = alphabet::clean(ciphertext);
@@ -293,6 +308,7 @@ fn run_search(
         diagonal_board,
         turnover_hypotheses,
         parallel,
+        fixed_right: check_right(fixed_right)?,
     };
     let report = py
         .detach(|| search::search(&ct, &menu, &opts))
@@ -312,6 +328,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(possible_offsets, m)?)?;
     m.add_function(wrap_pyfunction!(menu_from_crib, m)?)?;
     m.add_function(wrap_pyfunction!(menu_select, m)?)?;
+    m.add_function(wrap_pyfunction!(menu_subset, m)?)?;
     m.add_function(wrap_pyfunction!(menu_info, m)?)?;
     m.add_function(wrap_pyfunction!(all_orders, m)?)?;
     m.add_function(wrap_pyfunction!(run_bombe, m)?)?;

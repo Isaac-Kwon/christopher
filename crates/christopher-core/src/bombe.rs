@@ -134,11 +134,14 @@ pub struct BombeOptions {
     /// use middle + 1). `None` = no turnover inside the crib (the standard bombe assumption).
     /// A double step of the middle rotor is not modelled.
     pub turnover_at: Option<u16>,
+    /// Keep the right (slowest) drum at this core offset and sweep only greek/left/middle —
+    /// the exhibit's "slice" run (676 positions on a three-rotor machine). `None` = full sweep.
+    pub fixed_right: Option<u8>,
 }
 
 impl Default for BombeOptions {
     fn default() -> Self {
-        BombeOptions { diagonal_board: true, turnover_at: None }
+        BombeOptions { diagonal_board: true, turnover_at: None, fixed_right: None }
     }
 }
 
@@ -304,7 +307,11 @@ pub fn run_slice(plugged: &Plugged, order: &WheelOrder, opts: &BombeOptions, gre
         for l in 0..N as u8 {
             for m in 0..N as u8 {
                 let tables = Plugged::tables(order, g, l, m, opts.turnover_at.is_some());
-                for r in 0..N as u8 {
+                let rights = match opts.fixed_right {
+                    Some(r) => r % N as u8..r % N as u8 + 1,
+                    None => 0..N as u8,
+                };
+                for r in rights {
                     positions += 1;
                     plugged.edge_indices(r, opts.turnover_at, &mut idx);
                     let live = plugged.propagate(&tables, &idx, start, opts.diagonal_board, true);

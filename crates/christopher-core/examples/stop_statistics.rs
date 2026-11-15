@@ -77,8 +77,8 @@ fn main() {
                 let mut rng = Rng(0x9E37_79B9_7F4A_7C15 ^ ((letters * 1000 + loops * 100 + t) as u64).wrapping_mul(0xD1B5_4A32_D192_ED03));
                 let menu = random_menu(&mut rng, letters, loops);
                 let order = &orders[rng.below(orders.len())];
-                let w = run(&menu, order, &BombeOptions { diagonal_board: true, turnover_at: None }).stops.len();
-                let wo = run(&menu, order, &BombeOptions { diagonal_board: false, turnover_at: None }).stops.len();
+                let w = run(&menu, order, &BombeOptions { diagonal_board: true, turnover_at: None, fixed_right: None }).stops.len();
+                let wo = run(&menu, order, &BombeOptions { diagonal_board: false, turnover_at: None, fixed_right: None }).stops.len();
                 (w, wo)
             })
             .unzip();

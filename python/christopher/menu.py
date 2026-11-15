@@ -53,6 +53,20 @@ class Menu:
         raw = (0, "", [(letter(p), letter(c), int(k)) for p, c, k in edges], letter(test_letter), letter(input_wire))
         return cls(raw)
 
+    def subset(self, positions) -> "Menu":
+        """Sub-menu of the edges at the given crib positions (0-based, as in :attr:`Edge.pos`).
+        Keeps the crib and offset, so stops found with it can still be checked."""
+        return Menu(_core.menu_subset(self._raw, [int(k) for k in positions]), self.ciphertext)
+
+    def with_test(self, test_letter: str, input_wire: str | None = None) -> "Menu":
+        """Same menu with another test letter (it must be a menu letter) and input wire."""
+        t = letter(test_letter)
+        if chr(A + t) not in self.letters:
+            raise ValueError(f"test letter {test_letter!r} is not in the menu ({self.letters})")
+        offset, crib, edges, _, wire = self._raw
+        w = wire if input_wire is None else letter(input_wire)
+        return Menu((offset, crib, edges, t, w), self.ciphertext)
+
     def select(self, max_edges: int = 12) -> "Menu":
         """Keep a loop-rich connected sub-menu of at most ``max_edges`` edges (the bombe has a
         limited number of scramblers; 12 per bank on the British machine)."""

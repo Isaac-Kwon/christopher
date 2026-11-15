@@ -67,6 +67,21 @@ impl Menu {
         Ok(menu)
     }
 
+    /// Sub-menu of the edges at the given crib positions (0-based), keeping the crib and offset so
+    /// the result can still be checked. The test letter is chosen again for the sub-menu.
+    pub fn subset(&self, positions: &[u16]) -> Result<Menu> {
+        let edges: Vec<Edge> = self.edges.iter().copied().filter(|e| positions.contains(&e.pos)).collect();
+        if let Some(&p) = positions.iter().find(|&&p| !self.edges.iter().any(|e| e.pos == p)) {
+            return Err(Error::Config(format!("crib position {p} is not in the menu")));
+        }
+        if edges.is_empty() {
+            return Err(Error::Config("empty sub-menu".into()));
+        }
+        let mut menu = Menu { offset: self.offset, crib: self.crib.clone(), edges, test_letter: 0, input_wire: 0 };
+        menu.choose_test_letter();
+        Ok(menu)
+    }
+
     /// Build a menu from explicit edges (for hand-made menus).
     pub fn from_edges(edges: Vec<Edge>, test_letter: u8, input_wire: u8) -> Result<Menu> {
         if edges.iter().any(|e| e.plain == e.cipher || e.plain as usize >= N || e.cipher as usize >= N) {

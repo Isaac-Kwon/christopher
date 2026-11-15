@@ -140,7 +140,7 @@ fn extend_with_crib(
 /// Stecker hypotheses consistent with the menu at this stop (step 1).
 pub fn stecker_hypotheses(menu: &Menu, stop: &Stop, diagonal: bool) -> Vec<[u8; N]> {
     let plugged = Plugged::new(menu);
-    let opts = BombeOptions { diagonal_board: diagonal, turnover_at: stop.turnover_at };
+    let opts = BombeOptions { diagonal_board: diagonal, turnover_at: stop.turnover_at, fixed_right: None };
     let mut out = Vec::new();
     for v in 0..N as u8 {
         let live = plugged.trace(&stop.wheel_order, stop.position, v, &opts);

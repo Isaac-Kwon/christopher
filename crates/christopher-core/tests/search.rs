@@ -106,6 +106,29 @@ fn turnover_inside_crib_needs_hypothesis() {
     eprintln!("without turnover hypotheses found: {}", found(&plain_run));
 }
 
+/// Slice run (exhibit): right drum fixed at the true right core, 676 positions; the true stop is
+/// found, and the slice's stops are exactly the full run's stops with that right core.
+#[test]
+fn slice_run_with_fixed_right_drum() {
+    let key = Key::parse("enigma-i", "B", None, ["III", "V", "II"], "GMC", "KDC", "AQ BZ CR DM EV FW GK HN IU JP").unwrap();
+    let plain = clean(TEXT);
+    let cipher = Enigma::new(&key).unwrap().process(&plain);
+    let crib = clean("WETTERVORHERSAGEFUERDIE");
+    let menu = Menu::from_crib(&cipher, &crib, 28).unwrap().select(10);
+    let sub = menu.subset(&menu.edges.iter().map(|e| e.pos).take(8).collect::<Vec<_>>()).unwrap();
+    assert_eq!(sub.edges.len(), 8);
+    assert_eq!((sub.offset, &sub.crib), (menu.offset, &menu.crib));
+    let order = WheelOrder::new("B", None, ["III", "V", "II"]).unwrap();
+    let c = cores_at(&key, 28);
+    let full = run(&sub, &order, &BombeOptions::default());
+    let slice = run(&sub, &order, &BombeOptions { fixed_right: Some(c[2]), ..Default::default() });
+    assert_eq!(slice.positions, 676);
+    let expected: Vec<_> = full.stops.iter().filter(|s| s.position.right == c[2]).cloned().collect();
+    assert_eq!(slice.stops, expected);
+    assert!(slice.stops.iter().any(|s| [s.position.left, s.position.middle] == [c[0], c[1]]));
+    assert!(menu.subset(&[99]).is_err());
+}
+
 #[test]
 fn diagonal_board_reduces_stops() {
     let key = Key::parse("enigma-i", "C", None, ["IV", "II", "I"], "AAA", "QAB", "AQ BZ CR DM EV FW GK HN IU JP").unwrap();
@@ -114,8 +137,8 @@ fn diagonal_board_reduces_stops() {
     let crib = clean("WETTERVORHERSAGE");
     let menu = Menu::from_crib(&cipher, &crib, 28).unwrap().select(12);
     let order = WheelOrder::new("C", None, ["IV", "II", "I"]).unwrap();
-    let with = run(&menu, &order, &BombeOptions { diagonal_board: true, turnover_at: None }).stops.len();
-    let without = run(&menu, &order, &BombeOptions { diagonal_board: false, turnover_at: None }).stops.len();
+    let with = run(&menu, &order, &BombeOptions { diagonal_board: true, turnover_at: None, fixed_right: None }).stops.len();
+    let without = run(&menu, &order, &BombeOptions { diagonal_board: false, turnover_at: None, fixed_right: None }).stops.len();
     eprintln!("{}stops with diagonal board: {with}, without: {without}", menu.describe());
     assert!(with <= without);
     let _ = alphabet::to_string(&menu.crib);
