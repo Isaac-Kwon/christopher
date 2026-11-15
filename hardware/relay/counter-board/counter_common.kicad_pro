@@ -233,6 +233,42 @@
       {
         "netclass": "Rail",
         "pattern": "/DIGIT_*/Y?"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/CK_B"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/NCK_B"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/LOAD_B"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/LC_B"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/ZL_B"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/A?B_B"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/Z?B_B"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/DIGIT_*/AB?"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/DIGIT_*/YB?"
       }
     ]
   }

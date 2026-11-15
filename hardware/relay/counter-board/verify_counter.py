@@ -18,7 +18,9 @@ Reference model = a direct Python port of crates/christopher-core/src/relay.rs C
 (self-checked against each other here the same way the Rust test counters_track_controls_over_full_run does).
 
 Tests: structure (incl. the decision-0003 items: power input chain with the series P-MOSFET, no power on the
-signal connectors, CHASSIS separate from 0 V); digit-level (unit board alone: every value 0..25 x advance/hold,
+signal connectors, CHASSIS separate from 0 V, clock bus B = J5 -> twin masters -> unit bus J6 with its own rails);
+bus isolation (neither clock bus reaches the rails of the other); bus skew (the two clock buses change over one
+after the other); digit-level (unit board alone: every value 0..25 x advance/hold,
 carry, preset); system-level (common board + three unit boards with offsets k = 0, 7, 25 over a full run of
 17,576 clocks; at every clock the CTRL lines of every unit AND the POS connector of the common board, i.e. the
 core position (l, m, r) without the crib offset k, are compared with the reference; preset at HOME for all 26
@@ -200,7 +202,7 @@ class System:
         self.coilp, self.coiln = coilp, coiln
         self.gnd = nid(*gnd)
         self.plus = [nid(*p) for p in plus24]
-        self.drive = {name: nid(*p) for name, p in drives.items()}
+        self.drive = {name: [nid(*q) for q in (p if isinstance(p, list) else [p])] for name, p in drives.items()}
         # adjacency: (neighbour, relay or -1, required state)
         self.adj = [[] for _ in range(self.nn)]
         for r, poles in enumerate(contacts):
@@ -237,7 +239,7 @@ class System:
 
     def settle(self, high: list[str], rng: random.Random | None = None, maxit: int = 400):
         """Apply the externally driven nets named in `high`, iterate to a fixed point. Returns the reach map."""
-        dn = [self.drive[h] for h in high]
+        dn = [n for h in high for n in self.drive[h]]
         state, coilp = self.state, self.coilp
         for _ in range(maxit):
             seen, short = self.reach(dn)
@@ -268,21 +270,37 @@ CTRL_REFS = {"a1": "J3", "a2": "J4", "a3": "J5", "a4": "J6"}
 CABLE_PINS = range(1, 26)
 
 
+BUS_CONN = {"A": "J2", "B": "J6"}          # common-board unit bus of clock bus A (units 1-6) / B (units 7-12)
+CLOCK_CONN = {"A": "J1", "B": "J5"}
+RAIL_PINS = (1, 2, 3, 4, 15)               # A2B Z2B A1B Z1B LOAD: the per-bus pins of the unit bus
+
+
+def bus_of(u: int) -> str:
+    """Unit u of a simulated system hangs on clock bus A (even u) or B (odd u): both buses in every run."""
+    return "AB"[u % 2]
+
+
 def build_system(common: Netlist, unit: Netlist, ks: list[int]) -> System:
     boards = {"C": common}
     wires = []
     for u, k in enumerate(ks):
         t = f"U{u}"
         boards[t] = unit
+        jb = BUS_CONN[bus_of(u)]
         for p in CABLE_PINS:
-            if ("J2", str(p)) in common.node_net and ("J1", str(p)) in unit.node_net:
-                wires.append((("C", "J2", str(p)), (t, "J1", str(p))))
+            if (jb, str(p)) in common.node_net and ("J1", str(p)) in unit.node_net:
+                wires.append((("C", jb, str(p)), (t, "J1", str(p))))
         for b in range(BITS):                       # offset dial: COM joined to the 1-bit code pins
             if k >> b & 1:
                 wires.append(((t, "J2", "1"), (t, "J2", str(2 + b))))          # a1 = k
             if ((N - k) % N) >> b & 1:
                 wires.append(((t, "J2", "1"), (t, "J2", str(7 + b))))          # a2 = -k
-    drives = {"CK": ("C", "J1", "1"), "NCK": ("C", "J1", "2"), "LOAD": ("C", "J1", "3")}
+    # the sequencer switches both clock buses from one coil (README 11): "CK" etc. drive both, "CK_A" / "CK_B" one bus
+    drives = {}
+    for name, pin in (("CK", "1"), ("NCK", "2"), ("LOAD", "3")):
+        for b, j in CLOCK_CONN.items():
+            drives[f"{name}_{b}"] = [("C", j, pin)]
+        drives[name] = drives[f"{name}_A"] + drives[f"{name}_B"]
     plus = [("C", "Q1", "3")] + [(f"U{u}", "Q1", "3") for u in range(len(ks))]   # board +24V behind the MOSFET (0003 K1)
     s = System(boards, wires, plus, ("C", "J1", "6"), drives)
     s.ks = ks
@@ -375,7 +393,65 @@ def decision_0003_errors(nl: Netlist, tag: str) -> list[str]:
             n = net(("J4", str(p)))
             if n is None or sum(1 for x, m in nl.node_net.items() if m == n) != 1:
                 errs.append(f"common: POS J4 reserved pin {p} is connected")
+        errs += bus_b_errors(nl)
     return errs
+
+
+def bus_b_errors(nl: Netlist) -> list[str]:
+    """0003 K7 (README 11): clock bus B J5 -> rail buffer (twin masters) -> unit bus B J6.  Pure netlist topology."""
+    errs = []
+    net = nl.node_net.get
+    gnd = net(("J3", "2"))
+    alone = lambda n: n is not None and sum(1 for m in nl.node_net.values() if m == n) == 1
+    for p in ("1", "2", "3"):                 # CK, NCK, LOAD of bus B: own nets, not bus A's
+        if net(("J5", p)) is None or net(("J5", p)) in {net(("J1", q)) for q in ("1", "2", "3")}:
+            errs.append(f"common: CLOCK_B J5 pin {p} is on a bus-A clock net ({net(('J5', p))})")
+    if net(("J5", "6")) != gnd or net(("J5", "7")) != gnd:
+        errs.append("common: CLOCK_B J5 pins 6-7 are not 0 V")
+    for p in ("4", "5", "8", "9"):
+        if not alone(net(("J5", p))):
+            errs.append(f"common: CLOCK_B J5 reserved pin {p} is connected")
+    if net(("J6", "15")) != net(("J5", "3")):
+        errs.append("common: unit bus B J6 pin 15 is not LOAD_B (J5 pin 3)")
+    bus_a = {net(("J2", str(p))) for p in RAIL_PINS} | {net(("J1", q)) for q in ("1", "2", "3")}
+    for p in range(1, 26):
+        a, b = net(("J2", str(p))), net(("J6", str(p)))
+        if p in RAIL_PINS:
+            if b is None or b in bus_a or b == gnd:
+                errs.append(f"common: unit bus B J6 pin {p} is on a bus-A net or 0 V ({b})")
+        elif p in (16, 17, 18, 22, 23, 24, 25):
+            if not alone(b):
+                errs.append(f"common: unit bus B J6 reserved pin {p} is connected")
+        elif a != b:                            # code lines L/T and 0 V: shared with bus A
+            errs.append(f"common: unit bus B J6 pin {p} ({b}) differs from J2 pin {p} ({a})")
+    if len({net(("J6", str(p))) for p in RAIL_PINS}) != len(RAIL_PINS):
+        errs.append("common: unit bus B rails are not five distinct nets")
+    for d in (1, 2):                            # twin master coil in parallel with the master coil (same feed, same diode)
+        for i in range(BITS):
+            tw, ms = f"K{d}3{i}", f"K{d}1{i}"
+            if tw not in nl.parts:
+                errs.append(f"common: twin master {tw} missing")
+            elif net((tw, COIL_P)) != net((ms, COIL_P)) or net((tw, COIL_N)) != gnd:
+                errs.append(f"common: twin {tw} coil is not in parallel with master {ms}")
+    return errs
+
+
+def bus_isolation_errors(common: Netlist, unit: Netlist, trials: int = 300, seed: int = 31) -> list[str]:
+    """Current split of the two clock buses (0003 K7): for random relay states, what is reachable from one bus's
+    CK/NCK/LOAD (and the board +24 V) must not include the clock or unit-bus rail pins of the other bus.  So the
+    rail current of units 7-12 comes only through J5, and that of the common digits + units 1-6 only through J1."""
+    s = build_system(common, unit, [0, 7, 25, 3])
+    rng = random.Random(seed)
+    pins = {b: [s.nid("C", CLOCK_CONN[b], q) for q in ("1", "2", "3")] +
+               [s.nid("C", BUS_CONN[b], str(p)) for p in RAIL_PINS] for b in "AB"}
+    for trial in range(trials):
+        randomise(s, rng)
+        for b, o in (("A", "B"), ("B", "A")):
+            seen, _ = s.reach([n for nm in ("CK", "NCK", "LOAD") for n in s.drive[f"{nm}_{b}"]])
+            hit = [n for n in pins[o] if seen[n]]
+            if hit:
+                return [f"bus isolation: driving bus {b} reaches {len(hit)} rail pin(s) of bus {o} (trial {trial})"]
+    return []
 
 
 # ----------------------------------------------------------------------------- system run
@@ -432,6 +508,8 @@ def check_state(s: System, seen, refs: list[Counters], where: str, internal: boo
         sv, mv = digit_value(s, "C", d, 0), digit_value(s, "C", d, 1)
         if sv != v or mv != master_of(v):
             raise Mismatch(f"{where}: common digit {d} slave={sv} master={mv}, expected {v} / {master_of(v)}")
+        if d in (1, 2) and digit_value(s, "C", d, 3) != mv:      # bus-B twin masters follow the masters (0003 K7)
+            raise Mismatch(f"{where}: common digit {d} twin masters={digit_value(s, 'C', d, 3)} != masters {mv}")
     for u, c in enumerate(refs):
         for d, v in ((1, c.c[1]), (2, c.c[0])):
             sv, mv = digit_value(s, f"U{u}", d, 0), digit_value(s, f"U{u}", d, 1)
@@ -451,14 +529,23 @@ def do_home(s: System, rng: random.Random | None):
     return s.settle(["NCK"], rng)
 
 
-def do_clock(s: System, rng: random.Random | None):
+def do_clock(s: System, rng: random.Random | None, skew: random.Random | None = None):
+    """One clock.  With `skew`, the two clock buses change over one after the other (two relays on one coil in the
+    sequencer): rising edge in either order, falling edge with bus B first.  Bus B falling LAST is a timing matter
+    (twin masters move >= 2.7 ms after CK_A falls, bus skew <= 2.5 ms; README 11) that a fixed-point model cannot show."""
+    if skew is not None:
+        lead = skew.choice([None, ["CK_A", "NCK_B"], ["NCK_A", "CK_B"]])
+        if lead:
+            s.settle(lead, rng)
     seen1 = s.settle(["CK"], rng)
+    if skew is not None and skew.random() < 0.5:
+        s.settle(["CK_A", "NCK_B"], rng)
     seen2 = s.settle(["NCK"], rng)
     return seen1, seen2
 
 
 def run_system(common, unit, ks, clocks: int, rng_mode: random.Random | None, seed_state: int | None,
-               label: str, progress: bool = False) -> int:
+               label: str, progress: bool = False, skew: random.Random | None = None) -> int:
     s = build_system(common, unit, ks)
     if seed_state is not None:
         randomise(s, random.Random(seed_state))
@@ -469,7 +556,7 @@ def run_system(common, unit, ks, clocks: int, rng_mode: random.Random | None, se
     for step in range(1, clocks + 1):
         for c in refs:
             c.clock()
-        seen1, seen2 = do_clock(s, rng_mode)
+        seen1, seen2 = do_clock(s, rng_mode, skew)
         check_state(s, seen1, refs, f"{label} clock {step} (commit)", internal=False)
         check_state(s, seen2, refs, f"{label} clock {step} (release)")
         if progress and step % 2000 == 0:
@@ -529,8 +616,8 @@ def unit_only_system(unit: Netlist, v1: int, v2: int) -> System:
             wires.append((("U", "J2", "1"), ("U", "J2", str(2 + b))))
         if v2 >> b & 1:
             wires.append((("U", "J2", "1"), ("U", "J2", str(7 + b))))
-    drives = {"A2B": ("U", "J1", "1"), "Z2B": ("U", "J1", "2"), "A1B": ("U", "J1", "3"), "Z1B": ("U", "J1", "4"),
-              "LOAD": ("U", "J1", "15")}
+    drives = {"A2B": [("U", "J1", "1")], "Z2B": [("U", "J1", "2")], "A1B": [("U", "J1", "3")], "Z1B": [("U", "J1", "4")],
+              "LOAD": [("U", "J1", "15")]}
     return System({"U": unit}, wires, [("U", "Q1", "3")], ("U", "J1", "19"), drives)
 
 
@@ -602,6 +689,11 @@ NEGATIVE = [
     ("common POS: swap m bits 0/1 on J4 (pins 6<->7)", "common", "J4", "6", "7"),
     ("common pR slave bit 1: swap NC/NO of Q pole (K401 pins 3<->5)", "common", "K401", "3", "5"),
     ("common pR master bit 0: swap NC/NO of carry pole (K410 pins 3<->5), seen when r first advances", "common", "K410", "3", "5"),
+    # 0003 K7: clock bus B -> twin masters -> unit bus B (units on bus B are the odd-numbered simulated units)
+    ("common unit bus B: swap A1B_B/Z1B_B (J6 pins 3<->4)", "common", "J6", "3", "4"),
+    ("common clock bus B: swap CK_B/NCK_B (J5 pins 1<->2)", "common", "J5", "1", "2"),
+    ("common pM twin master bit 1: swap NC/NO of the bus-B carry pole (K231 pins 3<->5)", "common", "K231", "3", "5"),
+    ("common pL twin master bit 3: YB on the NC instead of the NO contact (K133 pins 8<->10)", "common", "K133", "8", "10"),
 ]
 
 
@@ -634,7 +726,21 @@ NEGATIVE_0003 = [
     ("unit: RCH1 moved onto CHASSIS (pair shorted out)", "unit", lambda nl: move_node(nl, ("RCH1", "2"), ("H1", "1"))),
     ("common: 0 V connector pin J2.19 shorted to CHASSIS", "common", lambda nl: move_node(nl, ("J2", "19"), ("H1", "1"))),
     ("common POS: l bit 0 / r bit 0 swapped on J4 (pins 1<->11)", "common", lambda nl: swap_node(nl, "J4", "1", "11")),
+    # 0003 K7 (bus B)
+    ("common bus B: a2 hold-rail OR D805 fed from ZL (bus A) instead of ZL_B", "common",
+     lambda nl: move_node(nl, ("D805", "2"), ("D803", "2"))),
+    ("common bus B: twin K232 coil on its own net (not parallel to master K212)", "common",
+     lambda nl: set_net(nl, ("K232", COIL_P), "/__twin_coil_open__")),
+    ("common bus B: LOAD_B on J6 taken from bus A LOAD (J6.15 on J1.3)", "common",
+     lambda nl: move_node(nl, ("J6", "15"), ("J1", "3"))),
 ]
+
+
+def set_net(nl: Netlist, node, name: str) -> Netlist:
+    import copy
+    n2 = copy.deepcopy(nl)
+    n2.node_net[node] = name
+    return n2
 
 
 def negative_test(name, board, ref, pa, pb, ctext, utext) -> tuple[bool, str]:
@@ -663,6 +769,10 @@ def negative_test_0003(board, mut, ctext, utext) -> tuple[bool, str]:
 def _negative_run(common, unit) -> tuple[bool, str]:
     stages = []
     try:
+        stages.append("bus isolation")
+        iso = bus_isolation_errors(common, unit, trials=60)
+        if iso:
+            return True, f"caught in the bus isolation stage: {iso[0][:110]}"
         stages.append("preset"); preset_test(common, unit, 5, ks_all=[0, 7, 25, 13, 1, 12])
         stages.append("digit"); digit_test(unit, 3)
         stages.append("run"); run_system(common, unit, [0, 7, 25], 720, None, 11, "neg")
@@ -716,7 +826,8 @@ def main() -> int:
     print("reference: Python port of relay.rs Counters == Controls::from_cores for all 26 k over 17,577 steps; "
           "a full run returns to HOME")
 
-    errs = (structure_errors(common, 44, 4 * 64 + 4, "common") + structure_errors(unit, 32, 2 * 64 + 10, "unit")
+    # common: 4 digits x 11 relays + 10 twin masters (bus B, 0003 K7); diodes 4 x 64 + rule 4 + bus B (6 + 11 + 2)
+    errs = (structure_errors(common, 54, 4 * 64 + 4 + 19, "common") + structure_errors(unit, 32, 2 * 64 + 10, "unit")
             + decision_0003_errors(common, "common") + decision_0003_errors(unit, "unit"))
     n_rel = lambda nl: sum(1 for r in nl.parts if re.fullmatch(r"K\d+", r))
     n_dio = lambda nl: sum(1 for r in nl.parts if re.fullmatch(r"D\d+", r))
@@ -724,6 +835,14 @@ def main() -> int:
     if errs:
         print("FAIL structure:", errs[:5])
         return 1
+    print("structure (0003 K7, clock bus B): CLOCK_B J5 = own CK_B/NCK_B/LOAD_B, unit bus B J6 = J2 pin layout with its own "
+          "rails A2B_B Z2B_B A1B_B Z1B_B + LOAD_B (code lines and 0 V shared), 10 twin master coils parallel to the pL/pM masters")
+    iso = bus_isolation_errors(common, unit)
+    if iso:
+        print("FAIL:", iso[0])
+        return 1
+    print("bus isolation: 300 random relay states x both buses: neither clock bus reaches a CLOCK or unit-bus rail pin of the other "
+          "(units 7-12 draw their rail current only through J5)")
 
     t0 = time.time()
     try:
@@ -744,7 +863,8 @@ def main() -> int:
         total = 0
         for ks in batches:
             total += run_system(common, unit, ks, FULL_RUN, None, None, f"full k={ks}")
-        print(f"full runs, synchronous settle: common + 3 units per batch, offsets k = {sorted({k for b in batches for k in b})}: "
+        print(f"full runs, synchronous settle: common + 3 units per batch (units 1, 3 on clock bus A via J2, unit 2 on bus B via J6), "
+              f"offsets k = {sorted({k for b in batches for k in b})}: "
               f"{len(batches)} runs x {FULL_RUN} clocks x 3 units; CTRL a1..a4 of every unit == Counters at every clock "
               f"(commit and release), POS (l, m, r) of the common board == core position, internal digits == l, m, r, a3, a2, a1 ({time.time() - t0:.0f} s)")
         # asynchronous (random order) settle: races must not change the result
@@ -756,6 +876,11 @@ def main() -> int:
               f"({time.time() - t0:.0f} s)")
         n_async2 = preset_test(common, unit, 4, ks_all=range(N), mode_rng=random.Random(9))
         print(f"asynchronous settle: preset for all 26 offsets: {n_async2} runs OK")
+        t0 = time.time()
+        n_skew = 2000 if args.quick else FULL_RUN
+        run_system(common, unit, [5, 20, 11, 25], n_skew, random.Random(13), 17, "bus skew", skew=random.Random(23))
+        print(f"bus skew (clock buses A and B change over one after the other: rise in either order, fall B first; asynchronous "
+              f"settle, units on A and B alternately), k=[5, 20, 11, 25]: {n_skew} clocks OK ({time.time() - t0:.0f} s)")
     except (Mismatch, Fault) as e:
         print("FAIL:", e)
         return 1

@@ -17,7 +17,8 @@ board.  Every base-26 digit is one repeated 98 x 84 mm block: five bit columns (
 the slave relay KS on top, the master relay KM below it, the column's diodes in two sub-columns and the
 indicator resistor + LED at the bottom; a sixth column holds the wrap relay KW with its diodes.  The
 common board has four digit blocks (pL, pM, a3, pR; decision 0003 K3) with the POS connector on the
-right edge and the bus + clock connectors on the left edge; the unit board has two digit blocks plus
+right edge and the bus + clock connectors of both clock buses on the left edge (bus B: J5 CLOCK_B, J6 UNIT_BUS_B; the
+ten twin masters of the bus-B rail buffer sit in the gap under the pL and pM blocks, 0003 K7); the unit board has two digit blocks plus
 the 10 buffer relays (bus + dial on the left edge, the four CTRL connectors on the right edge).
 Both boards carry, in a strip along the bottom edge, the power input chain (terminal, PTC, series
 P-MOSFET with gate zener + resistor, TVS, bulk capacitor; 0003 K1) and the CHASSIS pair R + C (K4);
@@ -55,6 +56,7 @@ BLOCK_W, BLOCK_H = 98.0, 84.0          # drawn frame of a digit block
 Y_KS, Y_KM = 8.0, 30.0                 # relay rows (pin 1 row) from the block top
 Y_DIODE0, DIODE_P = 48.0, 3.8          # first diode row, row pitch
 Y_IND = 78.0                           # indicator resistor / LED row
+TWIN_DY = 86.0                         # twin-master row (bus B) below a top digit block, in the 24 mm gap
 
 # ----------------------------------------------------------------------------- design rules (fab rules)
 TRACK, CLEAR, VIA_D, VIA_DRILL = 0.15, 0.15, 0.5, 0.25     # absolute minima (standard 4-layer class)
@@ -62,7 +64,9 @@ SIG_TRACK = 0.2                                            # netclass Default
 RAIL_TRACK = 0.6                                           # netclass Rail
 RAIL_NETS = ["/+24V", "/GND", "/VIN", "/VF", "/M?", "/R?", "/CK", "/NCK", "/LOAD", "/A?B", "/Z?B", "/LC", "/ZL", "/NL", "/Z3I",
              "/L?", "/T?", "/C?_?", "/DIGIT_*/Q?", "/DIGIT_*/A?", "/DIGIT_*/Z?", "/DIGIT_*/AOUT",
-             "/DIGIT_*/ZOUT", "/DIGIT_*/NOUT", "/DIGIT_*/Y?"]
+             "/DIGIT_*/ZOUT", "/DIGIT_*/NOUT", "/DIGIT_*/Y?",
+             # clock bus B (0003 K7): clock rails, bus-B rails, the twin-master carry chain
+             "/CK_B", "/NCK_B", "/LOAD_B", "/LC_B", "/ZL_B", "/A?B_B", "/Z?B_B", "/DIGIT_*/AB?", "/DIGIT_*/YB?"]
 
 
 def uid(*parts) -> str:
@@ -219,6 +223,18 @@ def digit_block(P: dict, d: int, bx: float, by: float):
             P[ref] = (x + (1.0 if k % 2 == 0 else 7.6), by + Y_DIODE0 + (k // 2) * DIODE_P, 0, True)
 
 
+def twin_row(P: dict, d: int, bx: float, by: float, ndiodes: int):
+    """Bus-B rail buffer of digit d (0003 K7): the five twin masters K{d}30..K{d}34 in the gap under the digit block,
+    each under its own bit column (= under the master whose coil it shares), the bus-B OR diodes D{d}65.. beside them
+    (four per column, right of the relay)."""
+    for i in range(BITS):
+        x = bx + 4.0 + i * COL_P
+        P[f"K{d}3{i}"] = (x, by + TWIN_DY, 0, False)
+    for k in range(ndiodes):
+        c, r = divmod(k, 4)
+        P[f"D{d}{65 + k:02d}"] = (bx + 4.0 + c * COL_P + 10.5, by + TWIN_DY + 1.0 + r * DIODE_P, 0, True)
+
+
 def power_strip(P: dict, term: str, x0: float, y: float = 217.0):
     """Power input chain + CHASSIS pair in a strip along the bottom edge (0003 K1, K4)."""
     P[term] = (x0, y, 0, False)
@@ -247,12 +263,17 @@ def placements(project: str, nl: "vc.Netlist"):
                                  (3, (26.0, 122.0), "a3 = l - m"), (4, (130.0, 122.0), "pR (r), preset 0")):
             digit_block(P, d, bx, by)
             frames.append((bx, by, BLOCK_W, BLOCK_H, lab))
+        # clock bus B rail buffer (0003 K7): twins of the pL / pM masters in the gap under those blocks
+        twin_row(P, 1, 26.0, 14.0, 6)
+        twin_row(P, 2, 130.0, 14.0, 11)
+        frames.append((26.0, 14.0 + TWIN_DY - 1.5, BLOCK_W, 18.0, "BUS B: pL twins"))
+        frames.append((130.0, 14.0 + TWIN_DY - 1.5, BLOCK_W, 18.0, "BUS B: pM twins"))
         bx, by = 26.0, 208.0
-        for k, ref in enumerate(("D801", "D802", "D803", "D804")):
-            P[ref] = (bx + 6.0 + k * 8.0, by + 2.0, 0, True)
-        frames.append((bx, by, 44.0, 6.0, "RULE DIODES"))
+        for k, ref in enumerate(("D801", "D802", "D803", "D804", "D805", "D806")):
+            P[ref] = (bx + 5.0 + k * 7.0, by + 2.0, 0, True)
+        frames.append((bx, by, 46.0, 6.0, "RULE DIODES"))
         power_strip(P, "J3", 76.0)
-        conns = [("J1", "L", 14.0), ("J2", "L", 60.0), ("J4", "R", 14.0)]
+        conns = [("J1", "L", 14.0), ("J2", "L", 60.0), ("J5", "L", 121.0), ("J6", "L", 158.0), ("J4", "R", 14.0)]
     else:
         digit_block(P, 1, 26.0, 14.0)
         frames.append((26.0, 14.0, BLOCK_W, BLOCK_H, "a2 = m - (r + k)"))
