@@ -8,10 +8,13 @@ Checks, independently of gen_drum.py (it only shares the wiring file):
        copper A: ring4[i] <-> ring3[W[i]]     copper B: ring1[i] <-> ring2[W[i]]
      and there are exactly 52 islands (no pad shared, none floating, no extra copper islands);
   3. net labels agree with the islands; pad positions/angles match the documented convention;
-  4. optionally: kicad-cli DRC (must be 0 violations, 0 unconnected), IPC-D-356 net cross-check,
+  4. index-disc seat keep-out: nothing on the pad (front) side - no pad, via, F.Cu track/arc, F.SilkS item
+     or F.Mask opening - reaches r <= 18.0 mm (hardware/gear/layout.md; seat r <= 17.5 + via margin);
+     drilled NPTH holes (bore, M3/dowel holes) are not surface features and are exempt;
+  5. optionally: kicad-cli DRC (must be 0 violations, 0 unconnected), IPC-D-356 net cross-check,
      Gerber + drill export, rendering.
 
-Usage:  python verify_drum.py [--drc] [--ipc] [--fab] [--render ROTOR] [--build-dir DIR] [boards...]
+Usage:  python verify_drum.py [--selftest] [--drc] [--ipc] [--fab] [--render ROTOR] [--build-dir DIR] [boards...]
 """
 import argparse
 import json
@@ -29,6 +32,9 @@ WIRING_FILE = REPO / "data" / "wirings" / "enigma.txt"
 N = 26
 RING_R = {1: 22.0, 2: 29.0, 3: 36.0, 4: 43.0}
 COPY_RINGS = [(4, 3), (1, 2)]          # (entry ring, reflector ring)
+CENTER = (150.0, 100.0)
+KEEPOUT_R = 18.0                       # index-disc seat r <= 17.5 plus margin for the via pad radius
+FRONT_LAYERS = {"F.Cu", "F.SilkS", "F.Mask", "F.Paste"}
 
 
 # ------------------------------------------------------------------ s-expression parser
@@ -233,6 +239,149 @@ def check_board(path, wiring, rotor):
     return errors, len(islands)
 
 
+# ------------------------------------------------------------------ front-side keep-out
+def _rad(pt):
+    return math.hypot(pt[0] - CENTER[0], pt[1] - CENTER[1])
+
+
+def _seg_min_r(a, b):
+    """Minimum distance from the board centre to the segment a-b."""
+    ax, ay, bx, by = a[0] - CENTER[0], a[1] - CENTER[1], b[0] - CENTER[0], b[1] - CENTER[1]
+    dx, dy = bx - ax, by - ay
+    L2 = dx * dx + dy * dy
+    t = 0.0 if L2 == 0 else max(0.0, min(1.0, -(ax * dx + ay * dy) / L2))
+    return math.hypot(ax + t * dx, ay + t * dy)
+
+
+def _arc_min_r(a, m, b, n=64):
+    """Minimum centre distance over a three-point arc (sampled)."""
+    ax, ay = a
+    bx, by = m
+    cx, cy = b
+    d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    if abs(d) < 1e-12:
+        return min(_seg_min_r(a, m), _seg_min_r(m, b))
+    ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d
+    uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d
+    R = math.hypot(ax - ux, ay - uy)
+    a0, a1, a2 = (math.atan2(p[1] - uy, p[0] - ux) for p in (a, m, b))
+    ccw = ((a1 - a0) % (2 * math.pi)) < ((a2 - a0) % (2 * math.pi))
+    span = (a2 - a0) % (2 * math.pi) if ccw else -((a0 - a2) % (2 * math.pi))
+    return min(_rad((ux + R * math.cos(a0 + span * k / n), uy + R * math.sin(a0 + span * k / n)))
+               for k in range(n + 1))
+
+
+def _pad_min_r(p):
+    """Minimum centre distance over the (rotated) rectangle of an SMD pad."""
+    a = math.radians(p["rot"])
+    c, s = math.cos(a), math.sin(a)
+    hw, hh = p["w"] / 2, p["h"] / 2
+    cs = [(p["x"] + lx * c + ly * s, p["y"] - lx * s + ly * c)
+          for lx, ly in ((-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh))]
+    return min(_seg_min_r(cs[i], cs[(i + 1) % 4]) for i in range(4))
+
+
+def check_keepout(path, limit=KEEPOUT_R):
+    """Return (errors, closest_front_item_radius).  Parsed from the board file alone."""
+    root = parse(Path(path).read_text(encoding="utf-8"))
+    errors, closest = [], [1e9]
+
+    def note(r, what):
+        closest[0] = min(closest[0], r)
+        if r <= limit:
+            errors.append(f"{what} reaches r={r:.2f} <= {limit}")
+
+    for fp in find(root, "footprint"):
+        fat = [float(v) for v in first(fp, "at")[1:3]]
+        for p in find(fp, "pad"):
+            if sval(p[2]) == "np_thru_hole":
+                continue                      # drilled holes are not surface features
+            lay = [sval(x) for x in first(p, "layers")[1:]]
+            if not (set(lay) & FRONT_LAYERS or "*.Cu" in lay or "*.Mask" in lay):
+                continue
+            pat, size = first(p, "at"), first(p, "size")
+            pd = dict(x=fat[0] + fnum(pat[1]), y=fat[1] + fnum(pat[2]),
+                      rot=fnum(pat[3]) if len(pat) > 3 else 0.0, w=fnum(size[1]), h=fnum(size[2]))
+            note(_pad_min_r(pd), f"pad {sval(p[1])}")
+        for g in fp:
+            if isinstance(g, list) and g and isinstance(g[0], str) and g[0].startswith("fp_"):
+                lay = first(g, "layer")
+                if lay and sval(lay[1]) in FRONT_LAYERS:
+                    note(0.0, f"footprint graphic {g[0]}")
+    for v in find(root, "via"):
+        at = first(v, "at")
+        note(_rad((fnum(at[1]), fnum(at[2]))) - fnum(first(v, "size")[1]) / 2, "via")
+    for kind in ("segment", "arc"):
+        for t in find(root, kind):
+            if sval(first(t, "layer")[1]) != "F.Cu":
+                continue
+            st, en = first(t, "start"), first(t, "end")
+            a, b = (fnum(st[1]), fnum(st[2])), (fnum(en[1]), fnum(en[2]))
+            w = fnum(first(t, "width")[1]) / 2
+            if kind == "segment":
+                note(_seg_min_r(a, b) - w, "F.Cu segment")
+            else:
+                m = first(t, "mid")
+                note(_arc_min_r(a, (fnum(m[1]), fnum(m[2])), b) - w, "F.Cu arc")
+    for g in root:
+        if not (isinstance(g, list) and g and isinstance(g[0], str) and g[0].startswith("gr_")):
+            continue
+        lay = first(g, "layer")
+        if not lay or sval(lay[1]) not in FRONT_LAYERS:
+            continue
+        if g[0] == "gr_text":
+            at = first(g, "at")
+            size = fnum(first(first(first(g, "effects"), "font"), "size")[1])
+            half = math.hypot(len(sval(g[1])) * size * 0.6, size) / 2      # conservative text extent
+            note(_rad((fnum(at[1]), fnum(at[2]))) - half, f"F.SilkS text '{sval(g[1])}'")
+        elif g[0] == "gr_poly":
+            pts = [(fnum(q[1]), fnum(q[2])) for q in find(first(g, "pts"), "xy")]
+            note(min(_seg_min_r(pts[i], pts[(i + 1) % len(pts)]) for i in range(len(pts))), "front polygon")
+        else:
+            note(0.0, g[0] + " on a front layer")
+    return errors, closest[0]
+
+
+def selftest(tmpdir):
+    """Negative test: inject copper/silk inside the seat into a copy of a board; the check must fail
+    for each injection and pass for the untouched board."""
+    src = sorted((HERE / "boards").glob("drum_*.kicad_pcb"))[0]
+    text = src.read_text(encoding="utf-8")
+    good, near = check_keepout(src)
+    assert not good, f"clean board fails the keep-out check: {good[:2]}"
+
+    def via(y, k):
+        return (f'\t(via\n\t\t(at 150 {y})\n\t\t(size 0.6)\n\t\t(drill 0.3)\n\t\t(layers "F.Cu" "B.Cu")\n'
+                f'\t\t(net 1)\n\t\t(uuid "00000000-0000-0000-0000-00000000000{k}")\n\t)\n')
+
+    inj = {
+        "via at r=12": via(88, 1),
+        "via at r=17.8 (pad edge inside the margin)": via(82.2, 2),
+        "F.Cu track across r=15": ('\t(segment\n\t\t(start 135 100)\n\t\t(end 140 100)\n\t\t(width 0.15)\n'
+                                   '\t\t(layer "F.Cu")\n\t\t(net 1)\n\t\t(uuid "00000000-0000-0000-0000-000000000003")\n\t)\n'),
+        "F.SilkS text at r=10": ('\t(gr_text "X"\n\t\t(at 150 90 0)\n\t\t(layer "F.SilkS")\n'
+                                 '\t\t(uuid "00000000-0000-0000-0000-000000000004")\n\t\t(effects\n\t\t\t(font\n'
+                                 '\t\t\t\t(size 1 1)\n\t\t\t\t(thickness 0.15)\n\t\t\t)\n\t\t)\n\t)\n'),
+    }
+    ok = True
+    for name, item in inj.items():
+        bad = Path(tmpdir) / "keepout_neg.kicad_pcb"
+        bad.write_text(text.rstrip()[:-1] + item + ")\n", encoding="utf-8")
+        errs, _ = check_keepout(bad)
+        print(f"  negative test '{name}': {'detected' if errs else 'MISSED'}")
+        ok &= bool(errs)
+        bad.unlink()
+    # positive margin test: a via whose pad edge is just outside 18.0 must be accepted
+    edge = Path(tmpdir) / "keepout_edge.kicad_pcb"
+    edge.write_text(text.rstrip()[:-1] + via(81.6, 5) + ")\n", encoding="utf-8")
+    errs, _ = check_keepout(edge)
+    print(f"  via at r=18.4 (pad edge 18.1) accepted: {'yes' if not errs else 'NO'}")
+    ok &= not errs
+    edge.unlink()
+    print(f"selftest keep-out ({src.name} clean, closest front item r={near:.2f}): {'OK' if ok else 'FAIL'}")
+    return ok
+
+
 # ------------------------------------------------------------------ kicad-cli helpers
 def find_kicad_cli():
     for c in (os.environ.get("KICAD_CLI"), shutil.which("kicad-cli"), shutil.which("kicad-cli.exe")):
@@ -258,7 +407,7 @@ def run(cmd):
 
 def drc(cli, board, outdir):
     rep = outdir / f"drc_{board.stem}.json"
-    run([cli, "pcb", "drc", "--output", str(rep), "--format", "json", "--severity-all", "--units", "mm", str(board)])
+    run([cli, "pcb", "drc", "--refill-zones", "--output", str(rep), "--format", "json", "--severity-all", "--units", "mm", str(board)])
     d = json.loads(rep.read_text(encoding="utf-8"))
     return len(d["violations"]), len(d["unconnected_items"]), len(d.get("schematic_parity", [])), d
 
@@ -284,7 +433,7 @@ def fab(cli, board, outdir):
     d = outdir / "fab" / board.stem
     d.mkdir(parents=True, exist_ok=True)
     layers = "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Mask,B.Mask,F.SilkS,B.SilkS,Edge.Cuts"
-    rc1, o1 = run([cli, "pcb", "export", "gerbers", "--layers", layers, "--output", str(d) + os.sep, str(board)])
+    rc1, o1 = run([cli, "pcb", "export", "gerbers", "--check-zones", "--layers", layers, "--output", str(d) + os.sep, str(board)])
     rc2, o2 = run([cli, "pcb", "export", "drill", "--output", str(d) + os.sep, "--format", "excellon",
                    "--excellon-separate-th", str(board)])
     return rc1 == 0 and rc2 == 0, sorted(p.name for p in d.iterdir())
@@ -307,6 +456,7 @@ def main():
     ap.add_argument("--ipc", action="store_true")
     ap.add_argument("--fab", action="store_true")
     ap.add_argument("--render", metavar="ROTOR")
+    ap.add_argument("--selftest", action="store_true", help="negative test of the keep-out check")
     ap.add_argument("--build-dir", default=None)
     a = ap.parse_args()
     boards = [Path(b) for b in a.boards] or sorted((HERE / "boards").glob("drum_*.kicad_pcb"))
@@ -315,6 +465,8 @@ def main():
     outdir.mkdir(parents=True, exist_ok=True)
     cli = find_kicad_cli() if (a.drc or a.ipc or a.fab or a.render) else None
     ok = True
+    if a.selftest:
+        ok &= selftest(outdir)
     for b in boards:
         rotor = b.stem.replace("drum_", "")
         errs, n_isl = check_board(b, wiring, rotor)
@@ -322,6 +474,11 @@ def main():
         if errs:
             ok = False
             line += " :: " + "; ".join(errs)
+        ko, near = check_keepout(b)
+        line += f" | keep-out r>{KEEPOUT_R:g} {'OK' if not ko else 'FAIL'} (closest front item r={near:.2f})"
+        if ko:
+            ok = False
+            line += " :: " + "; ".join(ko[:3])
         if a.drc:
             v, u, par, _ = drc(cli, b, outdir)
             line += f" | DRC violations={v} unconnected={u}"

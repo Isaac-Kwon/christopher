@@ -49,8 +49,14 @@ LANE_GAP_MM = 1.0                  # min distance between arc ends sharing a lan
 # via-band radii (pad-free annuli next to the rings) and lane ranges per copy
 COPIES = {
     "A": dict(entry=4, refl=3, band={4: 40.5, 3: 38.5}, lane_top=37.4, lane_bot=28.4),
-    "B": dict(entry=1, refl=2, band={1: 24.5, 2: 26.5}, lane_top=22.8, lane_bot=11.4),
+    # copy B: all lanes outside the index-disc seat (r > SEAT_KEEPOUT); band 1 moved out to 25.0 so that
+    # the top lane (23.8) keeps >= 1.2 mm to its own via and the lanes clear every band via
+    "B": dict(entry=1, refl=2, band={1: 25.0, 2: 26.5}, lane_top=23.8, lane_bot=18.4, pitch=0.54),
 }
+SEAT_KEEPOUT = 18.0                # index disc seat r <= 17.5 (+ via-pad margin): nothing on the pad side inside
+POUR_R = 46.2                      # back copper pour outer radius (edge clearance >= 0.6 incl. the rim notch)
+RIM_HOLE_D, RIM_HOLE_R = 2.2, 46.3
+RIM_HOLE_GAPS = (3.5, 9.5, 16.5, 22.5)   # letter-index positions (half-integers = midway between letters)
 
 LAYER_RADIAL = "In1.Cu"
 LAYER_ARC = "In2.Cu"
@@ -178,8 +184,9 @@ def pack_lanes(nets, lanes, seed):
 
 
 def assign_lanes(nets, cfg):
-    n_lanes = int((cfg["lane_top"] - cfg["lane_bot"]) / LANE_PITCH) + 1
-    lanes = [cfg["lane_top"] - k * LANE_PITCH for k in range(n_lanes)]
+    pitch = cfg.get("pitch", LANE_PITCH)
+    n_lanes = int((cfg["lane_top"] - cfg["lane_bot"]) / pitch + 1e-6) + 1
+    lanes = [cfg["lane_top"] - k * pitch for k in range(n_lanes)]
     best = None
     for seed in range(200):
         a = pack_lanes(nets, lanes, seed)
@@ -379,7 +386,7 @@ def project_json(rotor):
 
 
 # ----------------------------------------------------------------- board assembly
-def build_board(rotor, direction=1):
+def build_board(rotor, direction=1, pour=True, rim_holes=False):
     W, wiring_str, turnover = load_wiring(rotor)
     fr = Frame(direction)
     out = []
@@ -436,6 +443,10 @@ def build_board(rotor, direction=1):
                       CENTER[1] - HUB_HOLE_R * math.cos(math.radians(ang)), HUB_HOLE_D, f"hub{k}"))
     x, y = fr.polar(HUB_HOLE_R, 0.0)
     holes.append((x, y, DOWEL_D, "dowel"))
+    if rim_holes:       # four flatness holes exactly midway between letters (6/7/6/7 letters apart), clear of the notch
+        for k, pos in enumerate(RIM_HOLE_GAPS):
+            x, y = fr.polar(RIM_HOLE_R, pos * DELTA)
+            holes.append((x, y, RIM_HOLE_D, f"rim{k}"))
     for x, y, d, name in holes:
         fp.append(f"\t\t(pad \"\" np_thru_hole circle\n\t\t\t(at {fmt(x - CENTER[0])} {fmt(y - CENTER[1])})\n"
                   f"\t\t\t(size {fmt(d)} {fmt(d)})\n\t\t\t(drill {fmt(d)})\n"
@@ -500,7 +511,8 @@ def build_board(rotor, direction=1):
     for i in range(N):
         x, y = fr.polar(LETTER_R, i * DELTA)
         out.append(sexp_text(chr(65 + i), (x, y), fr.kicad_rot(i * DELTA), "F.SilkS", 1.6, 0.2, (rotor, "letter", i)))
-    tri = [fr.local(0, -1.0, 17.8), fr.local(0, 1.0, 17.8), fr.local(0, 0, 19.9)]  # outside the r<=17.5 index-disc seat
+    tri = [fr.local(0, -0.8, SEAT_KEEPOUT + 0.4), fr.local(0, 0.8, SEAT_KEEPOUT + 0.4),
+           fr.local(0, 0, 19.9)]       # outside the r<=17.5 index-disc seat (+ margin)
     out.append(sexp_poly(tri, "F.SilkS", (rotor, "tri")))
     # No rotor name on the pad side: the centre (r <= 17.5) is the seat of the 26-tooth index disc
     # (hardware/gear/layout.md). The name is printed on the back (below).
@@ -524,12 +536,15 @@ def main(argv=None):
     ap.add_argument("--out", default=str(HERE / "boards"), help="output directory")
     ap.add_argument("--letters-ccw", action="store_true",
                     help="letters increase counter-clockwise seen from the pad side (mirror image)")
+    ap.add_argument("--no-pour", action="store_true", help="omit the solid B.Cu pour (default: pour on)")
+    ap.add_argument("--rim-holes", action="store_true",
+                    help="add four O2.2 flatness holes at r=46.3 midway between letters (default: off)")
     a = ap.parse_args(argv)
     rotors = all_rotors() if a.all else (a.rotors or ["I", "II", "III", "IV", "V"])
     outdir = Path(a.out)
     outdir.mkdir(parents=True, exist_ok=True)
     for r in rotors:
-        text, info = build_board(r, -1 if a.letters_ccw else 1)
+        text, info = build_board(r, -1 if a.letters_ccw else 1, not a.no_pour, a.rim_holes)
         (outdir / f"drum_{r}.kicad_pcb").write_text(text, encoding="utf-8", newline="\n")
         (outdir / f"drum_{r}.kicad_pro").write_text(json.dumps(project_json(r), indent=2) + "\n",
                                                    encoding="utf-8", newline="\n")
