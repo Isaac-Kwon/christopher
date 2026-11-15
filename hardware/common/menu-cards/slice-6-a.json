@@ -1,0 +1,189 @@
+{
+  "schema": 1,
+  "id": "slice-6-a",
+  "mode": "slice",
+  "seed": 1,
+  "attempts": 2232,
+  "search_seconds": 65.3,
+  "ciphertext": "YCBYZCQCOBXDJJFZDLUVVAEMTBZVZXCQRCUZBFZHOLXSAEQKTRDAJTWJIEHAGSVMGXMRCCNIPFDYGBFVZKIXYWNDFWNZUJSNHZNDDCGKFQCRXBZBUGPXZTULZOVVKZKWUYHZFDQUPXHMIZFZIB",
+  "ciphertext_groups": "YCBYZ CQCOB XDJJF ZDLUV VAEMT BZVZX CQRCU ZBFZH OLXSA EQKTR DAJTW JIEHA GSVMG XMRCC NIPFD YGBFV ZKIXY WNDFW NZUJS NHZND DCGKF QCRXB ZBUGP XZTUL ZOVVK ZKWUY HZFDQ UPXHM IZFZI B",
+  "plaintext": "ANXDIVISIONSKOMMANDOXNACHSCHUBFUERDIEERSTEKOMPANIEUNTERWEGSXEINTREFFENMORGENFRUEHACHTUHRXBENZINUNDMUNITIONAUSREICHENDXBITTEEMPFANGBESTAETIGENXENDE",
+  "plaintext_message_id": "nachschub",
+  "crib": "BENZINUNDMUN",
+  "offset": 89,
+  "crib_letters_1based": [
+    90,
+    101
+  ],
+  "crib_cipher": "WNZUJSNHZNDD",
+  "menu": {
+    "edges": [
+      {
+        "unit": 1,
+        "plain": "N",
+        "cipher": "Z",
+        "link": 3,
+        "crib_index": 2,
+        "drum_offset_core": [
+          0,
+          0,
+          2
+        ],
+        "drum_offset_letters": "AAC",
+        "drums_at_true_stop": "KMZ",
+        "enigma_window": "CVM"
+      },
+      {
+        "unit": 2,
+        "plain": "Z",
+        "cipher": "U",
+        "link": 4,
+        "crib_index": 3,
+        "drum_offset_core": [
+          0,
+          0,
+          3
+        ],
+        "drum_offset_letters": "AAD",
+        "drums_at_true_stop": "KMA",
+        "enigma_window": "CVN"
+      },
+      {
+        "unit": 3,
+        "plain": "U",
+        "cipher": "N",
+        "link": 7,
+        "crib_index": 6,
+        "drum_offset_core": [
+          0,
+          0,
+          6
+        ],
+        "drum_offset_letters": "AAG",
+        "drums_at_true_stop": "KMD",
+        "enigma_window": "CVQ"
+      },
+      {
+        "unit": 4,
+        "plain": "D",
+        "cipher": "Z",
+        "link": 9,
+        "crib_index": 8,
+        "drum_offset_core": [
+          0,
+          0,
+          8
+        ],
+        "drum_offset_letters": "AAI",
+        "drums_at_true_stop": "KMF",
+        "enigma_window": "CVS"
+      },
+      {
+        "unit": 5,
+        "plain": "U",
+        "cipher": "D",
+        "link": 11,
+        "crib_index": 10,
+        "drum_offset_core": [
+          0,
+          0,
+          10
+        ],
+        "drum_offset_letters": "AAK",
+        "drums_at_true_stop": "KMH",
+        "enigma_window": "CVU"
+      },
+      {
+        "unit": 6,
+        "plain": "N",
+        "cipher": "D",
+        "link": 12,
+        "crib_index": 11,
+        "drum_offset_core": [
+          0,
+          0,
+          11
+        ],
+        "drum_offset_letters": "AAL",
+        "drums_at_true_stop": "KMI",
+        "enigma_window": "CVV"
+      }
+    ],
+    "n_edges": 6,
+    "letters": "DNUZ",
+    "n_letters": 4,
+    "loops": 3,
+    "span": 10,
+    "test_letter": "D",
+    "input_wire": "A",
+    "link_numbers": [
+      3,
+      4,
+      7,
+      9,
+      11,
+      12
+    ]
+  },
+  "wheel_order": {
+    "reflector": "B",
+    "rotors_left_to_right": [
+      "III",
+      "II",
+      "IV"
+    ],
+    "text": "B III-II-IV"
+  },
+  "true_stop": {
+    "drums_core_letters": "KMX",
+    "core_offsets": [
+      10,
+      12,
+      23
+    ],
+    "enigma_window_at_crib_start": "CVK",
+    "fixed_right_drum": "X",
+    "test_register_live": "ABCDEFGHIJKLMNOPQRSTUWXYZ",
+    "test_letter_stecker": "V"
+  },
+  "run": {
+    "positions": 676,
+    "range": "right (slow) drum fixed, left and middle sweep 26x26",
+    "expected_stops": [
+      {
+        "drums": "KMX",
+        "is_true": true,
+        "test_register_live": "ABCDEFGHIJKLMNOPQRSTUWXYZ",
+        "live_count": 25,
+        "stecker_candidates": [
+          "V"
+        ],
+        "checking_solutions": 1
+      }
+    ],
+    "false_stops": 0,
+    "false_stops_true_order_full_run": 12,
+    "false_stops_all_60_orders_full_run": 1881
+  },
+  "key": {
+    "model": "enigma-i",
+    "rotors": [
+      "III",
+      "II",
+      "IV"
+    ],
+    "reflector": "B",
+    "rings": "SJN",
+    "start": "CRY",
+    "plugboard": "BF CM DV EA GZ KX LR OT UW YS"
+  },
+  "recovered": {
+    "rings": "AAN",
+    "start": "KIY",
+    "plugboard": "AE BF CM DV GZ KX LR OT SY UW",
+    "unresolved": "IJKLOPQRTX",
+    "guessed": "KLORTX",
+    "plaintext_equals": true
+  },
+  "crib_has_middle_rotor_turnover": false
+}

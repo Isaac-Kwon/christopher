@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "id": "slice-6-d",
+  "mode": "slice",
+  "seed": 4,
+  "attempts": 17525,
+  "search_seconds": 438.1,
+  "ciphertext": "DJDTXSHBBSDBSANHGZDEVUWRELRDTGWOVPCVMWEYVNNZLUIQMBMTFTVXDXKCTLEHLNWGEQVYXJXWPWKHCNZVJJEXUDKSUVELHZABBKTKKPXOLOSKKSACOJVBRU",
+  "ciphertext_groups": "DJDTX SHBBS DBSAN HGZDE VUWRE LRDTG WOVPC VMWEY VNNZL UIQMB MTFTV XDXKC TLEHL NWGEQ VYXJX WPWKH CNZVJ JEXUD KSUVE LHZAB BKTKK PXOLO SKKSA COJVB RU",
+  "plaintext": "ANXFELDLAZARETTXVERWUNDETEWERDENMORGENABTRANSPORTIERTXSANITAETSKRAFTWAGENERBETENXVERBANDSMATERIALFEHLTXBITTEUMANTWORTXENDE",
+  "plaintext_message_id": "sanitaet",
+  "crib": "RWUNDETEWERD",
+  "offset": 18,
+  "crib_letters_1based": [
+    19,
+    30
+  ],
+  "crib_cipher": "DEVUWRELRDTG",
+  "menu": {
+    "edges": [
+      {
+        "unit": 1,
+        "plain": "R",
+        "cipher": "D",
+        "link": 1,
+        "crib_index": 0,
+        "drum_offset_core": [
+          0,
+          0,
+          0
+        ],
+        "drum_offset_letters": "AAA",
+        "drums_at_true_stop": "NWC",
+        "enigma_window": "ZKW"
+      },
+      {
+        "unit": 2,
+        "plain": "W",
+        "cipher": "E",
+        "link": 2,
+        "crib_index": 1,
+        "drum_offset_core": [
+          0,
+          0,
+          1
+        ],
+        "drum_offset_letters": "AAB",
+        "drums_at_true_stop": "NWD",
+        "enigma_window": "ZKX"
+      },
+      {
+        "unit": 3,
+        "plain": "D",
+        "cipher": "W",
+        "link": 5,
+        "crib_index": 4,
+        "drum_offset_core": [
+          0,
+          0,
+          4
+        ],
+        "drum_offset_letters": "AAE",
+        "drums_at_true_stop": "NWG",
+        "enigma_window": "ZKA"
+      },
+      {
+        "unit": 4,
+        "plain": "E",
+        "cipher": "R",
+        "link": 6,
+        "crib_index": 5,
+        "drum_offset_core": [
+          0,
+          0,
+          5
+        ],
+        "drum_offset_letters": "AAF",
+        "drums_at_true_stop": "NWH",
+        "enigma_window": "ZKB"
+      },
+      {
+        "unit": 5,
+        "plain": "W",
+        "cipher": "R",
+        "link": 9,
+        "crib_index": 8,
+        "drum_offset_core": [
+          0,
+          0,
+          8
+        ],
+        "drum_offset_letters": "AAI",
+        "drums_at_true_stop": "NWK",
+        "enigma_window": "ZKE"
+      },
+      {
+        "unit": 6,
+        "plain": "E",
+        "cipher": "D",
+        "link": 10,
+        "crib_index": 9,
+        "drum_offset_core": [
+          0,
+          0,
+          9
+        ],
+        "drum_offset_letters": "AAJ",
+        "drums_at_true_stop": "NWL",
+        "enigma_window": "ZKF"
+      }
+    ],
+    "n_edges": 6,
+    "letters": "DERW",
+    "n_letters": 4,
+    "loops": 3,
+    "span": 10,
+    "test_letter": "D",
+    "input_wire": "A",
+    "link_numbers": [
+      1,
+      2,
+      5,
+      6,
+      9,
+      10
+    ]
+  },
+  "wheel_order": {
+    "reflector": "B",
+    "rotors_left_to_right": [
+      "IV",
+      "V",
+      "III"
+    ],
+    "text": "B IV-V-III"
+  },
+  "true_stop": {
+    "drums_core_letters": "NWC",
+    "core_offsets": [
+      13,
+      22,
+      2
+    ],
+    "enigma_window_at_crib_start": "ZKW",
+    "fixed_right_drum": "C",
+    "test_register_live": "ABCDEFGHIKLMNOPQRSTUVWXYZ",
+    "test_letter_stecker": "J"
+  },
+  "run": {
+    "positions": 676,
+    "range": "right (slow) drum fixed, left and middle sweep 26x26",
+    "expected_stops": [
+      {
+        "drums": "IRC",
+        "is_true": false,
+        "test_register_live": "ABCDEFGHIKLMNOPQRSTUVWXYZ",
+        "live_count": 25,
+        "stecker_candidates": [
+          "J"
+        ],
+        "checking_solutions": 0
+      },
+      {
+        "drums": "NWC",
+        "is_true": true,
+        "test_register_live": "ABCDEFGHIKLMNOPQRSTUVWXYZ",
+        "live_count": 25,
+        "stecker_candidates": [
+          "J"
+        ],
+        "checking_solutions": 1
+      },
+      {
+        "drums": "ZSC",
+        "is_true": false,
+        "test_register_live": "ABCDEFHIJKLMNOPQRSTUVWXYZ",
+        "live_count": 25,
+        "stecker_candidates": [
+          "G"
+        ],
+        "checking_solutions": 0
+      }
+    ],
+    "false_stops": 2,
+    "false_stops_true_order_full_run": 21,
+    "false_stops_all_60_orders_full_run": 1911
+  },
+  "key": {
+    "model": "enigma-i",
+    "rotors": [
+      "IV",
+      "V",
+      "III"
+    ],
+    "reflector": "B",
+    "rings": "MOU",
+    "start": "ZJD",
+    "plugboard": "BH DJ EL GW MK NP OI TU YX ZC"
+  },
+  "recovered": {
+    "rings": "AFU",
+    "start": "NAD",
+    "plugboard": "BH CZ DJ EL GW IO KM NP TU XY",
+    "unresolved": "ABCFHIKMOQSXYZ",
+    "guessed": "BCHIKMOXYZ",
+    "plaintext_equals": true
+  },
+  "crib_has_middle_rotor_turnover": false
+}

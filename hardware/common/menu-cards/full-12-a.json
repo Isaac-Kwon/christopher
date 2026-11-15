@@ -1,0 +1,285 @@
+{
+  "schema": 1,
+  "id": "full-12-a",
+  "mode": "full",
+  "seed": 11,
+  "attempts": 133,
+  "search_seconds": 35.2,
+  "ciphertext": "TTCJNISPGTPEAFVSWEYEASHNRUZDEKZMGGKDTHXKDFXYOZSPTNDBAJLOKXOVXDHOZSEZISGHNJKCXYOHBRBWPRGBBWSFIYMWSJYGXKIAYTAXIHZGMQHPJDGXNLEWCSXEGIHXQVPAPJETRVTIXZPCEMD",
+  "ciphertext_groups": "TTCJN ISPGT PEAFV SWEYE ASHNR UZDEK ZMGGK DTHXK DFXYO ZSPTN DBAJL OKXOV XDHOZ SEZIS GHNJK CXYOH BRBWP RGBBW SFIYM WSJYG XKIAY TAXIH ZGMQH PJDGX NLEWC SXEGI HXQVP APJET RVTIX ZPCEM D",
+  "plaintext": "ANXARMEEOBERKOMMANDOXNACHRICHTENABTEILUNGMELDETXKEINEBESONDERENEREIGNISSEXVERBINDUNGZUALLENTRUPPENTEILENHERGESTELLTXNAECHSTERFUNKSPRUCHUMZWOELFUHRXENDE",
+  "plaintext_message_id": "lage",
+  "crib": "NDERENEREIGNISSE",
+  "offset": 57,
+  "crib_letters_1based": [
+    58,
+    73
+  ],
+  "crib_cipher": "XOVXDHOZSEZISGHN",
+  "menu": {
+    "edges": [
+      {
+        "unit": 1,
+        "plain": "N",
+        "cipher": "X",
+        "link": 1,
+        "crib_index": 0,
+        "drum_offset_core": [
+          0,
+          0,
+          0
+        ],
+        "drum_offset_letters": "AAA",
+        "drums_at_true_stop": "SWJ",
+        "enigma_window": "NLD"
+      },
+      {
+        "unit": 2,
+        "plain": "D",
+        "cipher": "O",
+        "link": 2,
+        "crib_index": 1,
+        "drum_offset_core": [
+          0,
+          0,
+          1
+        ],
+        "drum_offset_letters": "AAB",
+        "drums_at_true_stop": "SWK",
+        "enigma_window": "NLE"
+      },
+      {
+        "unit": 3,
+        "plain": "R",
+        "cipher": "X",
+        "link": 4,
+        "crib_index": 3,
+        "drum_offset_core": [
+          0,
+          0,
+          3
+        ],
+        "drum_offset_letters": "AAD",
+        "drums_at_true_stop": "SWM",
+        "enigma_window": "NLG"
+      },
+      {
+        "unit": 4,
+        "plain": "E",
+        "cipher": "D",
+        "link": 5,
+        "crib_index": 4,
+        "drum_offset_core": [
+          0,
+          0,
+          4
+        ],
+        "drum_offset_letters": "AAE",
+        "drums_at_true_stop": "SWN",
+        "enigma_window": "NLH"
+      },
+      {
+        "unit": 5,
+        "plain": "E",
+        "cipher": "O",
+        "link": 7,
+        "crib_index": 6,
+        "drum_offset_core": [
+          0,
+          0,
+          6
+        ],
+        "drum_offset_letters": "AAG",
+        "drums_at_true_stop": "SWP",
+        "enigma_window": "NLJ"
+      },
+      {
+        "unit": 6,
+        "plain": "R",
+        "cipher": "Z",
+        "link": 8,
+        "crib_index": 7,
+        "drum_offset_core": [
+          0,
+          0,
+          7
+        ],
+        "drum_offset_letters": "AAH",
+        "drums_at_true_stop": "SWQ",
+        "enigma_window": "NLK"
+      },
+      {
+        "unit": 7,
+        "plain": "E",
+        "cipher": "S",
+        "link": 9,
+        "crib_index": 8,
+        "drum_offset_core": [
+          0,
+          0,
+          8
+        ],
+        "drum_offset_letters": "AAI",
+        "drums_at_true_stop": "SWR",
+        "enigma_window": "NLL"
+      },
+      {
+        "unit": 8,
+        "plain": "I",
+        "cipher": "E",
+        "link": 10,
+        "crib_index": 9,
+        "drum_offset_core": [
+          0,
+          0,
+          9
+        ],
+        "drum_offset_letters": "AAJ",
+        "drums_at_true_stop": "SWS",
+        "enigma_window": "NLM"
+      },
+      {
+        "unit": 9,
+        "plain": "G",
+        "cipher": "Z",
+        "link": 11,
+        "crib_index": 10,
+        "drum_offset_core": [
+          0,
+          0,
+          10
+        ],
+        "drum_offset_letters": "AAK",
+        "drums_at_true_stop": "SWT",
+        "enigma_window": "NLN"
+      },
+      {
+        "unit": 10,
+        "plain": "N",
+        "cipher": "I",
+        "link": 12,
+        "crib_index": 11,
+        "drum_offset_core": [
+          0,
+          0,
+          11
+        ],
+        "drum_offset_letters": "AAL",
+        "drums_at_true_stop": "SWU",
+        "enigma_window": "NLO"
+      },
+      {
+        "unit": 11,
+        "plain": "S",
+        "cipher": "G",
+        "link": 14,
+        "crib_index": 13,
+        "drum_offset_core": [
+          0,
+          0,
+          13
+        ],
+        "drum_offset_letters": "AAN",
+        "drums_at_true_stop": "SWW",
+        "enigma_window": "NLQ"
+      },
+      {
+        "unit": 12,
+        "plain": "E",
+        "cipher": "N",
+        "link": 16,
+        "crib_index": 15,
+        "drum_offset_core": [
+          0,
+          0,
+          15
+        ],
+        "drum_offset_letters": "AAP",
+        "drums_at_true_stop": "SWY",
+        "enigma_window": "NLS"
+      }
+    ],
+    "n_edges": 12,
+    "letters": "DEGINORSXZ",
+    "n_letters": 10,
+    "loops": 3,
+    "span": 16,
+    "test_letter": "E",
+    "input_wire": "A",
+    "link_numbers": [
+      1,
+      2,
+      4,
+      5,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      14,
+      16
+    ]
+  },
+  "wheel_order": {
+    "reflector": "B",
+    "rotors_left_to_right": [
+      "I",
+      "II",
+      "V"
+    ],
+    "text": "B I-II-V"
+  },
+  "true_stop": {
+    "drums_core_letters": "SWJ",
+    "core_offsets": [
+      18,
+      22,
+      9
+    ],
+    "enigma_window_at_crib_start": "NLD",
+    "test_register_live": "ABCDFGHIJKLMNOPQRSTUVWXYZ",
+    "test_letter_stecker": "E",
+    "fixed_right_drum": null
+  },
+  "run": {
+    "positions": 17576,
+    "range": "all 17,576 positions",
+    "expected_stops": [
+      {
+        "drums": "SWJ",
+        "is_true": true,
+        "test_register_live": "ABCDFGHIJKLMNOPQRSTUVWXYZ",
+        "live_count": 25,
+        "stecker_candidates": [
+          "E"
+        ],
+        "checking_solutions": 1
+      }
+    ],
+    "false_stops": 0,
+    "false_stops_true_order_full_run": 0,
+    "false_stops_all_60_orders_full_run": 46
+  },
+  "key": {
+    "model": "enigma-i",
+    "rotors": [
+      "I",
+      "II",
+      "V"
+    ],
+    "reflector": "B",
+    "rings": "VPU",
+    "start": "NIX",
+    "plugboard": "CS FB GM IK JQ LT PA VY WU"
+  },
+  "recovered": {
+    "rings": "AAU",
+    "start": "STX",
+    "plugboard": "AP BF CS GM IK JQ LT UW VY",
+    "unresolved": "ABFJLPQTUW",
+    "guessed": "ABFJLPQTUW",
+    "plaintext_equals": true
+  },
+  "crib_has_middle_rotor_turnover": false
+}

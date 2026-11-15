@@ -1,0 +1,77 @@
+"""Plausible German military-style plaintexts for the exhibit cards.
+
+Style rules (as in real traffic): upper case, no umlauts (AE OE UE), X as the word/sentence
+separator, no personal names (only generic ranks and units).  Each message lists crib phrases that
+really occur in it; the generator tries them as the guessed crib.
+"""
+
+from __future__ import annotations
+
+# (id, plaintext, [crib phrases that occur in the text])
+MESSAGES: list[tuple[str, str, list[str]]] = [
+    (
+        "wetter",
+        "AN X OBERKOMMANDO DER WEHRMACHT X WETTERVORHERSAGE FUER DIE NORDSEE X HEUTE KLAR X "
+        "WIND AUS WEST X STAERKE DREI X SICHT GUT X KEINE BESONDERE LAGE X ENDE",
+        ["WETTERVORHERSAGE", "KEINEBESONDERE", "WINDAUSWEST"],
+    ),
+    (
+        "lage",
+        "AN X ARMEEOBERKOMMANDO X NACHRICHTENABTEILUNG MELDET X KEINE BESONDEREN EREIGNISSE X "
+        "VERBINDUNG ZU ALLEN TRUPPENTEILEN HERGESTELLT X NAECHSTER FUNKSPRUCH UM ZWOELF UHR X ENDE",
+        ["KEINEBESONDERENEREIGNISSE", "NACHRICHTENABTEILUNG", "VERBINDUNGZU"],
+    ),
+    (
+        "nachschub",
+        "AN X DIVISIONSKOMMANDO X NACHSCHUB FUER DIE ERSTE KOMPANIE UNTERWEGS X "
+        "EINTREFFEN MORGEN FRUEH ACHT UHR X BENZIN UND MUNITION AUSREICHEND X "
+        "BITTE EMPFANG BESTAETIGEN X ENDE",
+        ["NACHSCHUBFUER", "EINTREFFENMORGEN", "BENZINUNDMUNITION"],
+    ),
+    (
+        "hafen",
+        "AN X MARINEOBERKOMMANDO X GELEITZUG VERLAESST DEN HAFEN UM NULL SECHS UHR X "
+        "KURS NORDOST X GESCHWINDIGKEIT ZEHN KNOTEN X KEINE FEINDBERUEHRUNG X "
+        "LAGE UNVERAENDERT X ENDE",
+        ["GELEITZUGVERLAESST", "KEINEFEINDBERUEHRUNG", "LAGEUNVERAENDERT"],
+    ),
+    (
+        "stellung",
+        "AN X KOMMANDEUR DER PANZERGRUPPE X STELLUNG AM FLUSS GEHALTEN X "
+        "BRUECKE INTAKT X ERBITTE VERSTAERKUNG DURCH PIONIERE X "
+        "VORSTOSS ERST NACH ANKUNFT DER ARTILLERIE X ENDE",
+        ["STELLUNGAMFLUSS", "ERBITTEVERSTAERKUNG", "BRUECKEINTAKT"],
+    ),
+    (
+        "luft",
+        "AN X LUFTFLOTTE X AUFKLAERUNG MELDET KEINE FEINDLICHEN VERBAENDE IM PLANQUADRAT X "
+        "RUECKFLUG ANGETRETEN X TREIBSTOFF KNAPP X LANDUNG ERBETEN X "
+        "WETTER ZUNEHMEND SCHLECHTER X ENDE",
+        ["AUFKLAERUNGMELDET", "KEINEFEINDLICHEN", "RUECKFLUGANGETRETEN"],
+    ),
+    (
+        "befehl",
+        "AN X ALLE EINHEITEN X BEFEHL DES KOMMANDIERENDEN GENERALS X "
+        "TRUPPE BLEIBT IN DEN QUARTIEREN X MARSCHBEREITSCHAFT HERSTELLEN X "
+        "AUSFUEHRUNG ERST AUF BESONDEREN BEFEHL X FUNKSTILLE BIS AUF WEITERES X ENDE",
+        ["MARSCHBEREITSCHAFT", "AUSFUEHRUNGERST", "FUNKSTILLEBIS"],
+    ),
+    (
+        "sanitaet",
+        "AN X FELDLAZARETT X VERWUNDETE WERDEN MORGEN ABTRANSPORTIERT X "
+        "SANITAETSKRAFTWAGEN ERBETEN X VERBANDSMATERIAL FEHLT X "
+        "BITTE UM ANTWORT X ENDE",
+        ["VERWUNDETEWERDEN", "SANITAETSKRAFTWAGEN", "VERBANDSMATERIALFEHLT"],
+    ),
+]
+
+
+def message_by_id(msg_id: str) -> tuple[str, str, list[str]]:
+    for m in MESSAGES:
+        if m[0] == msg_id:
+            return m
+    raise KeyError(msg_id)
+
+
+def clean(text: str) -> str:
+    return "".join(c for c in text.upper() if "A" <= c <= "Z")

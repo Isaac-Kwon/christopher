@@ -1,0 +1,199 @@
+{
+  "schema": 1,
+  "id": "slice-6-c",
+  "mode": "slice",
+  "seed": 3,
+  "attempts": 6778,
+  "search_seconds": 174.5,
+  "ciphertext": "MVANSGVAZGSNHFVLOHIDNZVAXQGROEPQIPWNNUOBQDSKGGODAPVXZKVHQKNZPTCAYHKASWEYLRMMRYBFCGECKKZCCHYIAMMNEIUAMUOEIQNYDSZCLSGASHWEZVCWIIBFIBWPYHYCGVSQZDGXCB",
+  "ciphertext_groups": "MVANS GVAZG SNHFV LOHID NZVAX QGROE PQIPW NNUOB QDSKG GODAP VXZKV HQKNZ PTCAY HKASW EYLRM MRYBF CGECK KZCCH YIAMM NEIUA MUOEI QNYDS ZCLSG ASHWE ZVCWI IBFIB WPYHY CGVSQ ZDGXC B",
+  "plaintext": "ANXDIVISIONSKOMMANDOXNACHSCHUBFUERDIEERSTEKOMPANIEUNTERWEGSXEINTREFFENMORGENFRUEHACHTUHRXBENZINUNDMUNITIONAUSREICHENDXBITTEEMPFANGBESTAETIGENXENDE",
+  "plaintext_message_id": "nachschub",
+  "crib": "NZINUNDMUNIT",
+  "offset": 91,
+  "crib_letters_1based": [
+    92,
+    103
+  ],
+  "crib_cipher": "IAMMNEIUAMUO",
+  "menu": {
+    "edges": [
+      {
+        "unit": 1,
+        "plain": "N",
+        "cipher": "I",
+        "link": 1,
+        "crib_index": 0,
+        "drum_offset_core": [
+          0,
+          0,
+          0
+        ],
+        "drum_offset_letters": "AAA",
+        "drums_at_true_stop": "RZP",
+        "enigma_window": "WXU"
+      },
+      {
+        "unit": 2,
+        "plain": "I",
+        "cipher": "M",
+        "link": 3,
+        "crib_index": 2,
+        "drum_offset_core": [
+          0,
+          0,
+          2
+        ],
+        "drum_offset_letters": "AAC",
+        "drums_at_true_stop": "RZR",
+        "enigma_window": "WXW"
+      },
+      {
+        "unit": 3,
+        "plain": "N",
+        "cipher": "M",
+        "link": 4,
+        "crib_index": 3,
+        "drum_offset_core": [
+          0,
+          0,
+          3
+        ],
+        "drum_offset_letters": "AAD",
+        "drums_at_true_stop": "RZS",
+        "enigma_window": "WXX"
+      },
+      {
+        "unit": 4,
+        "plain": "U",
+        "cipher": "N",
+        "link": 5,
+        "crib_index": 4,
+        "drum_offset_core": [
+          0,
+          0,
+          4
+        ],
+        "drum_offset_letters": "AAE",
+        "drums_at_true_stop": "RZT",
+        "enigma_window": "WXY"
+      },
+      {
+        "unit": 5,
+        "plain": "M",
+        "cipher": "U",
+        "link": 8,
+        "crib_index": 7,
+        "drum_offset_core": [
+          0,
+          0,
+          7
+        ],
+        "drum_offset_letters": "AAH",
+        "drums_at_true_stop": "RZW",
+        "enigma_window": "WXB"
+      },
+      {
+        "unit": 6,
+        "plain": "I",
+        "cipher": "U",
+        "link": 11,
+        "crib_index": 10,
+        "drum_offset_core": [
+          0,
+          0,
+          10
+        ],
+        "drum_offset_letters": "AAK",
+        "drums_at_true_stop": "RZZ",
+        "enigma_window": "WXE"
+      }
+    ],
+    "n_edges": 6,
+    "letters": "IMNU",
+    "n_letters": 4,
+    "loops": 3,
+    "span": 11,
+    "test_letter": "I",
+    "input_wire": "A",
+    "link_numbers": [
+      1,
+      3,
+      4,
+      5,
+      8,
+      11
+    ]
+  },
+  "wheel_order": {
+    "reflector": "B",
+    "rotors_left_to_right": [
+      "I",
+      "II",
+      "IV"
+    ],
+    "text": "B I-II-IV"
+  },
+  "true_stop": {
+    "drums_core_letters": "RZP",
+    "core_offsets": [
+      17,
+      25,
+      15
+    ],
+    "enigma_window_at_crib_start": "WXU",
+    "fixed_right_drum": "P",
+    "test_register_live": "ABCDEFGHIJKLMNOPQRTUVWXYZ",
+    "test_letter_stecker": "S"
+  },
+  "run": {
+    "positions": 676,
+    "range": "right (slow) drum fixed, left and middle sweep 26x26",
+    "expected_stops": [
+      {
+        "drums": "RZP",
+        "is_true": true,
+        "test_register_live": "ABCDEFGHIJKLMNOPQRTUVWXYZ",
+        "live_count": 25,
+        "stecker_candidates": [
+          "S"
+        ],
+        "checking_solutions": 1
+      },
+      {
+        "drums": "VZP",
+        "is_true": false,
+        "test_register_live": "ABCDEFGHIKLMNOPQRSTUVWXYZ",
+        "live_count": 25,
+        "stecker_candidates": [
+          "J"
+        ],
+        "checking_solutions": 0
+      }
+    ],
+    "false_stops": 1,
+    "false_stops_true_order_full_run": 16,
+    "false_stops_all_60_orders_full_run": 1883
+  },
+  "key": {
+    "model": "enigma-i",
+    "rotors": [
+      "I",
+      "II",
+      "IV"
+    ],
+    "reflector": "B",
+    "rings": "FYF",
+    "start": "WTG",
+    "plugboard": "AJ EQ FM GU HB IS KR TV XD ZO"
+  },
+  "recovered": {
+    "rings": "AAF",
+    "start": "RVG",
+    "plugboard": "AJ BH DX EQ FM GU IS KR OZ TV",
+    "unresolved": "BCHKLPRWY",
+    "guessed": "BHKR",
+    "plaintext_equals": true
+  },
+  "crib_has_middle_rotor_turnover": false
+}
