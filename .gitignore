@@ -37,3 +37,8 @@ desktop.ini
 
 # LaTeX PDFs built in place by an editor (real build output goes outside the repo, see report/latexmkrc)
 /report/**/main.pdf
+
+# KiCad per-user local settings and backups
+*.kicad_prl
+*-backups/
+fp-info-cache
