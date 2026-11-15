@@ -17,7 +17,6 @@ import time
 from dataclasses import dataclass, field
 
 from christopher import Bombe, Enigma, Menu, WheelOrder
-from christopher.menu import Menu as _Menu
 
 from . import texts
 
@@ -226,11 +225,11 @@ def plugboard_string(S: list[int], rng: random.Random, total_pairs: int = 10) ->
 
 
 def submenu(full: Menu, ciphertext: str, positions, n_edges: int) -> Menu:
-    """Sub-menu of ``full`` on the given crib positions; the test letter and input wire come from
-    the real ``Menu.select`` (the sub-menu is connected, so it keeps all of its edges)."""
-    raw = full._raw
-    edges = [e for e in raw[2] if e[2] in set(positions)]
-    return _Menu((raw[0], raw[1], edges, raw[3], raw[4]), ciphertext).select(n_edges)
+    """Sub-menu of ``full`` on the given crib positions (``Menu.subset``: keeps the crib, picks the
+    test letter the same way ``Menu.select`` does). ``ciphertext`` and ``n_edges`` are kept for the
+    callers' signature; the sub-menu has exactly ``len(set(positions))`` edges."""
+    del ciphertext, n_edges
+    return full.subset(sorted(set(positions)))
 
 
 def pick_positions(crib: str, spec: Spec, rng: random.Random) -> list[int] | None:
@@ -293,11 +292,10 @@ def build_candidate(spec: Spec, rng: random.Random, msg=None, subsets: int = 16)
 
 
 def stops_for(menu: Menu, order: WheelOrder, mode: str, true_right: str | None):
-    """Run the software bombe over one wheel order; in slice mode keep only the right-drum slice."""
+    """Run the software bombe over one wheel order; in slice mode only the 676 positions with the
+    right (slow) drum fixed at ``true_right``."""
     bombe = Bombe(MODEL).plug_up(menu)
-    stops = bombe.run(order)
-    if mode == "slice":
-        stops = [s for s in stops if s.position[2] == true_right]
+    stops = bombe.run(order, fixed_right=true_right if mode == "slice" else None)
     return bombe, stops
 
 

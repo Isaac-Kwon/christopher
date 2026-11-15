@@ -146,10 +146,8 @@ def verify_record(rec: dict) -> list[str]:
             bad.append(f"edge differs: {e_}")
     order = WheelOrder(rec["wheel_order"]["reflector"], tuple(rec["wheel_order"]["rotors_left_to_right"]))
     bombe = Bombe(k["model"]).plug_up(sub)
-    stops = bombe.run(order)
     ts = rec["true_stop"]
-    if rec["mode"] == "slice":
-        stops = [s for s in stops if s.position[2] == ts["fixed_right_drum"]]
+    stops = bombe.run(order, fixed_right=ts["fixed_right_drum"] if rec["mode"] == "slice" else None)
     got = sorted(s.position for s in stops)
     want = sorted(s["drums"] for s in rec["run"]["expected_stops"])
     if got != want:
