@@ -42,3 +42,5 @@ desktop.ini
 *.kicad_prl
 *-backups/
 fp-info-cache
+/report/*.pdf
+/report/guide/*.pdf
