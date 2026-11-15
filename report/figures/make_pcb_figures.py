@@ -25,6 +25,16 @@ BOARDS = [
     ("unit-tester", "hardware/common/unit-tester/pcb/unit_tester.kicad_pcb"),
     ("counter-common", "hardware/relay/counter-board/counter_common.kicad_pcb"),
     ("counter-unit", "hardware/relay/counter-board/counter_unit.kicad_pcb"),
+    ("contact-board", "hardware/gear/contact-board/contact_board.kicad_pcb"),
+    ("column-terminal", "hardware/gear/contact-board/column_terminal.kicad_pcb"),
+    ("reflector-card-b", "hardware/gear/contact-board/reflector_B.kicad_pcb"),
+    ("reflector-card-c", "hardware/gear/contact-board/reflector_C.kicad_pcb"),
+    ("diagonal-d1", "hardware/common/diagonal-board/d1.kicad_pcb"),
+    ("diagonal-d2", "hardware/common/diagonal-board/d2.kicad_pcb"),
+    ("diagonal-d3", "hardware/common/diagonal-board/d3.kicad_pcb"),
+    ("diagonal-d4", "hardware/common/diagonal-board/d4.kicad_pcb"),
+    ("diagonal-d5", "hardware/common/diagonal-board/d5.kicad_pcb"),
+    ("patch-panel", "hardware/common/patch-panel/patch_panel.kicad_pcb"),
 ]
 LAYERS = "Edge.Cuts,F.Fab,F.SilkS,F.CrtYd,User.Drawings"
 PERSONAL = re.compile(rb"(?i)c:[/\\]+users|/home/[a-z]|dropbox[/\\]")

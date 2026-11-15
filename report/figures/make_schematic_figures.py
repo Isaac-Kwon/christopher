@@ -26,6 +26,16 @@ SCHEMATICS = [
     ("counter-unit", "hardware/relay/counter-board/counter_unit.kicad_sch"),
     ("test-register", "hardware/common/test-register/test_register.kicad_sch"),
     ("unit-tester", "hardware/common/unit-tester/pcb/unit_tester.kicad_sch"),
+    ("contact-board", "hardware/gear/contact-board/contact_board.kicad_sch"),
+    ("column-terminal", "hardware/gear/contact-board/column_terminal.kicad_sch"),
+    ("reflector-card-b", "hardware/gear/contact-board/reflector_B.kicad_sch"),
+    ("reflector-card-c", "hardware/gear/contact-board/reflector_C.kicad_sch"),
+    ("diagonal-d1", "hardware/common/diagonal-board/d1.kicad_sch"),
+    ("diagonal-d2", "hardware/common/diagonal-board/d2.kicad_sch"),
+    ("diagonal-d3", "hardware/common/diagonal-board/d3.kicad_sch"),
+    ("diagonal-d4", "hardware/common/diagonal-board/d4.kicad_sch"),
+    ("diagonal-d5", "hardware/common/diagonal-board/d5.kicad_sch"),
+    ("patch-panel", "hardware/common/patch-panel/patch_panel.kicad_sch"),
 ]
 
 PERSONAL = re.compile(rb"(?i)c:[/\\]+users|/home/[a-z]|dropbox[/\\]")

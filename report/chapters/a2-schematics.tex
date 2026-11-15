@@ -329,3 +329,28 @@ PC와 직접 닿으면 안 된다. 두 영역을 건너는 부품은 디지털 �
 
 \IfFileExists{figures/generated/sch_unit-tester.pdf}{%
   \includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_unit-tester.pdf}}{}
+
+\section{기어식 접점 보드와 열 배선}\label{sch:contact-board}
+드럼 한 자리마다 한 장인 접점 보드(Omniball 7845 접점 104개, 반지름 22/29/36/43\,mm의 네 링), 열의 입출력 단자,
+반사판 배선 카드(B, C)다. 세 자리와 단자, 반사판 카드가 1:1 리본 여덟 가닥으로 이어져 한 열이 스크램블러 하나가
+된다. \code{hardware/gear/contact-board/verify\_column.py}가 보드 파일에서 접점의 링과 위치를 읽어 열 전체를
+조립하고, 로터 I--V의 60개 순서 × 17,576 위치 모두(1,054,560가지)에서 입력→출력 연결이 에니그마 스크램블러와
+같음을 확인했다. 부정 시험(거울상 보드, 리본 핀 뒤바꿈, 잘못된 반사판 카드, 잘못된 링 등)은 모두 잡힌다.
+\IfFileExists{figures/generated/sch_contact-board.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_contact-board.pdf}}{}
+\IfFileExists{figures/generated/sch_column-terminal.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_column-terminal.pdf}}{}
+\IfFileExists{figures/generated/sch_reflector-card-b.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_reflector-card-b.pdf}}{}
+
+\section{대각선 보드(다섯 장)}\label{sch:diagonal}
+글자 6/6/6/4/4개씩 나눈 다섯 장(D1--D5). 글자마다 수 D-sub 37 잭 두 개, 보드 사이는 64핀 IDC 세 가닥이다.
+\code{hardware/common/diagonal-board/verify\_diagonal.py}가 다섯 넷리스트를 접속 리본으로 합쳐, 대각선 연결
+325개(선 $w$의 글자 $c$ ↔ 선 $c$의 글자 $w$)가 정확히 그것만 이어지고 27--29번 0\,V가 한 넷임을 확인했다.
+\IfFileExists{figures/generated/sch_diagonal-d1.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_diagonal-d1.pdf}}{}
+\IfFileExists{figures/generated/sch_diagonal-d2.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_diagonal-d2.pdf}}{}
+\IfFileExists{figures/generated/sch_diagonal-d3.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_diagonal-d3.pdf}}{}
+\IfFileExists{figures/generated/sch_diagonal-d4.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_diagonal-d4.pdf}}{}
+\IfFileExists{figures/generated/sch_diagonal-d5.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_diagonal-d5.pdf}}{}
+
+\section{메뉴 패치 패널}\label{sch:patch-panel}
+공통 잭 4묶음 × 4개, 테스트 레지스터 잭, 탐색 잭과 시험 전압 플러그를 꽂는 26구멍, 0\,V(27--29번)를 묶는 곳이다.
+글자 잭은 대각선 보드에 있다. \code{verify\_patch.py}는 플러그를 각 구멍에 꽂은 경우까지 시뮬레이션해 확인했다.
+\IfFileExists{figures/generated/sch_patch-panel.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_patch-panel.pdf}}{}

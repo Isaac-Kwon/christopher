@@ -1,0 +1,83 @@
+(footprint "Omniball_7845-0-15-20-52-14-11-0"
+	(version 20241229)
+	(generator "gen_contact.py")
+	(layer "F.Cu")
+	(descr "Mill-Max 7845-0-15-20-52-14-11-0 Omniball spring contact, through hole, body 4.37 mm, ball 3.96 mm, free height 9.75 mm (decision 0002 section 3). Tail hole assumed 1.7 mm: confirm with the datasheet.")
+	(tags "Mill-Max Omniball spring contact rolling contact 7845")
+	(property "Reference" "REF**"
+		(at 0 -3.6 0)
+		(layer "F.SilkS")
+		(uuid "3252bf9d-c0d7-5c8a-9066-6ef96ff98127")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "Omniball_7845-0-15-20-52-14-11-0"
+		(at 0 3.6 0)
+		(layer "F.Fab")
+		(uuid "df1d8d8b-a2d0-5f81-8fa4-de1868eb84fd")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr through_hole)
+	(fp_circle
+		(center 0 0)
+		(end 2.185 0)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "aea1db51-7569-5317-81e5-f76ea5cb54f5")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 1.98 0)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "250b1e5f-632d-5c46-9a65-8d90a5f06137")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 2.3 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "23195d12-95aa-5a4b-bda4-0eaffaf584a9")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "89a58345-ba58-544a-b118-a59615bfd12a")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" thru_hole circle
+		(at 0 0)
+		(size 2.8 2.8)
+		(drill 1.7)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "9e526983-154a-5da4-9bbd-756e7c548f9f")
+	)
+	(embedded_fonts no)
+)
