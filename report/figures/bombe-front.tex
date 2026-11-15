@@ -1,0 +1,67 @@
+% 영국 3로터 튜링-웰치먼 봄베의 앞면(위)과 뒷면 잭 배치(아래). 직접 그린 도해이며 사진을 옮긴 것이 아니다.
+% 근거: docs/reference/bombe-mechanics.md 2, 5, 11절 (us6812report1944, ellsbury1998bombe, jackson-bh10).
+% 단위: 1 = 1 ft. 근거가 있는 것: 뱅크 3개 x 유닛 12개 x 드럼 3개(108개), 지시 드럼 3개가 가운데 뱅크
+% 오른쪽, 외형 약 7 ft x 6 ft 6 in, 드럼 지름 약 5 in, 뒷면 잭 열 9개의 용도.
+% 어림해 그린 것: 드럼 사이 간격과 캐비닛 안에서의 정확한 위치, 지시 드럼의 배열 방향, 바퀴, 잭의 개수와 간격.
+\begin{tikzpicture}[x=1.27cm,y=1.27cm,
+    drum/.style={circle,draw=black!70,fill=clight,minimum size=5.3mm,inner sep=0pt,line width=0.4pt},
+    lab/.style={font=\footnotesize,align=left,anchor=west},
+    lead/.style={draw=cgray,line width=0.4pt}]
+  % ---------------- 앞면 ----------------
+  \draw[line width=0.9pt,fill=white] (0,0) rectangle (7,6.5);
+  \foreach \x in {0.5,6.5} { \draw[fill=cgray!40] (\x,-0.12) circle (0.1); }
+  % 드럼: 뱅크 3개 x 3줄 x 12열
+  \foreach \b/\by in {0/4.55,1/2.8,2/1.05} {
+    \fill[cbluebg!50] (0.33,\by-0.25) rectangle (6.02,\by+1.25);
+    \foreach \r in {0,1,2} {
+      \foreach \c in {0,...,11} {
+        \node[drum] at (0.6+\c*0.47,\by+1.0-\r*0.5) {};
+        \fill[black!70] (0.6+\c*0.47,\by+1.0-\r*0.5) circle (0.03);
+      }
+    }
+  }
+  % 스크램블러 한 벌 강조 (위 뱅크, 셋째 열)
+  \draw[corange,line width=1.1pt,rounded corners=2pt] (1.32,4.32) rectangle (1.76,5.78);
+  % 지시 드럼 (가운데 뱅크 오른쪽)
+  \foreach \r in {0,1,2} { \node[drum,fill=cyellowbg] (ind\r) at (6.5,3.8-\r*0.5) {}; }
+  % 치수
+  \draw[<->,cgray] (0,6.8) -- node[above,font=\footnotesize,text=cgray] {폭 약 7 ft (2.1 m)} (7,6.8);
+  \draw[<->,cgray] (-0.35,0) -- node[above,rotate=90,font=\footnotesize,text=cgray] {높이 약 6 ft 6 in (2.0 m)} (-0.35,6.5);
+  % 라벨
+  \draw[lead] (6.02,5.3) -- (7.3,5.9);
+  \node[lab] at (7.3,5.9) {\textbf{뱅크}(bank) × 3\\유닛 12개씩, 모두 36개};
+  \draw[lead,corange] (1.54,5.78) -- (1.9,6.15) -- (6.5,6.15) -- (7.3,4.95);
+  \node[lab,text=corange] at (7.3,4.75) {\textbf{스크램블러 한 벌}(유닛)\\세로로 놓인 드럼 3개\\= 플러그보드 없는 에니그마};
+  \draw[lead] (ind0.east) -- (7.3,3.5);
+  \node[lab] at (7.3,3.5) {\textbf{지시 드럼}(indicator drums) 3개\\정지한 위치를 읽는다};
+  \node[lab] at (7.3,2.1) {한 벌 안의 드럼 (위에서 아래로)\\위: 연속 회전 --- 왼쪽 로터\\가운데 --- 가운데 로터\\아래: 가장 느림 --- 오른쪽 로터};
+  \node[lab] at (7.3,0.75) {드럼 108개, 지름 약 5 in\\깊이 약 2 ft, 무게 약 1톤};
+  \node[font=\small\bfseries,anchor=west] at (0,7.35) {앞면};
+  % ---------------- 뒷면 (잭 배치 도식) ----------------
+  \begin{scope}[yshift=-6.6cm]
+  \node[font=\small\bfseries,anchor=west] at (0,3.75) {뒷면: 메뉴를 배선하는 잭 (배치 도식)};
+  \draw[line width=0.9pt,fill=white] (0,0) rectangle (7,3.4);
+  \foreach \g in {0,1,2} {
+    \draw[cgray,dashed] (0.25+\g*2.25,0.15) rectangle (2.25+\g*2.25,3.25);
+    % 대각선 보드 열
+    \foreach \j in {0,...,12} { \fill[cblue] (0.55+\g*2.25,0.4+\j*0.215) rectangle ++(0.22,0.12); }
+    % commons 열
+    \foreach \j in {0,...,7} { \fill[cgreen] (1.14+\g*2.25,0.5+\j*0.34) rectangle ++(0.22,0.2); }
+    % 스크램블러 IN/OUT 열 (유닛당 한 쌍, 12쌍)
+    \foreach \j in {0,...,11} {
+      \fill[corange] (1.68+\g*2.25,0.4+\j*0.235) rectangle ++(0.13,0.13);
+      \fill[corange!55] (1.84+\g*2.25,0.4+\j*0.235) rectangle ++(0.13,0.13);
+    }
+  }
+  % 메뉴 케이블 예 (개념)
+  \draw[black!75,line width=0.9pt] (1.75,2.8) .. controls (1.2,2.3) and (1.0,1.9) .. (0.66,1.55);
+  \draw[black!75,line width=0.9pt] (1.91,2.8) .. controls (2.3,2.0) and (1.6,1.4) .. (1.25,1.28);
+  \draw[black!75,line width=0.9pt] (1.25,1.6) .. controls (0.9,1.2) and (0.9,0.9) .. (0.66,0.68);
+  \draw[lead,cblue] (0.66,3.0) -- (0.66,3.5) -- (7.3,3.1);
+  \node[lab,text=cblue] at (7.3,3.1) {\textbf{대각선 보드}(diagonal board)\\글자마다 26접점 잭, 뱅크마다 한 벌};
+  \draw[lead,cgreen] (5.75,2.0) -- (7.3,2.0);
+  \node[lab,text=cgreen] at (7.3,2.0) {\textbf{커먼}(commons)\\한 글자에 선이 여럿 모일 때의 병렬 잭};
+  \draw[lead,corange] (6.47,1.0) -- (7.3,0.9);
+  \node[lab,text=corange] at (7.3,0.9) {\textbf{스크램블러 IN/OUT 잭}\\유닛마다 한 쌍. 26선 케이블로 잇는다};
+  \end{scope}
+\end{tikzpicture}

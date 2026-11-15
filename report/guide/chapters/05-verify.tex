@@ -1,0 +1,196 @@
+\chapter{검증: 기준 모델과 대조한다}\label{ch:verify}
+
+이 장은 회로가 옳다는 것을 어떻게 확인하는지를 다룬다. 내용은 세 가지다. 같은 HDL로 쓰였어도 역할이 다른
+두 종류의 코드, 기준 모델과 대조하는 검증 방식, 그리고 서로 속도가 다른 블록을 잇는 약속(핸드셰이크)이다.
+
+\section{시뮬레이션용 모델과 합성용 설계}\label{sec:sim-vs-synth}
+
+\Why HDL 코드는 두 가지 방식으로 쓰인다. \term{시뮬레이터}{simulator}는 코드를 컴퓨터 위에서 흉내 내어
+신호가 클럭마다 어떻게 변하는지 계산한다. 합성 도구는 같은 코드를 실제 부품으로 바꾼다. 시뮬레이터는
+언어가 허용하는 것은 무엇이든 계산해 주지만, 합성 도구는 부품으로 바꿀 수 있는 것만 받아들이고, 받아들인
+것도 터무니없이 크거나 느린 회로가 될 수 있다. 그래서 ``시뮬레이션에서 옳게 동작하는 코드''와 ``칩에
+올릴 수 있는 코드'' 사이에는 간격이 있다.
+
+이 간격을 실수가 아니라 도구로 쓸 수 있다. 먼저 크기와 속도를 생각하지 않고 \emph{무엇을 해야 하는지}만
+분명하게 적은 코드를 만든다. 이것이 시뮬레이션용 기준 모델이다. 그다음 같은 동작을 하되 칩에 맞게 구조를
+바꾼 합성용 설계를 만들고, 둘의 출력이 같은지 비교한다. 동작의 정의와 구현의 최적화를 분리하는 것이다.
+
+\General FIFO(먼저 넣은 것이 먼저 나오는 대기열)를 예로 들자. 시뮬레이션용 모델은 몇 줄이면 된다. 언어가
+제공하는 가변 길이 목록에 넣고 빼면 된다. 이 코드는 합성할 수 없다. 길이가 변하는 목록에 해당하는 부품이
+없기 때문이다. 합성용 FIFO는 고정된 크기의 메모리와 쓰기 위치, 읽기 위치를 가리키는 두 카운터로 만든다
+(\ref{sec:handshake}절). 두 코드는 생긴 것이 전혀 다르지만, 같은 순서로 넣고 빼면 같은 값이 나와야 한다.
+
+표~\ref{tab:g-synth}는 시뮬레이션에서는 문제없지만 합성에서는 조심해야 하는 것들이다.
+
+\begin{table}[ht]
+\centering
+\caption{시뮬레이션과 합성에서 다르게 다뤄지는 코드.}
+\label{tab:g-synth}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{42mm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+코드 & 시뮬레이션 & 합성 \\
+\midrule
+시간 지연(\code{\#10}), 화면 출력 & 그대로 수행 & 무시되거나 오류 \\
+가변 길이 목록, 동적 할당 & 그대로 수행 & 불가능 \\
+상수가 아닌 수로 나누기, 나머지 & 그대로 계산 & 큰 나눗셈 회로 \\
+변수로 큰 배열의 원소 고르기 & 배열 접근 한 번 & 원소 수만큼 큰 선택 회로 \\
+큰 반복문 & 금방 끝남 & 본체가 반복 횟수만큼 복사됨 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\Ours 이 프로젝트에는 모델이 세 층으로 있다(그림~\ref{fig:g-layers}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkg,minimum width=36mm,minimum height=14mm] (rust) at (0,0) {Rust 코어\\{\footnotesize 무엇을 계산하는가}};
+  \node[blkb,minimum width=36mm,minimum height=14mm] (ref) at (5,0) {기준 RTL\\{\footnotesize 클럭 단위로 어떻게}};
+  \node[blko,minimum width=36mm,minimum height=14mm] (eng) at (10,0) {FPGA 엔진\\{\footnotesize 칩에 맞는 구조로}};
+  \draw[<->] (rust) -- node[above,note] {대조} (ref);
+  \draw[<->] (ref) -- node[above,note] {대조} (eng);
+  \draw[<->] (rust.south) -- ++(0,-0.6) -| node[pos=0.25,below,note] {정지 목록을 순서까지 대조} (eng.south);
+  \node[note,above=1mm of rust] {\code{crates/christopher-core}};
+  \node[note,above=1mm of ref] {\code{rtl/src}};
+  \node[note,above=1mm of eng] {\code{rtl/fpga}};
+\end{tikzpicture}
+\caption{세 층의 모델. 오른쪽으로 갈수록 실제 칩에 가깝고, 왼쪽으로 갈수록 읽고 믿기 쉽다.}
+\label{fig:g-layers}
+\end{figure}
+
+기준 RTL(\code{rtl/src})은 처음부터 시뮬레이션용으로 썼다. 소프트웨어 모델을 가장 직접적으로 옮긴 것이어서
+읽기 쉽고 Rust 코어와 대조하기 쉽다. 대신 표~\ref{tab:g-synth}의 항목을 여럿 갖고 있다. 나머지 연산
+(\code{sum\_r \% 9'd26}), 변수로 676비트 가운데 하나를 고르는 접근, 선마다 통째로 놓인 스크램블러.
+실제로 합성을 시도했을 때 이 코드는 합성 도구가 감당하지 못했다. 한 도구는 스크램블러 하나를 합성하다가
+메모리를 13GB 넘게 쓰고 운영체제에 의해 종료되었고, 다른 칩을 대상으로 한 합성은 10분 안에 끝나지
+않았다. 기준 RTL은 칩에 올리는 물건이 아니라 ``클럭 단위로 본 올바른 동작''의 정의다.
+
+FPGA 엔진(\code{rtl/fpga})은 같은 동작을 칩에 맞는 구조로 다시 쓴 것이다. 엔진이 옳다는 근거는 엔진이
+내놓는 정지 목록이 기준 RTL, 그리고 Rust 코어의 정지 목록과 \emph{순서까지} 같다는 것이다.
+
+\section{검증 우선}
+
+\Why 프로그램의 오류는 실행해 보고, 중간값을 찍어 보고, 고쳐서 다시 실행하면 된다. 몇 초면 한 바퀴 돈다.
+회로는 그렇지 않다. 칩에 올리기까지 합성과 배치, 배선에 몇 분에서 몇 시간이 걸리고, 올린 뒤에는 칩 안의
+신호를 들여다볼 수단이 마땅치 않다. 수십만 개의 신호 가운데 어느 것이 언제 틀렸는지 밖에서는 보이지 않는다.
+그래서 회로는 칩에 올리기 \emph{전에}, 모든 신호를 볼 수 있는 시뮬레이션에서 최대한 확인한다.
+
+확인하는 방법도 정해져 있다. 사람이 파형을 눈으로 보고 ``맞는 것 같다''고 하는 것은 검증이 아니다.
+믿을 수 있는 기준 모델을 두고, 같은 입력을 회로와 모델에 넣어 출력을 기계적으로 비교한다. 비교는 자동이어야
+하고, 입력은 사람이 떠올리지 못하는 경우까지 포함하도록 무작위로 대량 생성한다.
+
+\General FIFO를 검증한다고 하자. 테스트벤치(회로를 시험하는 프로그램)는 클럭마다 무작위로 ``넣을까,
+뺄까''를 정해 회로에 신호를 넣는다. 동시에 테스트벤치 안의 평범한 목록에도 같은 넣기와 빼기를 한다.
+회로에서 값이 나올 때마다 목록에서 꺼낸 값과 비교한다. 수만 클럭을 돌려 한 번도 어긋나지 않으면 가득 찼을
+때, 비었을 때, 넣기와 빼기가 같은 클럭에 일어날 때의 동작이 모두 맞는 것이다. 이런 경계 상황은 무작위
+입력이 저절로 만들어 낸다.
+
+\Ours 이 프로젝트의 테스트벤치는 Python으로 쓴다(\code{cocotb}라는 도구가 Python 코드와 시뮬레이터를
+이어 준다). 기준 모델은 Rust 코어다. 흐름은 그림~\ref{fig:g-verify}와 같다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkg,minimum width=28mm,minimum height=12mm] (core) at (0,1.2) {Rust 코어};
+  \node[blko,minimum width=32mm,minimum height=12mm] (vec) at (4.4,1.2) {벡터 파일\\{\footnotesize 입력과 기대 출력}};
+  \node[blkb,minimum width=30mm,minimum height=12mm] (tb) at (9.0,1.2) {테스트벤치\\{\footnotesize Python (cocotb)}};
+  \node[blkn,minimum width=30mm,minimum height=12mm] (dut) at (9.0,-1.0) {회로\\{\footnotesize 시뮬레이터 안}};
+  \node[blkr,minimum width=24mm,minimum height=12mm] (cmp) at (13.2,1.2) {비교\\{\footnotesize 다르면 실패}};
+  \draw[->] (core) -- (vec); \draw[->] (vec) -- (tb); \draw[->] (tb) -- (cmp);
+  \draw[->] ([xshift=-4mm]tb.south) -- node[left,note] {입력을 넣는다} ([xshift=-4mm]dut.north);
+  \draw[->] ([xshift=4mm]dut.north) -- node[right,note] {출력을 읽는다} ([xshift=4mm]tb.south);
+\end{tikzpicture}
+\caption{검증의 흐름.}
+\label{fig:g-verify}
+\end{figure}
+
+시험은 층마다 따로 있다. 아래층이 맞다는 것을 먼저 확인해야 위층이 실패했을 때 원인을 좁힐 수 있다.
+
+\begin{itemize}
+\item \code{scrambler}: 무작위로 고른 로터 순서와 위치 3,000건에서 26글자의 치환표를 비교한다.
+\item \code{bombe\_core}: 벡터 파일의 각 위치에서 676비트 상태 \emph{전체}를 비교한다. 정지 여부만 비교하면
+중간 상태가 틀려도 우연히 통과할 수 있기 때문이다.
+\item \code{bombe\_sweep}: 로터 순서 하나를 전부 돌려 정지 목록을 순서까지 비교한다.
+\end{itemize}
+
+두 가지 요령이 더 있다. 테스트벤치는 회로가 쓰지 않아야 할 입력(비활성화된 메뉴 칸 등)에 일부러 무작위 값을
+넣는다. 회로가 실수로 그 값에 의존하면 결과가 달라져 드러난다. 그리고 정지를 받아 가는 쪽의 수락 신호를
+무작위로 늦춘다. 다음 절의 약속을 회로가 지키는지 보기 위해서다.
+
+\section{핸드셰이크와 FIFO}\label{sec:handshake}
+
+\Why 회로의 블록들은 속도가 다르다. 봄베는 드럼 위치 수천 곳을 지나는 동안 정지를 한 번 낼 수도, 연달아
+낼 수도 있다. 정지를 받아 가는 쪽(PC와 통신하는 부분)은 훨씬 느리다. 보내는 쪽이 ``지금 값이 있다''고만
+하고 다음으로 넘어가 버리면 받는 쪽이 놓칠 수 있다. 두 블록 사이에는 ``넘겼다, 받았다''를 확인하는 약속이
+필요하다.
+
+가장 널리 쓰이는 약속이 \term{valid/ready 핸드셰이크}{handshake}다. 신호는 둘이다. 보내는 쪽은 넘길 값이
+있으면 \code{valid}를 올리고, 받는 쪽은 받을 수 있으면 \code{ready}를 올린다. 규칙은 하나다.
+\emph{클럭 에지에서 \code{valid}와 \code{ready}가 둘 다 1이면 그 순간 값이 넘어간 것이다.} 보내는 쪽은
+\code{valid}를 올린 뒤 값이 넘어갈 때까지 값을 바꾸지 않고 기다려야 한다. 받는 쪽이 준비되지 않아 보내는
+쪽이 멈춰 서는 것을 \term{역압}{backpressure}이라 한다.
+
+\General 그림~\ref{fig:g-handshake}는 값 두 개가 넘어가는 모습이다. 첫 번째 값 A는 받는 쪽이 준비되어 있어
+곧바로 넘어간다. 두 번째 값 B는 받는 쪽이 두 클럭 동안 준비되지 않아 그동안 보내는 쪽이 값을 붙들고
+기다린다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikztimingtable}[timing/slope=0.1,timing/coldist=4pt,xscale=2.4,yscale=1.25,semithick]
+  \code{clk}   & 9{.5L .5H} \\
+  \code{valid} & 1.5L 1H 1L 3H 2.5L \\
+  \code{data}  & 1.5U 1D{A} 1U 3D{B} 2.5U \\
+  \code{ready} & .5L 2H 3L 2H 1.5L \\
+\extracode
+  \begin{pgfonlayer}{background}
+    \vertlines[cgray!50,dashed]{0.5,1.5,...,8.5}
+    \fill[cgreenbg] (1.5,-7) rectangle (2.5,1.2);
+    \fill[cgreenbg] (5.5,-7) rectangle (6.5,1.2);
+    \fill[credbg] (3.5,-7) rectangle (5.5,1.2);
+  \end{pgfonlayer}
+  \node[note,text=cgreen] at (2.0,-7.9) {A 전달};
+  \node[note,text=cred] at (4.3,-7.9) {기다림};
+  \node[note,text=cgreen] at (6.3,-7.9) {B 전달};
+\end{tikztimingtable}
+\caption{valid/ready 핸드셰이크. 초록 구간의 끝 에지에서 값이 넘어간다. 빨간 구간에서는 보내는 쪽이 값을
+유지한 채 기다린다.}
+\label{fig:g-handshake}
+\end{figure}
+
+보내는 쪽이 멈춰 서는 것이 곤란하면 두 블록 사이에 FIFO를 둔다. FIFO는 고정 크기의 메모리와 카운터 두 개로
+만든다(그림~\ref{fig:g-fifo}). 넣을 때는 쓰기 위치에 값을 쓰고 쓰기 위치를 하나 올리며, 뺄 때는 읽기 위치의
+값을 내놓고 읽기 위치를 하나 올린다. 두 위치는 끝에 이르면 처음으로 돌아간다. 보내는 쪽은 FIFO가 가득 차지
+않는 한 멈추지 않고, 받는 쪽은 자기 속도로 꺼내 간다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \i/\v/\st in {0/{}/white,1/{}/white,2/C/cbluebg,3/D/cbluebg,4/E/cbluebg,5/{}/white,6/{}/white,7/{}/white} {
+    \node[draw,fill=\st,minimum width=10mm,minimum height=9mm,font=\ttfamily\small] (c\i) at (\i*1.0,0) {\v};
+    \node[font=\tiny,text=cgray] at (\i*1.0,-0.7) {\i};
+  }
+  \draw[->,cgreen,line width=1pt] (2,1.5) node[above,font=\footnotesize,text=cgreen] {읽기 위치} -- (c2.north);
+  \draw[->,corange,line width=1pt] (5,1.5) node[above,font=\footnotesize,text=corange] {쓰기 위치} -- (c5.north);
+  \draw[->] (-1.8,0) node[left,font=\small] {넣기} -- (c0.west);
+  \draw[->] (c7.east) -- ++(1.2,0) node[right,font=\small] {빼기};
+  \node[note,anchor=west,text width=36mm,align=left] at (9.9,0.2) {두 위치가 같으면 비어 있다.\\넣으면 쓰기 위치가, 빼면 읽기 위치가 하나 올라간다.};
+\end{tikzpicture}
+\caption{FIFO의 구조. 메모리 여덟 칸에 값 세 개(C, D, E)가 들어 있는 상태다.}
+\label{fig:g-fifo}
+\end{figure}
+
+\Ours 기준 RTL의 \code{bombe\_sweep}은 정지를 valid/ready로 내보낸다. \code{stop\_valid}가 정지가 있음을
+알리고, 받는 쪽이 \code{stop\_ready}로 수락할 때까지 탐색은 그 위치에 서 있다. 실제 봄베가 정지한 뒤
+조작자가 값을 적고 다시 출발시킬 때까지 서 있던 것과 같은 동작이다. FPGA 엔진은 정지를 FIFO에 넣는다.
+PC가 읽어 가는 것이 늦어도 FIFO가 차기 전까지는 탐색이 멈추지 않고, FIFO가 가득 차면 엔진이 멈춰 서서
+정지를 잃지 않는다.
+
+\section{정리}
+
+\begin{itemize}
+\item 시뮬레이션에서 옳은 코드가 모두 칩에 올릴 수 있는 코드는 아니다. 동작을 정의하는 기준 모델과 칩에
+올리는 설계를 따로 두고 둘을 대조한다.
+\item 회로는 칩에 올리기 전에 시뮬레이션에서 기준 모델과 자동으로, 대량으로 비교한다.
+\item 속도가 다른 블록 사이에는 넘김을 확인하는 약속(valid/ready)을 두고, 필요하면 FIFO로 완충한다.
+\end{itemize}

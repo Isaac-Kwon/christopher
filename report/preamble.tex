@@ -1,0 +1,102 @@
+% Project Christopher -- 보고서(report/main.tex)와 입문 가이드(report/guide/main.tex)의 공용 전처리부.
+% 엔진: XeLaTeX + kotex. 글꼴은 TeX Live에 들어 있는 것만 쓴다(은글꼴, Latin Modern).
+
+\usepackage[a4paper,margin=25mm,headheight=14pt]{geometry}
+% \usepackage{fontspec}
+\usepackage[hangul]{kotex}
+% \setmainhangulfont{UnBatang.ttf}[BoldFont=UnBatangBold.ttf,ItalicFont=UnBatang.ttf,ItalicFeatures={FakeSlant=0.17},BoldItalicFont=UnBatangBold.ttf,BoldItalicFeatures={FakeSlant=0.17}]
+% \setsanshangulfont{UnDotum.ttf}[BoldFont=UnDotumBold.ttf,ItalicFont=UnDotum.ttf,BoldItalicFont=UnDotumBold.ttf]
+% \setmonohangulfont{UnDotum.ttf}[BoldFont=UnDotumBold.ttf,ItalicFont=UnDotum.ttf,BoldItalicFont=UnDotumBold.ttf]
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs,array,tabularx,multirow}
+\usepackage{caption,subcaption}
+\usepackage{enumitem}
+\usepackage{setspace}
+\setstretch{1.25}
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{0pt}
+\setlist{itemsep=0.15em,topsep=0.3em}
+\captionsetup{font=small,labelfont=bf,width=0.92\linewidth}
+
+% ---------- 색 ----------
+\definecolor{cblue}{HTML}{1D4ED8}
+\definecolor{cred}{HTML}{B91C1C}
+\definecolor{cgreen}{HTML}{15803D}
+\definecolor{corange}{HTML}{C2410C}
+\definecolor{cpurple}{HTML}{6D28D9}
+\definecolor{cgray}{HTML}{6B7280}
+\definecolor{clight}{HTML}{F3F4F6}
+\definecolor{cbluebg}{HTML}{DBEAFE}
+\definecolor{credbg}{HTML}{FEE2E2}
+\definecolor{cgreenbg}{HTML}{DCFCE7}
+\definecolor{corangebg}{HTML}{FFEDD5}
+\definecolor{cyellowbg}{HTML}{FEF9C3}
+
+% ---------- 그림 ----------
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\pgfplotsset{compat=1.18}
+\usepackage{tikz-timing}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,shapes.geometric,shapes.misc,decorations.pathreplacing,matrix,patterns}
+\tikzset{
+  >={Stealth[length=2.2mm]},
+  every picture/.style={font=\small},
+  blk/.style={draw,rounded corners=1.5pt,minimum height=8mm,minimum width=16mm,align=center,fill=white,inner sep=3pt},
+  blkb/.style={blk,fill=cbluebg,draw=cblue},
+  blkg/.style={blk,fill=cgreenbg,draw=cgreen},
+  blko/.style={blk,fill=corangebg,draw=corange},
+  blkr/.style={blk,fill=credbg,draw=cred},
+  blkn/.style={blk,fill=clight,draw=cgray},
+  reg/.style={draw,minimum height=10mm,minimum width=9mm,fill=cyellowbg,align=center,inner sep=2pt},
+  cloud/.style={draw,rounded corners=4mm,minimum height=9mm,minimum width=20mm,fill=cbluebg,draw=cblue,align=center,inner sep=3pt},
+  ltr/.style={circle,draw,minimum size=6.5mm,inner sep=0pt,fill=white,font=\small\ttfamily},
+  note/.style={font=\footnotesize,align=center,text=cgray},
+  wire/.style={line width=0.5pt},
+  live/.style={line width=1.1pt,draw=cblue},
+}
+
+% ---------- 상자 ----------
+\usepackage[most]{tcolorbox}
+% 아직 쓸 수 없는 부분(자리 표시)
+\newtcolorbox{todobox}[1]{enhanced,breakable,colback=clight,colframe=cgray,boxrule=0.6pt,
+  borderline={0.6pt}{0pt}{cgray,dashed},frame hidden,arc=1.5pt,left=3mm,right=3mm,top=2mm,bottom=2mm,
+  fonttitle=\bfseries\sffamily\small,coltitle=black,colbacktitle=clight,
+  title={\textcolor{cred}{[작성 예정]}\ #1}}
+% 이 프로젝트에서 실제로 겪은 일
+\newtcolorbox{lesson}[1]{enhanced,breakable,colback=corangebg!45,colframe=corange,boxrule=0.6pt,arc=1.5pt,
+  left=3mm,right=3mm,top=2mm,bottom=2mm,fonttitle=\bfseries\sffamily\small,title={실제 사례: #1}}
+% 핵심 요약
+\newtcolorbox{keybox}[1][]{enhanced,breakable,colback=cbluebg!45,colframe=cblue,boxrule=0.6pt,arc=1.5pt,
+  left=3mm,right=3mm,top=2mm,bottom=2mm,fonttitle=\bfseries\sffamily\small,#1}
+
+% ---------- 코드 ----------
+\usepackage{listings}
+\lstdefinelanguage{Rust}{
+  morekeywords={as,break,const,continue,crate,else,enum,extern,false,fn,for,if,impl,in,let,loop,match,mod,move,mut,
+    pub,ref,return,self,Self,static,struct,super,trait,true,type,unsafe,use,where,while,u8,u16,u32,u64,usize,f64,bool,Option,Some,None,Vec},
+  sensitive=true,morecomment=[l]{//},morecomment=[s]{/*}{*/},morestring=[b]"}
+\lstdefinelanguage{SV}[]{Verilog}{
+  morekeywords={logic,always_comb,always_ff,typedef,enum,int,genvar,localparam,parameter,package,endpackage,import,
+    automatic,function,endfunction,unique,priority,bit,return},
+  morecomment=[l]{//}}
+\lstdefinestyle{code}{basicstyle=\ttfamily\footnotesize,keywordstyle=\color{cblue}\bfseries,
+  commentstyle=\color{cgreen},stringstyle=\color{corange},columns=fullflexible,keepspaces=true,
+  frame=single,rulecolor=\color{cgray!50},backgroundcolor=\color{clight!60},xleftmargin=2mm,xrightmargin=2mm,
+  framesep=2mm,aboveskip=0.8em,belowskip=0.6em,showstringspaces=false,breaklines=true,tabsize=2,
+  numbers=left,numberstyle=\tiny\color{cgray},numbersep=6pt,captionpos=b}
+\lstset{style=code}
+\renewcommand{\lstlistingname}{코드}
+\newcommand{\code}[1]{\texttt{#1}}
+
+% ---------- 참고문헌 ----------
+\usepackage[backend=biber,style=numeric,sorting=none,maxbibnames=4]{biblatex}
+
+% ---------- 기타 ----------
+\usepackage[colorlinks=true,linkcolor=cblue!70!black,citecolor=cgreen!60!black,urlcolor=cblue!70!black]{hyperref}
+\newcommand{\term}[2]{\textbf{#1}(#2)}       % 용어(원어)
+\newcommand{\Scr}{\mathrm{Scr}}
+\newcommand{\Stk}{S}

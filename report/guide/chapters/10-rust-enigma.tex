@@ -1,0 +1,190 @@
+\chapter{에니그마: \texorpdfstring{\code{enigma}}{enigma}}\label{ch:rust-enigma}
+
+2부는 Rust로 쓴 소프트웨어 모델(\code{crates/christopher-core/src})을 읽는다. 이 모델이 프로젝트의 기준이다.
+회로도 실물도 이 모델과 같은 답을 내야 한다. 모듈은 다섯 개이고 이 순서로 읽는다.
+
+\begin{center}
+\small
+\begin{tabular}{lll}
+\toprule
+모듈 & 하는 일 & 실제로는 \\
+\midrule
+\code{enigma} & 에니그마 암호기 & 독일군의 기계 \\
+\code{menu} & 크립 정렬, 메뉴 작성 & 해독자가 종이 위에서 하던 일 \\
+\code{bombe} & 드럼 위치마다 전류를 퍼뜨려 정지를 찾는다 & 봄베 \\
+\code{check} & 정지를 검증하고 키 전체를 구한다 & 체킹 머신과 수작업 \\
+\code{search} & 여러 로터 순서를 병렬로 돌린다 & 봄베 여러 대의 동시 운용 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Rust를 몰라도 읽을 수 있도록 필요한 문법은 그때그때 설명한다. 미리 알아 둘 것은 세 가지다. \code{u8}은
+0에서 255까지의 부호 없는 정수, \code{[u8; 26]}은 그런 수 26개의 배열, \code{fn f(x: u8) -> u8}은 \code{u8}을
+받아 \code{u8}을 돌려주는 함수다.
+
+\section{글자는 0에서 25까지의 수}
+
+모델 전체에서 글자는 \texttt{A}=0, \ldots, \texttt{Z}=25인 수다(\code{alphabet.rs}). 로터가 돌아가는 것은
+이 수에 대한 26으로 나눈 나머지 연산이 된다. 상수 두 개가 계속 쓰인다.
+
+\begin{lstlisting}[language=Rust,numbers=none]
+pub const N: usize = 26;
+/// Bitmask with all 26 wires set.
+pub const FULL: u32 = (1 << N) - 1;
+\end{lstlisting}
+
+\code{FULL}은 아래 26비트가 모두 1인 수다. 뒤에서 ``테스트 레지스터의 26선이 전부 통전되었는가''를 이 수와의
+비교 한 번으로 판정한다.
+
+\section{배선표는 데이터다}
+
+로터와 반사판의 배선은 코드에 적혀 있지 않다. \code{data/wirings/enigma.txt}라는 글 파일에 있고,
+\code{wiring.rs}가 그것을 읽어 표로 만든다. 로터 I의 줄은 다음과 같다.
+
+\begin{lstlisting}[numbers=none]
+rotor      I        EKMFLGDQVZNTOWYHXUSPAIBRCJ  Q
+\end{lstlisting}
+
+26글자는 입력 \texttt{A}, \texttt{B}, \ldots, \texttt{Z}가 각각 어느 글자로 나가는지이고, 마지막 \texttt{Q}는
+노치의 위치(창에 이 글자가 보일 때 다음 키에서 왼쪽 로터를 민다)다.
+
+\Why 배선표를 한 파일에만 두는 이유는 사본이 둘이면 언젠가 달라지기 때문이다. 회로 쪽의 배선표
+(\code{rtl/src/wirings\_pkg.sv})도 같은 파일에서 스크립트로 생성한다. 그래서 소프트웨어와 회로가 서로 다른
+배선으로 계산하는 일이 구조적으로 일어날 수 없다.
+
+읽어 들인 로터는 표 두 개를 갖는다. \code{forward}는 들어가는 방향(자판 쪽에서 반사판 쪽으로)의 치환이고
+\code{backward}는 그 역이다. 전류는 로터를 두 번, 서로 반대 방향으로 지나므로 역방향 표를 미리 만들어 둔다.
+
+\section{로터 한 단을 지나기: \texorpdfstring{\code{through}}{through}}\label{sec:through}
+
+에니그마 모델에서 가장 중요한 함수는 네 줄짜리다.
+
+\begin{lstlisting}[language=Rust,caption={\code{enigma.rs}: 회전한 로터를 통과한다.},label={lst:through}]
+pub fn through(table: &[u8; N], core: u8, c: u8) -> u8 {
+    let s = core as usize;
+    let out = table[(c as usize + s) % N] as usize;
+    ((out + N - s) % N) as u8
+}
+\end{lstlisting}
+
+\code{table}은 배선표, \code{core}는 로터가 돌아가 있는 정도, \code{c}는 들어오는 글자다.
+
+\Why 로터가 $s$칸 돌아가 있으면, 기계의 고정된 $c$번 자리로 들어온 전류는 로터의 $c+s$번 접점에 닿는다
+(로터가 그만큼 밀려 있으므로). 로터 안의 배선은 그 접점을 \code{table[c+s]}번 접점으로 잇는다. 그 접점은
+기계의 고정된 자리로는 다시 $s$칸 되돌린 곳이다. 그래서 \emph{들어갈 때 $s$를 더하고, 표를 읽고, 나올 때
+$s$를 뺀다}(그림~\ref{fig:g-through}). \code{out + N - s}에서 \code{N}을 더하는 것은 뺄셈 결과가 음수가
+되지 않게 하려는 것이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkn,minimum width=22mm] (in) at (0,0) {글자 $c$};
+  \node[blkb,minimum width=24mm] (a) at (3.2,0) {$+s \bmod 26$};
+  \node[blko,minimum width=26mm] (t) at (6.7,0) {배선표 조회};
+  \node[blkb,minimum width=24mm] (b) at (10.2,0) {$-s \bmod 26$};
+  \node[blkn,minimum width=22mm] (out) at (13.4,0) {나가는 글자};
+  \draw[->] (in) -- (a); \draw[->] (a) -- (t); \draw[->] (t) -- (b); \draw[->] (b) -- (out);
+  \node[note,below=1mm of a] {돌아간 만큼 밀려 들어감};
+  \node[note,below=1mm of t] {로터 안의 고정 배선};
+  \node[note,below=1mm of b] {같은 만큼 되돌아옴};
+\end{tikzpicture}
+\caption{로터 한 단의 통과. 이 세 토막이 회로에서도, 릴레이식 실물에서도 그대로 나타난다.}
+\label{fig:g-through}
+\end{figure}
+
+\General 다이얼 자물쇠나 회전하는 암호 원판(안쪽 원판과 바깥쪽 원판에 글자가 적힌 것)을 떠올리면 된다.
+원판 자체의 글자 배열은 변하지 않고, 원판을 돌리면 ``바깥의 어느 글자가 안쪽의 어느 글자와 마주 보는가''만
+밀린다. 시저 암호는 이 가운데 표 조회가 없는 경우, 곧 밀기만 하는 경우다.
+
+\Ours 이 ``밀고, 고정 배선을 지나고, 되밀기''의 구조는 뒤에서 세 번 다시 나온다. 회로의
+\code{rotor\_fwd} 함수(\ref{ch:rtl-scrambler}장), FPGA 엔진에서 한 단을 ``주소 만들기''와 ``표 읽기''의 두 클럭으로
+나눈 파이프라인(\ref{sec:pipeline}절), 그리고 릴레이식 실물에서 로터 한 단을 ``시프트, 고정 배선, 역시프트''로
+만드는 설계다.
+
+\paragraph{코어 위치.} \code{core}에 들어가는 값은 창에 보이는 글자에서 링 설정을 뺀 것이다.
+
+\begin{lstlisting}[language=Rust,numbers=none]
+pub fn core(&self) -> u8 {
+    alphabet::sub(self.pos, self.ring)
+}
+\end{lstlisting}
+
+링은 글자 눈금이 새겨진 겉 고리이고 링 설정은 그 고리를 내부 배선에 대해 돌려 둔 정도다. 창 글자와 링
+설정을 같은 만큼 함께 돌리면 이 뺄셈의 결과가 같으므로 치환도 같다. 봄베가 찾는 것은 창 글자도 링 설정도
+아니고 이 차이, \term{코어 위치}{core position}다. 이 사실은 \ref{ch:rust-check}장에서 ``봄베가 찾은 키의 링
+설정이 실제와 달라 보이는 이유''로 다시 나온다.
+
+\section{로터의 전진: \texorpdfstring{\code{step}}{step}}
+
+\begin{lstlisting}[language=Rust,caption={\code{enigma.rs}: 키를 한 번 누를 때의 전진. \code{rotors[0]}이 왼쪽, \code{[2]}가 오른쪽이다.},label={lst:step}]
+pub fn step(&mut self) {
+    let right_turn = self.rotors[2].at_turnover();
+    let middle_turn = self.rotors[1].at_turnover();
+    if middle_turn {
+        self.rotors[1].advance();
+        self.rotors[0].advance();
+    } else if right_turn {
+        self.rotors[1].advance();
+    }
+    self.rotors[2].advance();
+}
+\end{lstlisting}
+
+\Why 에니그마의 전진은 톱니와 걸쇠로 이루어진다. 오른쪽 로터는 매번 한 칸 간다. 오른쪽 로터가 노치 위치에
+있으면 걸쇠가 걸려 가운데 로터도 한 칸 간다. 가운데 로터가 노치 위치에 있으면 걸쇠가 왼쪽 로터를 밀면서
+가운데 로터 자신도 함께 밀린다. 이 마지막 경우 때문에 가운데 로터가 두 번 연달아 움직이는 일이 생기는데,
+이것이 \term{이중 스테핑}{double stepping}이다. 코드의 첫 번째 분기가 그것이다. 두 줄의 \code{at\_turnover}를
+\emph{먼저} 읽어 두는 것에 주의한다. 움직이기 전의 위치로 판단해야 하기 때문이다.
+
+\General 자동차의 주행 거리계는 아랫자리가 9에서 0으로 넘어갈 때 윗자리가 하나 오른다. 에니그마는 거의
+같지만 가운데 자리가 ``윗자리를 올리면서 자기도 한 번 더 오르는'' 점이 다르다. 그래서 세 로터가 원래 위치로
+돌아오는 주기는 $26^3 = 17{,}576$이 아니라 $26 \times 25 \times 26 = 16{,}900$이다.
+
+\Ours 봄베의 드럼에는 노치가 없다. 봄베는 크립이 놓인 짧은 구간에서 오른쪽 로터만 움직인다고 가정하고,
+스크램블러들의 오른쪽 드럼만 크립 위치만큼 어긋나게 맞춘다. 가정이 깨지는 경우(구간 안에서 가운데 로터가
+넘어감)의 처리는 \ref{ch:rust-bombe}장에서 본다. \code{step}은 봄베 안에서는 쓰이지 않고, 암호문을 만들 때와
+체킹 단계에서 전문 전체를 복호화할 때 쓰인다.
+
+\section{스크램블러와 키 한 번}
+
+\begin{lstlisting}[language=Rust,caption={\code{enigma.rs}: 스크램블러와 키 한 번(그리스 로터 부분 생략).},label={lst:press}]
+pub fn scramble(&self, c: u8) -> u8 {
+    let [l, m, r] = &self.rotors;
+    let mut x = r.forward(c);
+    x = m.forward(x);
+    x = l.forward(x);
+    ...
+    x = self.reflector.map[x as usize];
+    ...
+    x = l.backward(x);
+    x = m.backward(x);
+    r.backward(x)
+}
+
+pub fn press(&mut self, c: u8) -> u8 {
+    self.step();
+    self.plugboard.map(self.scramble(self.plugboard.map(c)))
+}
+\end{lstlisting}
+
+\code{scramble}은 전류의 경로를 그대로 적은 것이다. 오른쪽, 가운데, 왼쪽 로터를 지나 반사판에서 돌아
+왼쪽, 가운데, 오른쪽을 역방향으로 지난다. \code{press}는 키 한 번이다. \emph{먼저 전진하고}, 플러그보드,
+스크램블러, 다시 플러그보드를 지난다.
+
+\Why \code{press}가 전진을 먼저 하는 것은 실제 기계가 그렇기 때문이다. 키를 누르는 힘이 먼저 로터를 돌리고,
+그다음에 접점이 닫혀 전류가 흐른다. 이 순서는 ``한 칸 차이''의 원인이 된다. 창 글자를 \texttt{AAA}로 맞추고
+첫 글자를 치면 그 글자는 \texttt{AAB} 위치에서 암호화된다. 봄베가 찾는 위치를 ``크립의 첫 글자를 암호화하는
+순간의 위치''로 정의하는 까닭이 여기에 있다.
+
+스크램블러가 두 가지 성질을 갖는다는 것을 코드에서 읽을 수 있다. 반사판의 표 \code{reflector.map}은 글자
+쌍을 맞바꾸는 표여서 어떤 글자도 자기 자신으로 가지 않고, 두 번 적용하면 원래대로 돌아온다. 그 앞뒤를 같은
+로터들이 반대 방향으로 감싸고 있으므로 \code{scramble} 전체도 그렇다. 곧 (1)~어떤 글자도 자기 자신으로
+암호화되지 않고, (2)~\texttt{W}가 \texttt{I}로 바뀌면 \texttt{I}는 \texttt{W}로 바뀐다. (1)은 다음 장에서
+크립의 위치를 추리는 데, (2)는 봄베에서 전류가 스크램블러를 양방향으로 지나는 데 쓰인다.
+
+\section{이 모듈이 옳다는 근거}
+
+에니그마 모델이 틀리면 그 위의 모든 것이 틀린다. 근거는 네 가지다. 널리 알려진 시험값(로터 I-II-III,
+반사판 B, 시작 위치 \texttt{AAA}에서 \texttt{AAAAA}가 \texttt{BDZGO}가 된다), 이중 스테핑의 시험, M4에서
+그리스 로터를 \texttt{A}에 둔 얇은 반사판이 3로터 기종의 반사판과 같아야 한다는 등가성, 그리고 실제 전문이다.
+1945년 3월 6일의 독일 해군 전문을 공개된 키로 복호화하면 공개된 복호문과 344글자가 모두 일치한다.

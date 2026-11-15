@@ -1,0 +1,352 @@
+\chapter{RTL 구현}\label{ch:rtl}
+
+이 장은 봄베를 디지털 회로로 옮기는 과정을 다룬다. FPGA 구현은 이 프로젝트에서 두 가지 역할을 한다.
+첫째, 그 자체가 세 번째 봄베다. 기계식과 릴레이식 옆에 놓여, 움직이는 부품이 하나도 없는 전자 회로가
+같은 메뉴에서 같은 정지를 훨씬 빨리 내는 것을 보여 준다. 드럼이 도는 모습이 없으므로 내부 상태(676가닥의
+선, 드럼 위치, 정지)를 눈에 보이게 표시하는 장치가 따로 필요하다. 둘째, 기계식과 릴레이식 실물 뒤에서
+구동을 제어하고 실물이 낸 정지를 기준 모델의 결과와 대조한다.
+
+회로는 SystemVerilog로 기술했고 두 벌이 있다.
+하나는 소프트웨어 모델을 가장 직접적으로 옮긴 \emph{기준 RTL}(\code{rtl/src})로, 시뮬레이션에서만 쓴다.
+다른 하나는 실제 FPGA에 올리기 위해 구조를 바꾼 \emph{FPGA 엔진}(\code{rtl/fpga})이다. 기준 RTL과 그 검증은
+완성되었으므로 자세히 적고, FPGA 엔진은 현재 조정 중이므로 구조의 개요만 적고 나머지는 자리를 잡아 둔다.
+
+\section{전기 회로를 논리 회로로: 왜 클럭이 필요한가}\label{sec:why-clock}
+
+실제 봄베의 배선망은 전선이다. 전압을 걸면 전류는 이어진 모든 선으로 사실상 즉시 퍼지고, 드럼이 다음
+위치로 움직이면 접점이 끊어져 전류는 사라진다. 이것을 논리 게이트로 그대로 옮기면 어떻게 될까.
+
+``케이블 $a$의 선이 통전되면 스크램블러 건너편 케이블 $b$의 선도 통전된다''를 게이트로 쓰면 $b$의 선은
+$a$의 선들의 OR이고, 연결이 양방향이므로 $a$의 선은 다시 $b$의 선들의 OR이다. 출력이 게이트 몇 개를 거쳐
+자기 입력으로 돌아오는 \term{조합 루프}{combinational loop}가 생긴다(그림~\ref{fig:comb-loop} 왼쪽).
+조합 루프는 두 가지 이유로 쓸 수 없다.
+
+\begin{itemize}
+\item \textbf{꺼지지 않는다.} OR 게이트의 고리는 한번 1이 되면 입력을 거두어도 서로를 1로 붙들고 있다.
+전선의 전류는 접점이 떨어지면 사라지지만, 게이트의 고리는 의도하지 않은 기억 소자가 된다. 다음 드럼
+위치를 시험하려면 676개의 선을 모두 0으로 되돌려야 하는데 그럴 방법이 없다.
+\item \textbf{설계 도구가 다루지 못한다.} 디지털 회로의 설계 도구는 신호가 레지스터에서 출발해 게이트를
+거쳐 다음 레지스터에 도착하는 데 걸리는 시간을 계산해 회로가 제 속도로 동작하는지 확인한다. 고리에는
+출발점과 도착점이 없어 이 계산을 할 수 없다.
+\end{itemize}
+
+해결은 고리를 \term{레지스터}{register}로 끊는 것이다(그림~\ref{fig:comb-loop} 오른쪽). 676개의 선의
+상태를 676비트 레지스터에 담고, 조합 논리는 ``현재 상태에서 \emph{한 걸음} 더 퍼진 상태''만 계산한다.
+클럭이 한 번 뛸 때마다 그 결과를 레지스터에 다시 담는다. 상태가 더 변하지 않으면 전류가 다 퍼진 것이다.
+새 위치를 시작할 때는 레지스터를 0으로 지우고 전압을 건 선 하나만 1로 둔다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % 왼쪽: 조합 루프
+  \node[font=\small\bfseries] at (2.2,4.0) {그대로 옮긴 경우 (쓸 수 없음)};
+  \node[cloud,minimum width=24mm] (fa) at (2.2,2.0) {$a$에서 $b$로\\(OR 망)};
+  \node[cloud,minimum width=24mm] (fb) at (2.2,0.2) {$b$에서 $a$로\\(OR 망)};
+  \draw[->,cred,line width=0.9pt] (fa.east) -- ++(0.9,0) |- (fb.east);
+  \draw[->,cred,line width=0.9pt] (fb.west) -- ++(-0.9,0) |- (fa.west);
+  \node[note,text=cred] at (2.2,-0.9) {출력이 입력으로 되돌아온다.\\한번 1이 되면 꺼지지 않는다.};
+  % 오른쪽: 레지스터로 끊은 구조
+  \begin{scope}[xshift=7.2cm]
+  \node[font=\small\bfseries] at (3.0,4.0) {레지스터로 끊은 구조};
+  \node[reg,minimum height=18mm,minimum width=14mm] (r) at (0.6,1.1) {\code{live\_q}\\676비트};
+  \node[cloud,minimum width=40mm,minimum height=18mm] (f) at (4.3,1.1) {한 걸음 퍼뜨리기\\{\footnotesize 모든 스크램블러 양방향}\\{\footnotesize + 대각선 보드}};
+  \draw[->] (r.east) -- (f.west);
+  \draw[->] (f.east) -- ++(0.7,0) node[above,pos=0.5,font=\footnotesize\ttfamily] {} |- (4.3,-0.6) node[pos=0.25,right,font=\footnotesize] {\code{live\_n}} -| (r.south);
+  \draw (r.south west) ++(0.25,0) -- ++(0.15,0.2) -- ++(0.15,-0.2);
+  \node[note] at (0.6,-0.1) {};
+  \node[blkn,minimum width=26mm] (cmp) at (4.3,2.9) {\code{live\_n == live\_q} ?};
+  \draw[->] (f.north) -- (cmp.south);
+  \draw[->] (cmp.east) -- ++(0.8,0) node[right,font=\footnotesize] {끝};
+  \node[note] at (3.0,-1.25) {클럭마다 한 걸음. 변화가 없으면 고정점.};
+  \end{scope}
+\end{tikzpicture}
+\caption{전류의 확산을 논리 회로로 옮기는 두 방법. 왼쪽은 조합 루프가 되어 쓸 수 없다. 오른쪽은 상태를
+레지스터에 담고 클럭마다 한 걸음씩 퍼뜨린다.}
+\label{fig:comb-loop}
+\end{figure}
+
+이 구조가 실제 기계, 그리고 소프트웨어 모델과 \emph{같은 답}을 낸다는 것은 \ref{ch:software}장에서 본
+성질에서 나온다. 구하는 것은 전압을 건 선과 이어진 선들의 집합이고, 이 집합은 선을 살피는 순서와
+무관하다. 소프트웨어는 선을 한 가닥씩 살피고 회로는 모든 선을 동시에 한 걸음씩 살피지만 도달하는 상태는
+같다. 회로가 쓰는 클럭 수는 전압을 건 선에서 가장 먼 선까지의 걸음 수로 정해진다.
+
+\section{기준 RTL의 구조}
+
+기준 RTL은 세 모듈이다(그림~\ref{fig:rtl-blocks}). 구성은 실제 기계의 부분과 같다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \draw[rounded corners=2pt,draw=cgray,fill=clight] (-0.3,-2.9) rectangle (15.0,3.1);
+  \node[anchor=north west,font=\small\bfseries] at (-0.2,3.05) {\code{bombe\_sweep}: 드럼 구동과 정지 출력};
+  \node[blko,minimum width=26mm,minimum height=12mm] (cnt) at (1.3,1.1) {위치 계수기\\{\footnotesize $g,l,m,r$ (26진)}};
+  \node[blko,minimum width=26mm,minimum height=12mm] (fsm) at (1.3,-1.3) {제어\\{\footnotesize IDLE/RUN/EMIT}};
+  \draw[rounded corners=2pt,draw=cblue,fill=white] (4.6,-2.4) rectangle (12.6,2.4);
+  \node[anchor=north west,font=\small\bfseries] at (4.7,2.35) {\code{bombe\_core}: 한 위치의 판정};
+  \node[blkb,minimum width=22mm,minimum height=12mm] (scr) at (6.0,1.1) {\code{scrambler}\\{\footnotesize × 선의 수}};
+  \node[reg,minimum width=17mm,minimum height=12mm] (perm) at (8.6,1.1) {\code{perm\_q}\\{\footnotesize 치환표}};
+  \node[blkb,minimum width=22mm,minimum height=12mm] (spr) at (11.2,1.1) {전파\\{\footnotesize 조합 논리}};
+  \node[reg,minimum width=22mm,minimum height=10mm] (live) at (11.2,-1.3) {\code{live\_q}\\{\footnotesize 676비트}};
+  \draw[->] (cnt) -- node[above,font=\scriptsize,text=cgray] {위치} (scr);
+  \draw[->] (scr) -- (perm);
+  \draw[->] (perm) -- (spr);
+  \draw[->] ([xshift=3mm]spr.south) -- ([xshift=3mm]live.north);
+  \draw[->] ([xshift=-3mm]live.north) -- ([xshift=-3mm]spr.south);
+  \draw[->] ([yshift=2.5mm]fsm.east) -- node[above,font=\scriptsize,text=cgray] {start} ([yshift=2.5mm]4.6,-1.3);
+  \draw[<-] ([yshift=-2.5mm]fsm.east) -- node[below,font=\scriptsize,text=cgray] {done, stop} ([yshift=-2.5mm]4.6,-1.3);
+  \draw[->] (fsm) -- (cnt);
+  \node[blkr,minimum width=15mm,minimum height=12mm] (out) at (13.8,-1.3) {정지\\출력};
+  \draw[->] (live) -- (out);
+  \node[font=\scriptsize,text=cgray,below=1mm of out] {valid/ready};
+\end{tikzpicture}
+\caption{기준 RTL의 구성. \code{scrambler}는 조합 논리로 된 치환표, \code{bombe\_core}는 한 드럼 위치에서
+전류를 퍼뜨려 정지 여부를 판정하고, \code{bombe\_sweep}은 모든 위치를 차례로 돌며 정지를 내보낸다.}
+\label{fig:rtl-blocks}
+\end{figure}
+
+\paragraph{\code{scrambler}.} 드럼 한 벌이다. 로터 순서와 코어 위치를 입력으로 받아 26글자의 치환표를
+내놓는다. 클럭이 없는 순수한 조합 논리이며, 신호 경로는 소프트웨어의 스크램블러와 같다(오른쪽, 가운데,
+왼쪽, 반사판, 다시 역순). 배선표는 소프트웨어와 같은 원본 파일에서 생성한 상수 표다.
+
+\paragraph{\code{bombe\_core}.} 한 드럼 위치의 판정을 맡는다. 메뉴의 선마다 스크램블러를 하나씩 두고,
+선의 크립 위치만큼 오른쪽 코어 위치를 더해 준다. 시작 신호가 오면 치환표들을 레지스터에 붙잡고, 676비트
+상태를 지운 뒤 전압을 건 선 하나만 1로 둔다. 그다음 클럭마다 한 걸음씩 퍼뜨린다. 한 걸음은 메뉴의 모든
+선을 양방향으로, 그리고 대각선 보드를 한꺼번에 적용한 것이다. 상태가 변하지 않거나 테스트 레지스터의
+26선이 모두 통전되면 끝낸다. 테스트 레지스터가 26선 모두는 아니면 정지다.
+
+\paragraph{\code{bombe\_sweep}.} 드럼 구동 기구와 정지 릴레이의 역할이다. 26진 자리올림 계수기로 드럼
+위치를 하나씩 올리며 \code{bombe\_core}를 구동하고, 정지가 나오면 위치와 테스트 레지스터를 내보낸다.
+탐색 순서는 소프트웨어와 같게(오른쪽 로터가 가장 안쪽) 맞췄다. 그래야 정지 목록을 순서까지 포함해
+원소 단위로 비교할 수 있다.
+
+\section{한 위치의 동작}
+
+그림~\ref{fig:core-timing}은 \code{bombe\_core}가 한 위치를 판정하는 동안의 신호다. 시작 신호를 본 다음
+클럭에서 전압을 건 선 하나만 통전된 상태 $L_0$이 레지스터에 담긴다. 이후 클럭마다 $L_1, L_2, \ldots$로
+넓어지다가, 조합 논리가 계산한 다음 상태가 현재 상태와 같아지면(그림에서는 $L_3$) 다음 클럭에 완료
+신호를 낸다. 마지막 한 클럭은 ``더 변하지 않는다''는 것을 확인하는 데 쓰인다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikztimingtable}[timing/slope=0.1,timing/coldist=4pt,xscale=1.9,yscale=1.3,semithick,
+    timing/d/background/.style={fill=cbluebg}]
+  \code{clk}      & 11{.5L .5H} \\
+  \code{start}    & .5L 1H 9.5L \\
+  상태            & 1.5D{IDLE} 4D{SPREAD} 5.5D{IDLE} \\
+  \code{live\_q}  & 1.5U 1D{$L_0$} 1D{$L_1$} 1D{$L_2$} 6.5D{$L_3$} \\
+  \code{live\_n}  & 1.5U 1D{$L_1$} 1D{$L_2$} 7.5D{$L_3$} \\
+  \code{done}     & 5.5L 1H 4.5L \\
+\extracode
+  \begin{pgfonlayer}{background}
+    \vertlines[cgray!50,dashed]{0.5,1.5,...,10.5}
+  \end{pgfonlayer}
+  \node[note,anchor=north] at (5.0,-11.4) {$\uparrow$ \code{live\_n == live\_q}: 고정점};
+\end{tikztimingtable}
+\caption{\code{bombe\_core}의 동작(개념도). $L_i$는 $i$걸음 퍼진 뒤의 676비트 상태다. 세로 점선은 클럭의
+상승 에지다. 실제 걸음 수는 메뉴와 위치에 따라 다르다.}
+\label{fig:core-timing}
+\end{figure}
+
+시뮬레이션에서 측정한 값은 다음과 같다. 구동 중에는 테스트 레지스터가 다 차는 즉시 끝내므로 위치당 평균
+약 12클럭이 든다. 끝까지 퍼뜨리는 경우의 걸음 수는 13회에서 25회 사이였다.
+
+\section{드럼 구동과 정지 출력}
+
+\code{bombe\_sweep}의 제어는 상태가 셋인 상태 기계다(그림~\ref{fig:sweep-fsm}). 정지가 나오면 EMIT 상태에서
+위치와 레지스터를 내놓고, 받는 쪽이 받았다는 신호를 줄 때까지 기다린다. 받는 쪽이 준비되지 않으면 탐색이
+멈춰 선다. 실제 봄베가 정지한 뒤 조작자가 값을 적고 다시 출발시킬 때까지 서 있던 것과 같다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+   st/.style={draw,circle,minimum size=15mm,fill=cbluebg,draw=cblue,font=\small\ttfamily}]
+  \node[st] (idle) at (0,0) {IDLE};
+  \node[st] (run) at (5,0) {RUN};
+  \node[st,fill=credbg,draw=cred] (emit) at (10,0) {EMIT};
+  \draw[->] (idle) to[bend left=18] node[above,note] {start: 위치 $\leftarrow 0$, 코어 시작} (run);
+  \draw[->] (run) to[bend left=18] node[above,note] {코어 완료, 정지} (emit);
+  \draw[->] (emit) to[bend left=18] node[below,note] {받는 쪽이 수락: 다음 위치} (run);
+  \draw[->] (run) to[bend left=18] node[below,note] {마지막 위치 완료} (idle);
+  \draw[->] (run) to[out=120,in=60,looseness=5] node[above,note] {코어 완료, 통과: 다음 위치} (run);
+  \draw[->] (emit) to[out=30,in=-30,looseness=5] node[right,note] {대기} (emit);
+\end{tikzpicture}
+\caption{\code{bombe\_sweep}의 상태 기계. 마지막 위치가 정지인 경우에는 EMIT에서 바로 IDLE로 간다(그림에서는
+생략).}
+\label{fig:sweep-fsm}
+\end{figure}
+
+\section{검증}\label{sec:rtl-verify}
+
+회로의 검증은 한 문장으로 요약된다. \emph{같은 입력에 대해 Rust 코어와 같은 출력을 내는가.}
+이를 위해 Rust 코어가 내보낸 벡터를 Python으로 쓴 테스트벤치(cocotb)가 회로에 넣고, 회로의 출력을 코어의
+기대값과 비교한다(그림~\ref{fig:verify}). 시뮬레이터는 Verilator를 주로 쓰고 Icarus Verilog로도 일부를
+확인했다. 서로 다른 시뮬레이터에서 같은 결과가 나오는지 보는 것은 회로 기술이 특정 도구의 해석에 기대고
+있지 않은지 확인하는 수단이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkb,minimum width=30mm,minimum height=12mm] (core) at (0,1.2) {Rust 코어\\(기준 모델)};
+  \node[blko,minimum width=30mm,minimum height=12mm] (vec) at (4.6,1.2) {검증 벡터\\메뉴, 위치, 기대 상태};
+  \node[blkg,minimum width=30mm,minimum height=12mm] (tb) at (9.2,1.2) {테스트벤치\\(cocotb, Python)};
+  \node[blkn,minimum width=30mm,minimum height=12mm] (dut) at (9.2,-1.0) {회로\\(시뮬레이터)};
+  \node[blkr,minimum width=30mm,minimum height=12mm] (cmp) at (13.4,0.1) {비교\\676비트, 정지 목록};
+  \draw[->] (core) -- (vec);
+  \draw[->] (vec) -- (tb);
+  \draw[->] ([xshift=-4mm]tb.south) -- node[left,note] {입력} ([xshift=-4mm]dut.north);
+  \draw[->] ([xshift=4mm]dut.north) -- node[right,note] {출력} ([xshift=4mm]tb.south);
+  \draw[->] (tb.east) -- ++(0.5,0) |- ([yshift=2mm]cmp.west);
+  \draw[->,dashed] (vec.south) -- ++(0,-2.6) -| node[pos=0.12,above,note] {기대값} (cmp.south);
+\end{tikzpicture}
+\caption{검증의 흐름. 회로는 코어가 내보낸 기대값과 비트 단위로 비교된다.}
+\label{fig:verify}
+\end{figure}
+
+시험은 모듈의 층마다 따로 두었다(표~\ref{tab:rtl-tests}). 아래층이 맞다는 것을 확인한 뒤 위층을 시험해야
+실패했을 때 원인을 좁힐 수 있기 때문이다.
+
+\begin{table}[ht]
+\centering
+\caption{기준 RTL의 시험. Verilator에서 일곱 항목이 모두 통과한다(전체 89초).}
+\label{tab:rtl-tests}
+\small
+\begin{tabularx}{\linewidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+대상 & 내용 & 비교하는 것 \\
+\midrule
+\code{scrambler} & 무작위 로터 순서와 위치 3,000건(모든 반사판, 그리스 로터 유무), 오른쪽 로터 전수,
+  \texttt{AAAAA}$\to$\texttt{BDZGO} & 26글자 치환표 \\
+\code{bombe\_core} & 벡터 파일 6개(넘어감 가설, 대각선 보드 없음, M4 포함) & 676선 상태 전체, 정지 여부, 테스트 레지스터 \\
+\code{bombe\_sweep} & Enigma~I 전체 스윕 4종, M4 스윕의 앞 40개 정지 & 정지 목록(순서 포함), 시험한 위치 수 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+두 가지 세부 사항이 검증의 강도를 높인다. 첫째, 테스트벤치는 쓰지 않는 입력(비활성화된 메뉴 선의 칸,
+3로터에서의 그리스 로터 번호)에 무작위 값을 넣는다. 회로가 쓰지 않아야 할 입력에 실수로 의존하고 있으면
+이때 드러난다. 둘째, 스윕 시험은 정지 출력의 수락 신호를 무작위로 늦춘다. 받는 쪽이 늦을 때 정지가
+사라지거나 두 번 나오지 않는지, 기다리는 동안 출력값이 유지되는지를 본다.
+
+\section{FPGA 엔진의 개요}\label{sec:fpga-overview}
+
+\subsection{기준 RTL을 그대로 올릴 수 없는 이유}
+
+기준 RTL은 메뉴의 선마다 스크램블러를 하나씩 두고, 드럼 위치가 바뀔 때마다 모든 스크램블러가 26글자의
+치환을 한꺼번에 다시 계산한다. 시뮬레이션에서는 문제가 없지만 실제 회로로 만들면 이 계산 하나하나가
+논리 소자를 차지한다. 합성해 보면 스크램블러 하나가 LUT(FPGA의 기본 논리 소자) 19,717개를 쓴다.
+선이 16개인 메뉴라면 스크램블러만으로 약 31만 5천 개가 되어, 대상 FPGA(XC7A200T, LUT 약 13만 4천 개)에
+들어가지 않는다.
+
+\subsection{바뀌는 것만 다시 계산한다}
+
+해결의 실마리는 \ref{sec:sw-tables}절과 같다. 가운데와 왼쪽 로터가 고정된 동안에는 오른쪽 로터의
+26가지 위치에 대한 치환표 26개만 있으면 되고, 그 표는 가운데 로터가 바뀔 때에만 다시 만들면 된다.
+실제 기계의 느린 드럼이 빠른 드럼 한 바퀴에 한 번만 움직이는 것과 같은 구조다. FPGA 엔진은 이 표를
+여러 클럭에 걸쳐 조금씩 계산해 FPGA 안의 작은 메모리에 넣어 두고, 위치마다 표에서 읽어 쓴다. 논리 소자를
+시간과 맞바꾼 것이다(그림~\ref{fig:fpga-blocks}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkg,minimum width=22mm,minimum height=14mm] (host) at (-0.2,-0.1) {호스트\\{\scriptsize PC 또는 보드의 ARM}};
+  \node[blkn,minimum width=22mm,minimum height=14mm] (br) at (2.8,-0.1) {브리지\\{\scriptsize UART / AXI4-Lite}};
+  \draw[rounded corners=2pt,draw=cgray,fill=clight] (5.9,-3.1) rectangle (14.5,2.0);
+  \node[anchor=north west,font=\small\bfseries] at (6.0,1.95) {\code{bombe\_array}: 엔진 $N$대};
+  \draw[rounded corners=2pt,draw=cblue,fill=white] (6.2,-2.7) rectangle (14.2,1.2);
+  \node[anchor=north west,font=\small\bfseries] at (6.3,1.15) {\code{bombe\_engine} (로터 순서 하나를 스윕)};
+  \node[blko,minimum width=21mm] (cfg) at (7.5,-0.1) {설정 레지스터\\{\scriptsize 메뉴, 로터 순서}};
+  \node[blkb,minimum width=21mm] (tbl) at (10.2,-0.1) {치환표 계산\\{\scriptsize 파이프라인}};
+  \node[reg,minimum width=20mm] (ram) at (12.8,-0.1) {표 메모리\\{\scriptsize 분산 RAM}};
+  \node[blkb,minimum width=21mm] (spr) at (10.2,-1.8) {전파\\{\scriptsize 676비트 상태}};
+  \node[blkr,minimum width=21mm] (fifo) at (7.5,-1.8) {정지 FIFO};
+  \draw[->] (cfg) -- (tbl); \draw[->] (tbl) -- (ram);
+  \draw[->] (ram.south) |- (spr.east);
+  \draw[->] (spr) -- (fifo);
+  \draw[<->] (host) -- (br);
+  \draw[<->] (br) -- node[above,font=\scriptsize,text=cgray] {레지스터 버스} (6.2,-0.1);
+\end{tikzpicture}
+\caption{FPGA 엔진의 블록 수준 구성. 엔진 하나가 로터 순서 하나를 맡고, 여러 엔진이 레지스터 버스 뒤에
+나란히 놓인다. 호스트는 메뉴와 로터 순서를 써넣고 정지를 읽어 간다.}
+\label{fig:fpga-blocks}
+\end{figure}
+
+엔진의 정지 목록은 기준 RTL과 Rust 코어의 정지 목록과 순서까지 같아야 한다. 시뮬레이션에서 엔진 두 대를
+동시에 구동한 Enigma~I 전체 스윕의 정지 목록이 Rust 코어와 순서까지 일치하는 것을 확인했다.
+
+\subsection{회로의 크기는 계산의 양이 아니라 기술한 구조가 정한다}
+
+FPGA 엔진의 첫 구현은 합성 결과 LUT 약 40만 4천 개, 대상 FPGA 용량의 300\%였다. 원인은 계산의 양이 아니라
+676비트 상태에 접근하는 방식이었다.
+
+\begin{lesson}{676비트를 정수 번호로 고르면 거대한 선택 회로가 된다}
+전파 논리는 ``케이블 $a$의 $y$번 선이 통전되어 있으면 케이블 $b$의 $x$번 선을 통전시킨다''를 메뉴의 선마다,
+글자마다 한다. 이를 676비트 벡터의 ``$26a + y$번째 비트''로 적으면 소프트웨어에서는 배열 접근 한 번이다.
+회로에서는 다르다. $a$와 $y$가 실행 중에 정해지는 값이므로, 이 한 줄은 \emph{676개의 비트 가운데 하나를
+골라 내는 선택 회로}가 된다. 메뉴의 선 16개, 글자 26개, 양방향이면 이런 선택 회로가 832개 필요하고,
+결과를 써넣는 쪽에도 같은 수의 ``676곳 중 한 곳에 쓰기'' 회로가 생긴다.
+
+구조를 케이블 단위로 바꾸자 같은 기능이 LUT 41,040개(용량의 30.5\%)로 줄었다. 메뉴의 선마다 먼저
+케이블 두 개를 통째로 고르고(26개 가운데 하나를 고르는 26비트 폭의 선택), 그 안에서 치환에 따라 선을
+옮긴 뒤(선마다 26개 가운데 하나를 고르는 선택), 결과를 목적지 케이블에 OR로 모은다. 목적지 케이블을
+가리키는 신호는 구동을 시작할 때 한 번만 만들어 둔다. 676개 중 하나를 고르는 일을 26개 중 하나를 고르는
+일 두 번으로 나눈 것이다.
+\end{lesson}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    xbar, width=0.78\linewidth, height=50mm,
+    xmin=0, xmax=480000, bar width=7mm, bar shift=0pt,
+    ymin=-0.7, ymax=1.9, clip=false,
+    ytick={0,1}, yticklabels={케이블 단위 구조,첫 구현},
+    y tick label style={font=\small},
+    xlabel={LUT 수 (Vivado 합성, XC7A200T)}, xlabel style={font=\small},
+    scaled x ticks=false,
+    xtick={0,100000,200000,300000,400000},
+    xticklabels={0,10만,20만,30만,40만},
+    x tick label style={font=\small},
+    axis lines*=left,
+  ]
+  \addplot[fill=cblue!70,draw=cblue] coordinates {(41040,0)};
+  \addplot[fill=cred!70,draw=cred] coordinates {(404000,1)};
+  \node[anchor=west,font=\small] at (axis cs:41040,0) {\,41,040 (30.5\%)};
+  \node[anchor=west,font=\small] at (axis cs:404000,1) {\,약 40만 4천 (300\%)};
+  \draw[dashed,line width=0.9pt,cgray] (axis cs:134000,-0.7) -- (axis cs:134000,1.75)
+     node[above,font=\footnotesize,text=cgray] {FPGA 용량 약 13만 4천};
+\end{axis}
+\end{tikzpicture}
+\caption{같은 기능을 두 가지 구조로 기술했을 때의 회로 크기.}
+\label{fig:lut-bars}
+\end{figure}
+
+케이블 단위 구조에서 나머지 자원은 LUT RAM 2,858개, 플립플롭 7,338개다. 치환표를 계산하는 안쪽
+파이프라인은 처음에 7단이었으나 단 사이의 논리가 너무 길어 목표 클럭을 맞추지 못했고, 14단으로 나누어
+해결했다. 이 수치들은 2026년 11월 14일 기준이며 엔진은 타이밍을 맞추는 조정이 진행 중이다.
+
+\begin{todobox}{FPGA 엔진의 상세}
+엔진의 설계가 확정된 뒤 다음 내용을 쓴다.
+\begin{itemize}
+\item 배선표 적재, 안쪽 치환 파이프라인, 오른쪽 로터 26위치 치환표(병렬 레인)의 구조와 타이밍 그림
+\item 메뉴의 선마다 분산 RAM을 두는 이유와 읽기 경로
+\item 케이블 단위 전파 회로의 구조 그림(케이블 선택, 치환, 원핫 OR)
+\item 고정점 판정과 조기 종료의 구현, 위치당 클럭 수의 분포
+\item 정지 FIFO와 역압(backpressure), 레지스터 맵
+\item 확정된 자원 사용량과 타이밍 결과(배치·배선 후), 엔진 수에 따른 변화
+\end{itemize}
+\end{todobox}
+
+\begin{todobox}{보드 통합}
+\begin{itemize}
+\item Nexys Video(Artix-7 XC7A200T): UART 브리지, 최상위 모듈, 제약 파일, 빌드 절차
+\item PYNQ(Zynq XC7Z020): AXI4-Lite 브리지와 블록 디자인. 현재 설치된 도구에 이 디바이스 지원이 없어
+빌드하지 못한 상태다
+\item 호스트 소프트웨어: 여러 엔진에 로터 순서를 분배하고 결과를 Rust 코어와 대조하는 절차
+\end{itemize}
+\end{todobox}
+
+\begin{todobox}{FPGA 결과}
+보드에서의 실측 결과(클럭 주파수, 엔진 수, 로터 순서 하나의 스윕 시간, 전체 탐색 시간, 소프트웨어 및
+실제 봄베와의 비교)는 \ref{ch:results}장에 함께 정리한다. 전시물로서의 구성(내부 상태를 LED나 화면으로
+보여 주는 시각화 장치, 기계식·릴레이식과의 속도 비교 표시)도 설계가 정해지면 이 장에 적는다.
+\end{todobox}

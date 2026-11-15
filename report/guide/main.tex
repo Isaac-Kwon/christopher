@@ -1,0 +1,64 @@
+% Project Christopher -- 입문자용 코드 해설
+% 빌드: cd report/guide && latexmk   (latexmkrc 참조. 출력은 저장소 밖 빌드 폴더)
+\documentclass[11pt,a4paper,oneside]{report}
+\input{../preamble}
+\addbibresource{../references.bib}
+\usetikzlibrary{shapes.gates.logic.US}
+
+% ---------- 이 문서 전용 ----------
+% 개념마다 세 단계로 설명한다: 왜 그런가 / 일반적인 예 / 이 프로젝트에서
+\newcommand{\steptag}[3]{\par\medskip\noindent
+  \tcbox[on line,colback=#1,colframe=#2,boxrule=0.5pt,arc=1.5pt,left=1.5mm,right=1.5mm,top=0.4mm,bottom=0.4mm]%
+  {\sffamily\bfseries\small #3}\enspace}
+\newcommand{\Why}{\steptag{cbluebg}{cblue}{왜 그런가}}
+\newcommand{\General}{\steptag{cgreenbg}{cgreen}{일반적인 예}}
+\newcommand{\Ours}{\steptag{corangebg}{corange}{이 프로젝트에서}}
+
+\tikzset{
+  gate/.style={draw,fill=white,logic gate inputs=nn,minimum height=9mm},
+  mux/.style={draw,fill=white,trapezium,trapezium left angle=72,trapezium right angle=72,shape border rotate=270,
+     minimum width=16mm,minimum height=7mm,inner sep=1pt},
+  clkmark/.pic={\draw (-0.12,0) -- (0,0.18) -- (0.12,0);},
+}
+% tikz-timing 공통 모양
+\tikzset{timing/d/background/.style={fill=cbluebg}}
+
+\title{\textbf{봄베를 회로로 만들기}\\[4mm]\Large 하드웨어 설계를 처음 보는 사람을 위한 코드 해설\\[1mm]
+  \large Project Christopher 입문 가이드}
+\author{}
+\date{초안 --- 2026년 11월\\[3mm]
+  \normalsize\textcolor{cgray}{FPGA 엔진의 해설(4부)은 설계가 확정된 뒤에 쓴다.}}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\input{chapters/00-intro}
+
+\part{FPGA 설계의 사고방식}
+\input{chapters/01-hdl}
+\input{chapters/02-sync}
+\input{chapters/03-resources}
+\input{chapters/04-pipeline}
+\input{chapters/05-verify}
+\input{chapters/06-lesson}
+
+\part{코드 해설: Rust 코어}
+\input{chapters/10-rust-enigma}
+\input{chapters/11-rust-menu}
+\input{chapters/12-rust-bombe}
+\input{chapters/13-rust-check}
+
+\part{코드 해설: 기준 RTL}
+\input{chapters/20-rtl-scrambler}
+\input{chapters/21-rtl-core}
+\input{chapters/22-rtl-sweep}
+
+\part{코드 해설: FPGA 엔진}
+\input{chapters/30-fpga-engine}
+
+\appendix
+\input{chapters/a1-run}
+
+\printbibliography[heading=bibintoc,title={참고 문헌}]
+\end{document}

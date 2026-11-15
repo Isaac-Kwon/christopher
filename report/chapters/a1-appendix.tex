@@ -1,0 +1,42 @@
+\chapter{결과의 재현}\label{app:repro}
+
+이 보고서의 수치는 저장소 루트에서 다음 명령으로 다시 만들 수 있다. 측정 결과의 원본은
+\code{docs/results/}에 있다.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{50mm}>{\raggedright\arraybackslash}X}
+\toprule
+결과 & 명령 \\
+\midrule
+거짓 정지의 통계 (그림~\ref{fig:stopstats}, \ref{fig:nodiag}) &
+  \code{cargo run -{}-release -p christopher-core -{}-example stop\_statistics 400} \\
+전체 탐색 성능 (표~\ref{tab:perf}) &
+  \code{cargo run -{}-release -p christopher-core -{}-example full\_search enigma-i} (또는 \code{m4}) \\
+예제 전문과 실제 전문의 해독 (\ref{ch:software}장, \ref{sec:historical}절) &
+  노트북 \code{notebooks/01\_crib\_to\_plaintext.ipynb}를 처음부터 실행 \\
+기준 RTL의 시험 (표~\ref{tab:rtl-tests}) & \code{rtl/tb/run.sh} (Verilator와 cocotb가 필요하다) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+그림~\ref{fig:stopstats}와 \ref{fig:nodiag}의 자료는 \code{report/data/}의 CSV 파일이며, 각 파일의 머리에
+출처를 적어 두었다. 보고서는 \code{report/} 폴더에서 \code{latexmk}로 빌드한다.
+
+\chapter{배선표}\label{app:wirings}
+
+\begin{todobox}{배선표}
+로터 I--VIII, 그리스 로터 Beta와 Gamma, 반사판 네 종의 배선과 노치 위치. 손으로 옮겨 적다 생기는 오류를
+막기 위해 \code{data/wirings/enigma.txt}에서 표를 자동으로 생성해 넣는다.
+\end{todobox}
+
+\chapter{검증 벡터와 조작 절차}\label{app:vectors}
+
+\begin{todobox}{검증 벡터}
+실제 전문 벡터와 회로 검증용 벡터의 형식, 각 벡터의 출처.
+\end{todobox}
+
+\begin{todobox}{조작 절차}
+Python 인터페이스, FPGA 호스트 프로그램, 실물의 조작 순서.
+\end{todobox}

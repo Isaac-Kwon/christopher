@@ -1,0 +1,181 @@
+\chapter{드럼 구동과 시험: \texorpdfstring{\code{bombe\_sweep}}{bombe\_sweep}, 테스트벤치}\label{ch:rtl-sweep}
+
+\code{bombe\_core}는 위치 하나를 판정한다. \code{bombe\_sweep}은 그것을 모든 드럼 위치에 대해 차례로 구동하고
+정지를 내보낸다. 실제 기계의 드럼 구동 기구와 정지 릴레이에 해당하고, Rust의 \code{run\_slice}에 해당한다.
+
+\section{위치 계수기: 26진 자리올림}
+
+\begin{lstlisting}[language=SV,caption={\code{bombe\_sweep.sv}: 다음 드럼 위치.},label={lst:carry}]
+always_comb begin
+  last = (r == 5'd25) && (m == 5'd25) && (l == 5'd25) && (!greek_en || g == 5'd25);
+  r_n  = (r == 5'd25) ? 5'd0 : r + 5'd1;
+  m_n  = m;
+  l_n  = l;
+  g_n  = g;
+  if (r == 5'd25) begin
+    m_n = (m == 5'd25) ? 5'd0 : m + 5'd1;
+    if (m == 5'd25) begin
+      l_n = (l == 5'd25) ? 5'd0 : l + 5'd1;
+      if (l == 5'd25) g_n = g + 5'd1;
+    end
+  end
+  advance = ((state == RUN) && core_done && !core_stop) || ((state == EMIT) && stop_ready);
+end
+\end{lstlisting}
+
+\code{g}, \code{l}, \code{m}, \code{r}은 네 드럼의 현재 위치를 담은 레지스터이고, 이 조합 논리는 그 \emph{다음}
+위치를 계산한다. \ref{ch:sync}장의 카운터와 같은 꼴(현재 값에서 다음 값)인데 자리가 넷이고 26진법이다.
+오른쪽이 25에서 0으로 넘어갈 때 가운데가 하나 오르고, 가운데가 넘어갈 때 왼쪽이 오른다. \code{last}는 마지막
+위치인지를 알린다.
+
+\Why 2진 카운터라면 \code{count + 1} 한 줄이면 된다. 여기서는 자리마다 0--25를 돌아야 하므로 자리올림을
+직접 적었다. 네 자리를 하나의 큰 수로 세고 나중에 26으로 나눠 자리를 구하는 방법도 있지만, 그러면 나눗셈
+회로가 필요하다. 자리마다 따로 세면 비교와 덧셈만으로 된다.
+
+\General 디지털 시계가 같다. 초가 59에서 0으로 넘어갈 때 분이 오르고, 분이 넘어갈 때 시가 오른다.
+자리마다 넘어가는 값이 다를 뿐(60, 60, 24) 구조는 같다.
+
+\Ours 실제 봄베의 자리올림은 기계 장치였다. 빠른 드럼이 한 바퀴 돌 때마다 캠과 걸쇠가 다음 단의 드럼을
+한 칸 밀었다~\cite[70--73]{us6812report1944}. 여기서는 그것이 \code{if (r == 5'd25)}다. 이 모듈의 자리 순서는
+Rust 모델과 같게(오른쪽이 가장 빨리) 맞췄다. 정지 목록을 순서까지 비교하기 위해서다.
+
+\section{제어: 상태 셋}
+
+\begin{lstlisting}[language=SV,caption={\code{bombe\_sweep.sv}: 제어(리셋 부분 생략).},label={lst:sweep-fsm}]
+done       <= 1'b0;
+core_start <= 1'b0;
+case (state)
+  IDLE: begin
+    if (start) begin
+      {g, l, m, r}     <= '0;
+      positions_tested <= '0;
+      core_start       <= 1'b1;
+      state            <= RUN;
+    end
+  end
+  RUN: begin
+    if (core_done) begin
+      positions_tested <= positions_tested + 32'd1;
+      if (core_stop) state <= EMIT;
+    end
+  end
+  EMIT: ;
+endcase
+if (advance) begin
+  if (last) begin
+    state <= IDLE;
+    done  <= 1'b1;
+  end else begin
+    {g, l, m, r} <= {g_n, l_n, m_n, r_n};
+    core_start   <= 1'b1;
+    state        <= RUN;
+  end
+end
+\end{lstlisting}
+
+상태는 셋이다(그림~\ref{fig:g-sweep-fsm}).
+
+\begin{itemize}
+\item \code{IDLE}: 기다린다. \code{start}가 오면 위치를 0으로 하고 \code{bombe\_core}를 시작시킨다.
+\item \code{RUN}: \code{bombe\_core}가 판정하는 동안 기다린다. 끝났는데(\code{core\_done}) 정지이면
+\code{EMIT}으로 간다.
+\item \code{EMIT}: 정지를 내놓고 받는 쪽이 받아 갈 때까지 기다린다.
+\end{itemize}
+
+코드~\ref{lst:carry}의 \code{advance}는 ``이번 클럭에 현재 위치를 떠난다''는 신호다. 판정이 끝났고 정지가
+아니거나, 정지를 내놓았는데 받는 쪽이 받았거나. 그때 마지막 위치이면 끝내고, 아니면 다음 위치로 가서
+\code{bombe\_core}를 다시 시작시킨다. \code{\{g, l, m, r\}}는 네 레지스터를 이어 붙여 한꺼번에 다루는 표기다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+   st/.style={draw,circle,minimum size=15mm,fill=cbluebg,draw=cblue,font=\small\ttfamily}]
+  \node[st] (idle) at (0,0) {IDLE};
+  \node[st] (run) at (5,0) {RUN};
+  \node[st,fill=credbg,draw=cred] (emit) at (10,0) {EMIT};
+  \draw[->] (idle) to[bend left=18] node[above,note] {\code{start}} (run);
+  \draw[->] (run) to[bend left=18] node[above,note] {판정 끝, 정지} (emit);
+  \draw[->] (emit) to[bend left=18] node[below,note] {\code{stop\_ready}: 다음 위치} (run);
+  \draw[->] (run) to[bend left=18] node[below,note] {마지막 위치 끝} (idle);
+  \draw[->] (run) to[out=120,in=60,looseness=5] node[above,note] {판정 끝, 통과: 다음 위치} (run);
+\end{tikzpicture}
+\caption{\code{bombe\_sweep}의 상태 기계.}
+\label{fig:g-sweep-fsm}
+\end{figure}
+
+\section{정지를 내보내기}
+
+\begin{lstlisting}[language=SV,numbers=none]
+assign stop_valid    = (state == EMIT);
+assign stop_g        = g;
+assign stop_l        = l;
+assign stop_m        = m;
+assign stop_r        = r;
+assign stop_register = core_register;
+\end{lstlisting}
+
+\ref{sec:handshake}절의 valid/ready 핸드셰이크다. \code{EMIT} 상태에 있는 동안 \code{stop\_valid}가 1이고,
+정지한 위치와 테스트 레지스터가 출력에 나와 있다. 받는 쪽이 \code{stop\_ready}를 올리면 그 에지에서 정지가
+넘어가고 탐색이 이어진다. 기다리는 동안 위치 레지스터는 바뀌지 않으므로 출력값도 그대로 유지된다.
+핸드셰이크의 규칙(``넘어갈 때까지 값을 바꾸지 않는다'')이 따로 애쓰지 않아도 지켜지는 구조다.
+
+\Ours 실제 봄베도 정지하면 그 자리에 섰다. 조작자가 지시 드럼과 릴레이 표시를 읽어 전표에 적고 다시
+출발시킬 때까지 기다렸다~\cite[49]{us6812report1944}. \code{EMIT} 상태가 그 멈춤이고 \code{stop\_ready}가
+다시 출발시키는 조작이다.
+
+\section{테스트벤치}
+
+시험은 \code{rtl/tb}에 있고 Python으로 쓰여 있다. \code{cocotb}라는 도구가 Python 함수와 시뮬레이터 안의
+회로를 이어 준다. 테스트벤치의 구조는 단순하다(코드~\ref{lst:tb}는 그 꼴을 보이기 위한 요약이다).
+
+\begin{lstlisting}[language=Python,caption={스윕 시험의 꼴(요약. 실제 코드는 \code{rtl/tb/cocotb\_sweep.py}).},label={lst:tb}]
+expected = bombe.run(order)              # stop list from the Rust core
+await drive_configuration(dut, menu, order)
+await pulse(dut.start)
+got = []
+while not dut.done.value:
+    dut.stop_ready.value = random.random() < 0.5    # random backpressure
+    await FallingEdge(dut.clk)
+    if dut.stop_valid.value and dut.stop_ready.value:
+        got.append(read_stop(dut))
+assert got == expected                   # same stops, same order
+\end{lstlisting}
+
+기준 모델에게 답을 묻고, 같은 입력을 회로에 넣고, 회로가 내놓는 것을 모아, 둘이 같은지 본다. 사람이 파형을
+들여다보는 단계가 없다.
+
+짚어 둘 것이 셋이다.
+
+\begin{itemize}
+\item \textbf{수락 신호를 무작위로 늦춘다.} \code{stop\_ready}를 클럭마다 무작위로 올리고 내린다. 받는 쪽이
+늦을 때 정지가 사라지거나 두 번 나오지 않는지, 기다리는 동안 값이 유지되는지를 본다. 받는 쪽이 늘 준비되어
+있는 시험만 하면 이런 오류는 드러나지 않는다.
+\item \textbf{안 쓰는 입력에 쓰레기 값을 넣는다.} 비활성화된 메뉴 자리의 글자와 크립 위치, 3로터일 때의
+그리스 로터 번호에 무작위 값을 넣는다. 회로가 그 값에 의존하면 결과가 달라진다.
+\item \textbf{위치 수도 비교한다.} 정지 목록뿐 아니라 \code{positions\_tested}가 17,576(또는 M4의 456,976)인지
+확인한다. 자리올림이 틀려 일부 위치를 건너뛰어도 정지 목록은 우연히 같을 수 있기 때문이다.
+\end{itemize}
+
+\paragraph{결과.} 기준 RTL의 시험은 일곱 항목이고 Verilator 시뮬레이터에서 모두 통과한다(전체 89초).
+스크램블러의 무작위 3,000건과 오른쪽 로터 전수, 코어의 벡터 파일 6개, Enigma~I 전체 스윕 4종, M4 스윕의
+앞 40개 정지다. 스크램블러와 코어의 시험은 다른 시뮬레이터(Icarus Verilog)에서도 통과한다. 두 시뮬레이터에서
+같은 결과가 나온다는 것은 코드가 특정 도구의 해석에 기대고 있지 않다는 근거다.
+
+\section{3부의 정리}
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+실제 봄베 & Rust 코어 & 기준 RTL \\
+\midrule
+드럼 한 벌 & \code{scramblers}의 표 & \code{scrambler} (조합 논리) \\
+676가닥의 전선 & \code{[u32; 26]} & 676비트 레지스터 \code{live\_q} \\
+전류의 확산 (즉시) & 작업 목록으로 한 가닥씩 & 클럭마다 전체를 한 걸음씩 \\
+대각선 보드 (영구 배선) & 대칭 짝을 목록에 추가 & 고정된 전선 연결과 OR \\
+테스트 레지스터의 릴레이 & \code{reg != FULL} & \code{test\_q != FULL} \\
+드럼 구동과 자리올림 & 네 겹 반복문 & 26진 계수기와 상태 기계 \\
+정지하고 조작자를 기다림 & 정지 목록에 추가 & \code{EMIT} 상태와 valid/ready \\
+\bottomrule
+\end{tabularx}
+\end{center}

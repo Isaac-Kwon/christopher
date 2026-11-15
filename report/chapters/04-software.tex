@@ -1,0 +1,371 @@
+\chapter{소프트웨어 구현}\label{ch:software}
+
+소프트웨어 모델은 이 프로젝트의 \emph{기준 모델}이다. 기계식, 릴레이식, 전자식(FPGA)의 세 기계는 모두
+이 모델이 내놓는 결과와 일치해야 한다. 드럼 한 벌이나 릴레이 접점망이 올바른 치환을 내는지, 각 기계가
+올바른 위치에서 정지하는지를 판정할 근거가 이 모델이다. 그래서 모델은 답만 맞추는 탐색기가 아니라 \ref{ch:bombe}장의 기계를
+구성요소 단위로 옮긴 것이어야 한다. 이 장은 그 구조와 대응 관계, 그리고 구현하면서 얻은 교훈을 적는다.
+
+\section{전체 구조}
+
+코어는 Rust로 쓴 라이브러리(\code{christopher-core})이고, 사람이 다루는 인터페이스는 Python
+패키지(\code{christopher})다. 둘 사이에는 얇은 바인딩 계층이 있다(그림~\ref{fig:arch}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,node distance=6mm]
+  \node[blkg,minimum width=58mm] (py) at (0,3.2) {\code{python/christopher}\\{\footnotesize 조작 API: \code{Menu}, \code{Bombe}, \code{Stop}, \code{Solution}}};
+  \node[blkn,minimum width=58mm] (bind) at (0,1.9) {\code{christopher-py} (PyO3 바인딩)};
+  \node[blkb,minimum width=58mm,minimum height=16mm] (core) at (0,0.2)
+     {\code{christopher-core} (순수 Rust)\\[1pt]{\footnotesize\code{enigma} · \code{menu} · \code{bombe} · \code{check} · \code{search}}};
+  \node[blko,minimum width=28mm] (wir) at (-6.2,0.2) {\code{data/wirings}\\배선표 (원본 하나)};
+  \node[blko,minimum width=28mm] (vec) at (6.2,0.2) {\code{data/vectors}\\검증 벡터};
+  \node[blkn,minimum width=28mm] (rtl) at (6.2,-1.6) {\code{rtl/}\\디지털 회로};
+  \node[blkn,minimum width=28mm] (hw) at (6.2,-3.0) {\code{hardware/}\\실물};
+  \node[blk,minimum width=22mm] (user) at (-6.2,3.2) {조작자};
+  \draw[->] (user) -- (py);
+  \draw[->] (py) -- (bind);
+  \draw[->] (bind) -- (core);
+  \draw[->] (wir) -- (core);
+  \draw[->] (core) -- node[above,font=\scriptsize,text=cgray] {내보내기} (vec);
+  \draw[->] (vec) -- node[right,note] {대조} (rtl);
+  \draw[->] (rtl) -- (hw);
+  \draw[->,dashed] (wir) |- node[pos=0.75,below,note] {같은 배선표에서 생성} (rtl);
+\end{tikzpicture}
+\caption{소프트웨어의 계층과 다른 단계와의 관계. 코어는 바인딩에 대해 아무것도 모른다. 회로와 실물은
+코어가 내보낸 검증 벡터와 대조된다.}
+\label{fig:arch}
+\end{figure}
+
+설계 원칙은 세 가지다. 왜 그렇게 정했는지와 함께 적는다.
+
+\begin{itemize}
+\item \textbf{코어는 바인딩과 분리한다.} 같은 코어를 Python에서도, 회로 검증의 기준 모델로도 그대로 써야
+하기 때문이다. 코어에 Python 전용 코드가 섞이면 ``회로가 일치해야 하는 대상''이 무엇인지 흐려진다.
+\item \textbf{Rust 코어가 기준이다.} 회로와 실물은 코어의 출력과 비교해 검증한다. 기준이 둘이면 둘이
+어긋날 때 어느 쪽이 맞는지 알 수 없다.
+\item \textbf{배선표는 코드가 아니라 데이터다.} 로터와 반사판의 배선은 \code{data/wirings/enigma.txt}
+한 곳에만 있고, Rust 코어와 회로 쪽 생성 스크립트가 같은 파일을 읽는다. 손으로 옮겨 적은 사본이 둘이면
+언젠가 한 글자가 달라진다.
+\end{itemize}
+
+\section{실제 기계와의 대응}\label{sec:mapping}
+
+표~\ref{tab:mapping}은 실제 봄베의 구성요소가 코드의 어디에 있는지를 보인다. 이 대응이 이후 회로와
+실물 단계의 설계도가 된다.
+
+\begin{table}[ht]
+\centering
+\caption{실제 봄베의 구성요소와 소프트웨어 모델의 대응.}
+\label{tab:mapping}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{38mm}>{\raggedright\arraybackslash}p{50mm}>{\raggedright\arraybackslash}X}
+\toprule
+실제 기계 & 코드 & 비고 \\
+\midrule
+드럼 세 개 한 벌(스크램블러) & \code{WheelOrder::scramblers} & 플러그보드 없는 에니그마의 치환표 \\
+26선 케이블 26개 & \code{[u32; 26]} & 케이블마다 26비트, 비트 하나가 선 한 가닥 \\
+메뉴 배선(케이블 꽂기) & \code{Plugged::new} & 글자별 이웃 목록 \\
+대각선 보드 & \code{propagate}의 대칭 전파 & 선 $(X,y)$와 $(Y,x)$ \\
+전류의 확산 & \code{Plugged::propagate} & 변화가 없을 때까지 반복 \\
+테스트 레지스터 & \code{live[test\_letter]} & 26비트 \\
+드럼 구동과 자리올림 & \code{run\_slice}의 네 겹 반복 & 탐색 순서는 실제와 다르다(본문) \\
+정지 & \code{Stop} & 로터 순서, 코어 위치, 레지스터 \\
+체킹 머신 & \code{check::stecker\_hypotheses} & 가설 하나에 전류를 흘려 스테커를 읽는다 \\
+Hut~6의 수작업 & \code{check::check\_stop}의 나머지 & 링 설정, 남은 스테커 \\
+봄베 여러 대의 동시 운용 & \code{search} & 로터 순서를 스레드에 분배 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+실제 기계와 다르게 한 곳이 둘 있다. 둘 다 결과(정지의 집합)에는 영향이 없다.
+
+\begin{itemize}
+\item \textbf{탐색 순서.} 실제 봄베는 에니그마의 왼쪽 로터에 해당하는 드럼을 가장 빨리 돌린다%
+(표~\ref{tab:drums}). 모델은 오른쪽 로터를 가장 안쪽 반복으로 돈다. 이렇게 하면 가운데와 왼쪽 로터가
+고정된 동안 스크램블러 표를 한 번만 계산하면 되기 때문이다(\ref{sec:sw-tables}절).
+\item \textbf{위치의 표기.} 모델의 정지 위치는 코어 위치를 \texttt{A}=0으로 적은 것이다. 실제 봄베의
+지시 드럼은 눈금이 역순이고 드럼 종류별로 글자가 어긋나 있어 다른 글자가 표시된다%
+~\cite{sale-ringstellung,ekhall-hallenberg-tutorial}. 역사적 표기로의 변환은 아직 구현하지 않았다.
+\end{itemize}
+
+\section{에니그마 모델}
+
+에니그마 모델(\code{enigma})은 봄베의 공격 대상이자 검증 도구다. 로터 한 단의 통과는
+식~\eqref{eq:through}를 그대로 옮긴 함수 하나이고, 스크램블러는 이 함수를 오른쪽, 가운데, 왼쪽,
+(그리스 로터,) 반사판, 다시 역순으로 이어 붙인 것이다. 키를 누르면 먼저 전진하고 그다음 암호화한다.
+
+전진 규칙은 세 줄이다. 가운데 로터가 노치 위치에 있으면 가운데와 왼쪽이 함께 움직이고, 그렇지 않고
+오른쪽 로터가 노치 위치에 있으면 가운데가 움직이며, 오른쪽은 항상 움직인다. 첫 번째 경우가 이중
+스테핑이다(그림~\ref{fig:stepping}).
+
+모델의 정확성은 네 가지로 확인했다. 잘 알려진 시험값(로터 I-II-III, 반사판 B, 설정 \texttt{AAA}에서
+\texttt{AAAAA}가 \texttt{BDZGO}로 암호화됨), 이중 스테핑과 노치가 둘인 로터의 전진, M4에서 그리스 로터를
+\texttt{A}에 둔 얇은 반사판이 3로터 기종의 반사판과 같다는 등가성, 그리고 실제 전문 두 건의
+복호화다(\ref{sec:historical}절).
+
+\section{메뉴 생성}
+
+메뉴 모듈(\code{menu})은 조작자가 봄베를 돌리기 전에 종이 위에서 하던 일을 한다.
+
+\paragraph{정렬.} \code{possible\_offsets}는 크립을 암호문의 모든 위치에 놓아 보고, 같은 글자가 겹치는
+위치를 뺀다(\ref{sec:crib}절).
+
+\paragraph{메뉴 구성.} \code{Menu::from\_crib}은 크립의 글자마다 선 하나(평문 글자, 암호문 글자, 크립 안의
+위치)를 만든다. 테스트 글자는 가장 큰 덩어리 안에서 선이 가장 많이 모이는 글자로 고른다.
+
+\paragraph{루프 수.} 그래프의 독립적인 루프 수는 $(\text{선 수}) - (\text{글자 수}) + (\text{덩어리 수})$다.
+덩어리마다 글자들을 잇는 데 필요한 최소한의 선은 (글자 수 $-$ 1)개이고, 그보다 많은 선은 하나마다 루프를
+하나씩 닫기 때문이다. 덩어리는 서로소 집합(union-find)으로 센다.
+
+\paragraph{부분 메뉴 선택.} 기계의 스크램블러 수는 한정되어 있으므로 \code{Menu::select}가 선의 수를
+제한한 부분 메뉴를 고른다. 방법은 손으로 메뉴를 만들 때와 같은 탐욕법이다. 선이 가장 많은 글자에서
+시작해, 이미 고른 글자 두 개를 잇는 선(루프를 닫는 선)이 있으면 먼저 고르고, 없으면 연결이 많은 새
+글자로 뻗는다. 루프를 우선하는 이유는 루프 하나가 거짓 정지를 약 $1/26$로 줄이기 때문이다.
+예제 전문에서 크립을 \texttt{WETTERVORHERSAGEFUERDIE}(23글자)로 늘리면 같은 14개의 선으로 글자 11개,
+루프 4개인 메뉴가 골라지고, 정지 수는 157회에서 2회로 줄어든다(\ref{sec:results-search}절).
+
+\section{봄베 모델}
+
+\subsection{상태: 676비트}
+
+기계의 상태는 26개 케이블 × 26선의 통전 여부다. 모델은 이를 32비트 정수 26개(\code{[u32; 26]})로
+둔다. $c$번째 정수의 $w$번째 비트가 1이면 케이블 $c$의 $w$번 선이 통전된 것이다(그림~\ref{fig:state}).
+이 표현을 고른 이유는 둘이다. 테스트 레지스터가 26선 모두 통전되었는지를 정수 비교 한 번으로 알 수
+있고, 뒤에 올 디지털 회로의 676비트 레지스터와 비트 단위로 그대로 대응한다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=2.7mm,y=-2.7mm]
+  \def\letters{A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z}
+  \fill[clight] (-0.5,-0.5) rectangle (25.5,25.5);
+  % 테스트 레지스터(케이블 E) 강조
+  \fill[corangebg] (-0.5,3.5) rectangle (25.5,4.5);
+  \foreach \r/\c in {0/16,4/21,6/10,7/13,8/20,9/15,11/11,12/3,17/2,19/19,20/8,21/4,22/5,25/1,
+                     16/0,10/6,13/7,15/9,3/12,2/17,5/22,1/25} {
+    \fill[cblue] (\c-0.5,\r-0.5) rectangle (\c+0.5,\r+0.5);
+  }
+  \foreach \i in {0,...,26} {
+    \draw[white,line width=0.4pt] (\i-0.5,-0.5) -- (\i-0.5,25.5);
+    \draw[white,line width=0.4pt] (-0.5,\i-0.5) -- (25.5,\i-0.5);
+  }
+  \foreach \l [count=\i from 0] in \letters {
+    \node[font=\ttfamily\tiny] at (-1.3,\i) {\l};
+  }
+  \foreach \l [count=\i from 0] in {a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z} {
+    \node[font=\ttfamily\tiny] at (\i,-1.2) {\l};
+  }
+  \node[note,rotate=90] at (-3.3,12.5) {케이블 (글자) = 배열의 원소};
+  \node[note] at (12.5,-2.8) {선 (스테커 짝 가설) = 원소 안의 비트};
+  \draw[corange,line width=0.8pt] (-0.5,3.5) rectangle (25.5,4.5);
+  \node[note,anchor=west,text=corange] at (26.3,4) {\code{live[4]}: 테스트 레지스터};
+  \node[note,anchor=west,text width=48mm,align=left] at (26.3,12)
+    {파란 칸: 통전된 선.\\[3pt]맞는 드럼 위치에서 맞는 가설 $\Stk(\mathtt{E})=\mathtt{V}$에 전압을 건
+     상태다. 메뉴 글자의 케이블마다 선이 하나씩 살아 있고, 대각선 보드가 그 대칭 짝을 살린다. 살아 있는
+     선을 읽으면 플러그보드의 일부가 그대로 나온다.};
+\end{tikzpicture}
+\caption{상태의 표현. 가로줄 하나가 케이블 하나이자 \code{u32} 하나다. 그림의 상태는 예제 키의 스테커
+(\texttt{AQ BZ CR DM EV FW GK HN IU JP})와 그림~\ref{fig:menu}의 메뉴에서 정해진다.}
+\label{fig:state}
+\end{figure}
+
+\subsection{위치의 정의}
+
+봄베의 위치(\code{Position})는 \emph{크립의 첫 글자를 암호화하는 순간}의 코어 위치로 정의한다. 에니그마는
+암호화 전에 전진하므로, 전문의 첫 글자에 크립을 놓았다면 이 위치는 시작 위치에서 오른쪽 로터가 한 칸
+나아간 값이다. 크립 위치 $k$(0부터)의 선은 오른쪽 코어 위치 $r+k$의 스크램블러를 쓴다. 이 한 칸 차이는
+틀리기 쉬워서, 알려진 키로 암호화한 전문에서 정지 위치가 정확히 예상한 값인지 확인하는 시험으로
+고정했다.
+
+\subsection{스크램블러 표: 바뀌는 것만 다시 계산한다}\label{sec:sw-tables}
+
+한 위치에서 메뉴의 선마다 26글자짜리 치환표가 필요하다. 이를 위치마다 처음부터 계산하면 선 14개에 대해
+매번 로터 여섯 번과 반사판을 지나야 한다. 그런데 메뉴의 모든 스크램블러는 가운데와 왼쪽 드럼의 위치가
+같고 오른쪽 드럼만 크립 위치만큼 어긋나 있다. 그러므로 가운데와 왼쪽이 정해지면 필요한 치환표는
+오른쪽 드럼의 26가지 위치에 대한 26개가 전부이고, 선은 그중 $(r+k) \bmod 26$번째를 골라 쓰기만 하면 된다
+(그림~\ref{fig:tables}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \draw[rounded corners=2pt,draw=cgray,fill=clight] (0,0) rectangle (13.6,5.4);
+  \node[anchor=north west,font=\small] at (0.15,5.35) {반복: 그리스 로터 $g$ (M4만) $\to$ 왼쪽 $l$ $\to$ 가운데 $m$ \quad\textcolor{cgray}{($26^2$ 또는 $26^3$회)}};
+  % inner
+  \node[blkb,minimum width=40mm,minimum height=12mm] (inner) at (3.2,3.6) {안쪽 치환 \code{inner}\\{\footnotesize 가운데·왼쪽·반사판·왼쪽·가운데}};
+  \node[blkb,minimum width=44mm,minimum height=12mm] (tab) at (9.4,3.6) {스크램블러 표 26개\\{\footnotesize 오른쪽 드럼 위치 $0\ldots25$}};
+  \draw[->] (inner) -- (tab);
+  % innermost loop
+  \draw[rounded corners=2pt,draw=cblue,fill=white] (0.4,0.3) rectangle (13.2,2.5);
+  \node[anchor=north east,font=\small] at (13.1,2.45) {반복: 오른쪽 $r$ \quad\textcolor{cgray}{(26회)}};
+  \node[blkg,minimum width=36mm] (pick) at (2.7,1.1) {선마다 표 고르기\\$(r+k) \bmod 26$};
+  \node[blkg,minimum width=30mm] (prop) at (7.0,1.1) {전류 확산\\\code{propagate}};
+  \node[blkr,minimum width=30mm] (stop) at (11.1,1.1) {레지스터 $\neq$ 26선\\$\Rightarrow$ 정지 기록};
+  \draw[->] (pick) -- (prop);
+  \draw[->] (prop) -- (stop);
+  \draw[->] (tab.south) -- ++(0,-0.35) -| (pick.north);
+\end{tikzpicture}
+\caption{한 로터 순서의 탐색 구조. 스크램블러 표는 가운데 로터가 바뀔 때만 다시 만든다. 가장 안쪽
+반복에서는 표를 고르고 전류를 퍼뜨리기만 한다.}
+\label{fig:tables}
+\end{figure}
+
+이 구조는 실제 기계의 움직임과 같은 생각이다. 봄베에서도 한 드럼이 한 바퀴 도는 동안 나머지 두 드럼은
+서 있다. 그리고 같은 생각이 FPGA 엔진 설계의 출발점이 된다(\ref{sec:fpga-overview}절). 4로터에서는
+그리스 로터와 얇은 반사판이 안쪽 치환에 한 겹 더 들어갈 뿐이고 나머지는 같다.
+
+\subsection{전류의 확산}
+
+\code{propagate}는 전압을 건 선에서 출발해 닿을 수 있는 선을 모두 찾는다. 방법은 작업 목록이다.
+새로 통전된 선을 목록에 넣고, 목록에서 하나를 꺼내 그 선과 이어진 선들(메뉴의 선을 따라 이웃 케이블로,
+대각선 보드를 따라 대칭 짝으로)을 살핀다. 아직 통전되지 않은 선이면 통전시키고 목록에 넣는다. 목록이
+비면 끝난다.
+
+이 계산이 실제 기계의 전류와 같은 답을 내는 이유는, 구하는 것이 ``전압을 건 선과 이어진 선 전체''라는
+하나의 집합이기 때문이다. 선을 어떤 순서로 살피든 이 집합은 변하지 않는다. 한 번 통전된 선은 꺼지지
+않고, 선은 676개뿐이므로 과정은 반드시 끝난다. 이 성질 덕분에 한 번에 한 가닥씩 살피는 소프트웨어와
+모든 선을 동시에 살피는 회로(\ref{ch:rtl}장)가 같은 결과에 도달한다.
+
+구동 중에는 테스트 레지스터의 26선이 모두 통전되는 순간 계산을 그만둔다. 그 위치는 정지가 아닌 것이
+이미 확정되었기 때문이다. 대부분의 위치가 여기에 해당하므로 탐색 시간의 대부분이 이 조기 종료로 절약된다.
+정지한 위치의 완전한 상태가 필요할 때(그림, 회로 검증 벡터, 체킹)는 조기 종료 없이 끝까지 계산하는
+\code{trace}를 쓴다.
+
+\subsection{넘어감 가설}\label{sec:sw-turnover}
+
+모델은 \ref{sec:turnover}절의 문제에 대해 ``크립 위치 $t$에서 가운데 로터가 넘어갔다''는 가설을
+지원한다. 가설이 있으면 스크램블러 표를 가운데 위치 $m$과 $m+1$에 대해 두 벌 만들고, 크립 위치가 $t$
+이상인 선은 두 번째 벌에서 고른다. 전체 탐색은 $t$의 모든 값에 대해 구동을 반복하므로 일의 양이 메뉴
+구간 길이만큼 늘어난다.
+
+예제 전문을 넘어감이 크립 한가운데(크립 위치 12)에 오는 키로 암호화하면, 맞는 로터 순서를 돌려도 가설
+없이는 정지가 하나도 나오지 않는다. 가설을 켜면 351,520 위치에서 정지 34회가 나오고 그중 하나가
+체킹을 통과하며, 그 정지의 넘어감 가설은 실제 값 12와 일치한다. 가운데 로터의 이중 스테핑이 크립 안에
+있는 경우는 다루지 않는다.
+
+\section{체킹 단계}\label{sec:sw-check}
+
+체킹 모듈(\code{check})은 정지 하나를 받아 키 전체와 평문을 내놓거나, 거짓 정지로 기각한다.
+그림~\ref{fig:check}의 네 단계로 이루어진다. 앞의 두 단계는 실제 체킹 머신이 하던 일이고, 뒤의 두 단계는
+Hut~6에서 손으로 하던 일을 자동화한 것이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkr,minimum width=22mm,minimum height=14mm] (s0) at (0,0) {정지\\{\footnotesize 로터 순서, 위치,}\\{\footnotesize 레지스터}};
+  \node[blkb,minimum width=27mm,minimum height=14mm] (s1) at (3.3,0) {1. 스테커 가설\\{\footnotesize 26가지에 전류}};
+  \node[blkb,minimum width=27mm,minimum height=14mm] (s2) at (6.7,0) {2. 크립 전체 대조\\{\footnotesize 메뉴 밖 글자 포함}};
+  \node[blkg,minimum width=27mm,minimum height=14mm] (s3) at (10.1,0) {3. 링 설정\\{\footnotesize $26^2$가지 시험}};
+  \node[blkg,minimum width=27mm,minimum height=14mm] (s4) at (13.5,0) {4. 남은 스테커\\{\footnotesize 언어 통계}};
+  \draw[->] (s0) -- (s1); \draw[->] (s1) -- (s2); \draw[->] (s2) -- (s3); \draw[->] (s3) -- (s4);
+  \node[note,below=2mm of s1] {케이블에 선이 둘\\살아나면 기각};
+  \node[note,below=2mm of s2] {모순이면 기각};
+  \node[note,below=2mm of s3] {넘어감이 가정과\\어긋나면 제외};
+  \node[note,below=2mm of s4] {키와 평문};
+  \draw[decorate,decoration={brace,amplitude=5pt}] (1.9,1.0) -- (8.1,1.0) node[midway,above=6pt,note] {체킹 머신};
+  \draw[decorate,decoration={brace,amplitude=5pt}] (8.7,1.0) -- (14.9,1.0) node[midway,above=6pt,note] {Hut 6의 수작업};
+\end{tikzpicture}
+\caption{체킹 단계의 흐름.}
+\label{fig:check}
+\end{figure}
+
+\paragraph{1. 스테커 가설.} 테스트 글자의 스테커 짝 후보 26가지 각각에 대해 그 선 하나에 전압을 걸고
+전류를 끝까지 퍼뜨린다. 참인 가설은 참인 귀결만 낳으므로 어떤 케이블에도 선이 둘 이상 살아날 수 없다
+(\ref{sec:spread}절). 한 케이블에 선이 둘 살아나면 그 가설은 기각된다. 살아남은 가설에서는
+케이블마다 살아 있는 선을 읽어 메뉴 글자의 스테커를 얻는다. 봄베가 알려 준 후보만이 아니라 26가지를 모두
+시험하는 것은 계산이 싸기 때문이다. 살아남을 수 있는 것은 봄베가 스테커 후보로 알려 준 선뿐이다.
+
+\paragraph{2. 크립 전체 대조.} 메뉴에는 크립의 일부 관계만 들어 있다(스크램블러 수의 제한, 떨어진
+덩어리). 이 단계는 크립의 \emph{모든} 글자에 대해 $\Stk(c) = \Scr_k(\Stk(p))$를 확인한다. 한쪽의 스테커를
+알면 다른 쪽이 정해지므로 스테커가 더 채워지고, 이미 정해진 값과 어긋나면 기각한다. 더 채워질 것이 없을
+때까지 되풀이한다. 거짓 정지의 대부분이 여기서 탈락한다. 예제에서는 157개의 정지 가운데 하나만 통과한다.
+
+\paragraph{3. 링 설정.} 봄베는 코어 위치만 알려 주므로 오른쪽과 가운데 로터의 링 설정은 아직 모른다.
+링 설정은 넘어감 시점을 정한다. 모델은 $26\times26$가지 조합을 시험한다. 각 조합에 대해 크립 구간에서의
+로터 움직임이 봄베의 가정(넘어감 없음 또는 넘어감 가설)과 맞는지 확인하고, 맞으면 크립 위치에서 전문의
+처음으로 로터를 되감아 전문 전체를 복호화한 뒤, 복호문이 독일어다운 정도를 점수로 매긴다. 점수가 가장 높은
+조합을 택한다.
+
+여기서 원리적으로 정할 수 없는 것이 있다. 왼쪽 로터의 링은 어떤 넘어감에도 관여하지 않으므로 어떤
+값이어도 복호화가 같다. 가운데 로터의 링은 전문 안에서 왼쪽 로터가 움직인 경우에만 정해진다. 모델은
+정해지지 않는 링을 \texttt{A}로 두고 시작 위치를 그만큼 조정해, 실제 키와 \emph{등가인} 키를 보고한다.
+예제에서 실제 키는 링 \texttt{GMC}, 시작 위치 \texttt{KDC}이고 복원된 키는 링 \texttt{AAC}, 시작 위치
+\texttt{ERC}다. 글자는 다르지만 코어 위치(창 글자 $-$ 링)는 둘 다 \texttt{ERA}이고 복호문은 같다.
+
+\paragraph{4. 남은 스테커.} 크립 구간의 평문에도 암호문에도 나오지 않은 글자는 스테커를 논리적으로
+정할 수 없다. 이런 글자들에 대해서는 두 글자를 짝지었을 때 전문 전체의 점수가 분명히 오르는 쌍이 있으면
+추가하고, 없으면 스테커가 없는 것으로 둔다. 이 부분은 추론이 아니라 추측이므로 결과에 따로
+표시한다(\code{unresolved}, \code{guessed}).
+
+\begin{lesson}{복호문 점수는 글자의 빈도가 아니라 글자의 이웃을 봐야 한다}
+3단계와 4단계는 복호문이 ``독일어다운 정도''에 기댄다. 처음에는 글자 하나하나의 빈도(독일어에서
+\texttt{E}와 \texttt{N}이 흔하다는 사실)로 점수를 매겼다. 이 점수로는 크립에 없는 글자의 스테커를
+복원하지 못했다. 글자의 빈도는 글자의 \emph{순서}를 보지 않으므로, 스테커 한 쌍을 잘못 두어 몇 글자가
+다른 글자로 바뀌어도 점수가 거의 움직이지 않기 때문이다.
+
+점수를 독일어 \term{바이그램}{연속한 두 글자의 빈도} 통계로 바꾸자 크립에 없는 글자의 스테커까지
+복원되었다. 틀린 글자 하나는 앞뒤 두 쌍을 독일어에 없는 조합으로 만들므로 점수에 분명히 드러난다.
+
+그래도 전문의 첫 세 글자가 틀리는 경우가 남았다(\texttt{ANX}가 \texttt{SLE} 또는 \texttt{AGI}로 나왔다).
+가운데 로터의 링 설정 후보들이 전문 앞부분에서만 서로 다른 복호문을 주는데, 올바른 복호문에는 군용 전문이
+낱말 구분자로 쓰는 \texttt{X}가 들어 있었다. 바이그램 표는 문학 작품에서 만든 것이어서 \texttt{NX},
+\texttt{XO} 같은 조합을 거의 본 적이 없었고, 그래서 올바른 답에 낮은 점수를 주었다. 같은 말뭉치에서
+낱말 경계를 \texttt{X}로 바꾼 통계를 더해 넣자 이 경우까지 정확해졌다.
+
+교훈은 평범하다. 점수 함수는 실제로 풀려는 문제의 데이터와 같은 성질을 가져야 한다.
+\end{lesson}
+
+점수는 연속한 두 글자의 조건부 확률의 로그를 평균한 값이다. 무작위 글자열은 약 $-3.5$, 보통의 독일어
+문장은 약 $-2.4$가 나온다. 바이그램 표는 공개 저작물인 독일어 문학 세 편에서 만들었고 생성 스크립트와
+함께 \code{data/language/}에 있다.
+
+\section{전체 탐색과 병렬화}
+
+\code{search}는 하루치 키를 찾는 일 전체, 곧 여러 로터 순서에 대해 봄베를 돌리고 모든 정지를 체킹하는
+일을 한다. 블레츨리 파크에서 봄베 여러 대가 서로 다른 로터 순서를 나눠 맡던 것에 해당한다.
+
+일은 (로터 순서, 넘어감 가설, 그리스 로터 위치)의 조합으로 쪼개어 CPU의 모든 코어에 나눠 준다.
+로터 순서끼리는 서로 영향을 주지 않으므로 그대로 나눌 수 있다. 4로터에서 그리스 로터 위치로 한 번 더
+쪼개는 이유는, 로터 순서 하나가 $26^4$ 위치로 커서 로터 순서 몇 개만 돌릴 때에도 모든 코어가 일하게
+하기 위해서다. 결과는 복호문 점수가 높은 순으로 정렬해 돌려준다.
+
+\section{Python 조작 인터페이스}
+
+Python 인터페이스는 실제 조작 순서(메뉴 작성, 배선, 구동, 정지 확인, 체킹)를 그대로 따르게 만들었다.
+코드~\ref{lst:workflow}는 예제 전문을 푸는 전 과정이다.
+
+\begin{lstlisting}[language=Python,caption={크립에서 평문까지. \code{CIPHER}는 121글자 암호문이다.},label={lst:workflow}]
+from christopher import Bombe, Menu, possible_offsets
+
+CRIB = "WETTERVORHERSAGE"
+offsets = possible_offsets(CIPHER, CRIB)        # 60 of 106 offsets survive
+
+menu  = Menu.from_crib(CIPHER, CRIB, 28).select(14)   # 14 edges, 14 letters, 1 loop
+bombe = Bombe(model="enigma-i", diagonal_board=True).plug_up(menu)
+
+stops = bombe.run(wheel_orders="all")           # 120 wheel orders, 157 stops
+for stop in stops:
+    for solution in stop.check():               # exactly one stop passes
+        print(stop)
+        print(solution.wheel_order, solution.rings, solution.positions)
+        print(solution.plugboard)
+        print(solution.plaintext)
+\end{lstlisting}
+
+통과한 정지 하나의 출력은 다음과 같다.
+
+\begin{lstlisting}[numbers=none]
+STOP  B III-V-II  drums ETD  test register E: live ABCDEFGHIJKLMNOPQRSTUWXYZ (25/26)
+B III-V-II  AAC  ERC
+AQ BZ CR DM EV FW GK HN IU JP
+ANXOBERKOMMANDODERWEHRMACHTXWETTERVORHERSAGEFUERDIENORDSEEXHEUTEKLARXWIND...
+\end{lstlisting}
+
+메뉴 작성부터 체킹까지를 한 번에 하는 \code{search} 함수도 있다. 한국어 튜토리얼
+노트북(\code{notebooks/01\_crib\_to\_plaintext.ipynb})이 이 과정을 단계별로 설명하며, 대각선 보드의
+유무 비교, 676선 상태의 그림, 넘어감 가설, M4와 실제 전문의 해독을 포함한다.
+
+\section{회로 검증용 벡터}
+
+코어는 회로 검증에 쓸 벡터를 파일로 내보낸다(\code{christopher.vectors.export\_vectors}). 벡터 하나는
+메뉴, 로터 순서, 드럼 위치와 그 위치에서의 기대 결과(676선 상태 전체, 테스트 레지스터, 정지 여부)로
+이루어진다. 회로는 같은 입력에 대해 같은 676비트를 내야 한다. 벡터의 쓰임은 \ref{sec:rtl-verify}절에서
+다룬다.

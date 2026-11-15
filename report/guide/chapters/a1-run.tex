@@ -1,0 +1,25 @@
+\chapter{직접 돌려 보기}\label{app:run}
+
+이 문서는 코드를 읽기 위한 것이지만, 읽은 것을 직접 돌려 보면 이해가 빠르다. 여기서는 어디서 무엇을 돌리는지만
+짧게 적는다. 설치의 세부는 저장소의 \code{README.md}와 각 폴더의 \code{README.md}에 있다.
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{46mm}>{\raggedright\arraybackslash}X}
+\toprule
+하고 싶은 것 & 방법 \\
+\midrule
+봄베의 전 과정을 따라 하기 & 노트북 \code{notebooks/01\_crib\_to\_plaintext.ipynb}. 크립 정렬부터 체킹까지를
+  단계별로 실행한다. 2부를 읽으며 함께 보기에 알맞다 \\
+Rust 코어의 시험 & 저장소 루트에서 \code{cargo test} \\
+전체 탐색의 성능 측정 & \code{cargo run -{}-release -p christopher-core -{}-example full\_search enigma-i} \\
+거짓 정지의 통계 & \code{cargo run -{}-release -p christopher-core -{}-example stop\_statistics 400} \\
+기준 RTL의 시험 & \code{rtl/tb/run.sh}. Verilator와 cocotb가 필요하다(\code{rtl/tb/README.md}).
+  \code{-k scrambler}처럼 일부만 고를 수 있고, \code{WAVES=1}로 파형을 남길 수 있다 \\
+이 문서의 빌드 & \code{report/guide} 폴더에서 \code{latexmk} \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+3부를 읽을 때에는 파형을 남겨 놓고 \code{bombe\_core}의 \code{live\_q}가 클럭마다 넓어지는 것을 직접 보기를
+권한다. 그림~\ref{fig:g-core-timing}이 실제 신호로 보인다.

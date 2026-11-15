@@ -1,0 +1,17 @@
+# Project Christopher -- 최종 보고서 빌드 설정 (XeLaTeX + biber).
+#
+#   cd report && latexmk            보고서  -> <빌드 폴더>/christopher/report/main.pdf
+#   cd report/guide && latexmk      입문 가이드 (guide/latexmkrc)
+#
+# 출력 폴더는 저장소 밖에 둔다(동기화 폴더가 빌드 중인 파일을 잠그는 문제를 피한다).
+# 우선순위: 환경 변수 CHRISTOPHER_REPORT_BUILD, LOCALAPPDATA, HOME.
+
+$pdf_mode   = 5;   # xelatex
+$bibtex_use = 2;   # biber
+$xelatex    = 'xelatex -interaction=nonstopmode -halt-on-error -file-line-error %O %S';
+
+my $base = $ENV{CHRISTOPHER_REPORT_BUILD} // $ENV{LOCALAPPDATA} // $ENV{HOME} // '.';
+$base =~ s{\\}{/}g;
+$out_dir = "$base/christopher/report";
+
+@default_files = ('main.tex');

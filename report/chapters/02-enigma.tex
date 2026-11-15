@@ -1,0 +1,148 @@
+\chapter{에니그마의 원리와 약점}\label{ch:enigma}
+
+봄베는 에니그마의 구조에서 나오는 두 가지 성질을 이용한다. 이 장은 에니그마가 글자를 바꾸는 방식을
+설명하고, 그 구조가 왜 두 성질을 낳는지 보인다.
+
+\section{구조와 신호 경로}
+
+에니그마의 키 하나를 누르면 전류가 그림~\ref{fig:enigma-path}의 경로로 흐른다. 플러그보드를 지나
+로터 세 개를 오른쪽에서 왼쪽으로 통과하고, 반사판에서 다른 선으로 되돌아 나와 로터 세 개를 반대
+방향으로 지난 뒤 다시 플러그보드를 거쳐 램프를 켠다. 로터는 26개 접점을 다른 26개 접점에 일대일로
+잇는 배선 뭉치이고, 반사판은 26개 접점을 13쌍으로 묶는 배선이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % 블록
+  \node[blkn,minimum height=26mm,minimum width=14mm] (U) at (0,0) {반사판};
+  \node[blkb,minimum height=26mm,minimum width=14mm] (L) at (2.3,0) {왼쪽\\로터};
+  \node[blkb,minimum height=26mm,minimum width=14mm] (M) at (4.6,0) {가운데\\로터};
+  \node[blkb,minimum height=26mm,minimum width=14mm] (R) at (6.9,0) {오른쪽\\로터};
+  \node[blko,minimum height=26mm,minimum width=18mm] (P) at (9.5,0) {플러그\\보드};
+  \node[blk,minimum width=16mm] (K) at (12.2,0.8) {자판 \texttt{W}};
+  \node[blk,minimum width=16mm] (Lp) at (12.2,-0.8) {램프 \texttt{I}};
+  % 가는 길
+  \draw[live,->] (K.west) -- ($(P.east)+(0,0.8)$);
+  \draw[live,->] ($(P.west)+(0,0.8)$) -- ($(R.east)+(0,0.8)$);
+  \draw[live,->] ($(R.west)+(0,0.8)$) -- ($(M.east)+(0,0.8)$);
+  \draw[live,->] ($(M.west)+(0,0.8)$) -- ($(L.east)+(0,0.8)$);
+  \draw[live,->] ($(L.west)+(0,0.8)$) -- ($(U.east)+(0,0.8)$);
+  % 오는 길
+  \draw[line width=1.1pt,draw=cred,->] ($(U.east)+(0,-0.8)$) -- ($(L.west)+(0,-0.8)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(L.east)+(0,-0.8)$) -- ($(M.west)+(0,-0.8)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(M.east)+(0,-0.8)$) -- ($(R.west)+(0,-0.8)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(R.east)+(0,-0.8)$) -- ($(P.west)+(0,-0.8)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(P.east)+(0,-0.8)$) -- (Lp.west);
+  % 설명
+  \draw[decorate,decoration={brace,amplitude=5pt,mirror}] (-0.7,-1.6) -- (7.6,-1.6)
+    node[midway,below=6pt,note] {스크램블러 $\Scr_k$: 로터 위치에 따라 매 글자 바뀐다};
+  \node[note,below=8pt] at (9.5,-1.3) {플러그보드 $\Stk$\\하루 동안 고정};
+  \node[note,above] at (4.6,1.35) {가는 길: 오른쪽 $\to$ 가운데 $\to$ 왼쪽};
+\end{tikzpicture}
+\caption{에니그마의 신호 경로. 반사판이 전류를 \emph{다른} 선으로 되돌려 보내므로 가는 길(파랑)과
+오는 길(빨강)은 같은 선을 쓰지 않는다. 로터와 반사판을 묶어 스크램블러라고 부른다.}
+\label{fig:enigma-path}
+\end{figure}
+
+로터와 반사판을 묶은 부분을 \term{스크램블러}{scrambler}라 하고, 크립의 $k$번째 글자를 칠 때의
+스크램블러 치환을 $\Scr_k$로 적는다. 플러그보드의 치환을 $\Stk$라 하면 $k$번째 글자의 암호화는
+\begin{equation}
+  c = \Stk\bigl(\Scr_k(\Stk(p))\bigr) \label{eq:enigma}
+\end{equation}
+이다. 플러그보드에서 서로 이어진 두 글자를 \term{스테커}{Stecker} 짝이라고 한다. 케이블이 꽂히지 않은
+글자는 자기 자신과 짝이다.
+
+\paragraph{키.} 하루의 키는 네 부분으로 이루어진다(표~\ref{tab:keyspace}). 경우의 수는 플러그보드가
+압도적이어서, 플러그보드까지 무차별로 대입하는 것은 불가능하다. 봄베는 플러그보드를 대입하지 않고
+논리적으로 추론해 이 문제를 피한다(\ref{ch:bombe}장).
+
+\begin{table}[ht]
+\centering
+\caption{Enigma I의 키 구성과 경우의 수.}
+\label{tab:keyspace}
+\begin{tabular}{lll}
+\toprule
+설정 & 뜻 & 경우의 수 \\
+\midrule
+로터 순서 & 로터 I--V 중 세 개를 끼우는 순서 & 60 \\
+링 설정 & 글자 링을 내부 배선에 대해 돌려 둔 정도 & $26^3$ \\
+시작 위치 & 전문을 치기 시작할 때 창에 보이는 세 글자 & $26^3$ \\
+플러그보드 & 글자 쌍을 맞바꾸는 케이블 10개 & $\dfrac{26!}{6!\,10!\,2^{10}} \approx 1.5\times10^{14}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{로터의 회전과 코어 위치}
+
+로터 하나의 치환은 내부 배선이 얼마나 돌아가 있는가에 따라 달라진다. 배선표를 $w$, 회전량을 $s$라 하면
+글자 $x$는
+\begin{equation}
+  x \;\mapsto\; w\bigl((x+s) \bmod 26\bigr) - s \pmod{26} \label{eq:through}
+\end{equation}
+로 바뀐다. 회전한 만큼 입력 접점이 밀려 들어가고, 나올 때 같은 만큼 되돌아온다.
+여기서 회전량 $s$는 창에 보이는 글자에서 링 설정을 뺀 값이다. 링은 글자 눈금과 노치가 붙은 겉 고리이고,
+링 설정은 이 고리를 내부 배선에 대해 돌려 놓은 정도이기 때문이다. 이 값
+$s = \text{창 글자} - \text{링 설정}$을 \term{코어 위치}{core position}라고 부른다.
+
+코어 위치가 중요한 이유는 다음과 같다. 창 글자와 링 설정을 같은 만큼 함께 돌리면 식~\eqref{eq:through}의
+$s$가 변하지 않으므로 치환도 변하지 않는다. 링 설정이 따로 영향을 주는 것은 로터가 옆 로터를 넘기는
+시점뿐이다. 봄베는 넘어감이 없는 짧은 구간만 다루므로 링 설정을 찾을 수 없고, 찾을 필요도 없다.
+봄베가 찾는 것은 코어 위치다~\cite[4]{us6812report1944}.
+
+\paragraph{전진과 이중 스테핑.} 키를 누르면 암호화 \emph{전에} 로터가 먼저 움직인다. 오른쪽 로터는 매번
+한 칸 가고, 노치 위치를 지날 때 가운데 로터를 한 칸 민다. 가운데 로터가 자기 노치 위치에 오면 다음 키에서
+왼쪽 로터를 밀면서 자신도 한 칸 더 간다(이중 스테핑). 그림~\ref{fig:stepping}은 로터 I-II-III에서 창 글자
+\texttt{ADU}로 시작해 키를 네 번 누른 경우다. 가운데 로터는 오른쪽 로터가 26칸 갈 때 한 번 움직이는 것이
+보통이므로, 짧은 구간 안에서는 오른쪽 로터만 움직인다고 볼 수 있다. 봄베의 설계는 이 가정에 선다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=2.6cm,y=1cm]
+  \foreach \i/\w in {0/ADU,1/ADV,2/AEW,3/BFX,4/BFY} {
+    \node[blk,minimum width=15mm,font=\ttfamily] (w\i) at (\i,0) {\w};
+  }
+  \foreach \i/\j in {0/1,1/2,2/3,3/4} { \draw[->] (w\i) -- (w\j); }
+  \node[note,below=3pt of w1] {오른쪽이 노치\\위치 \texttt{V}에 옴};
+  \node[note,below=3pt of w2] {가운데를 밀어\\\texttt{D}$\to$\texttt{E} (노치)};
+  \node[note,below=3pt of w3,text=cred] {이중 스테핑:\\왼쪽과 가운데가 함께};
+  \node[note,above=3pt of w0] {시작};
+\end{tikzpicture}
+\caption{로터 I-II-III의 전진. 로터 III의 노치는 \texttt{V}, 로터 II의 노치는 \texttt{E}에 있다.
+소프트웨어 모델로 확인한 값이다.}
+\label{fig:stepping}
+\end{figure}
+
+\section{약점 1: 어떤 글자도 자기 자신으로 암호화되지 않는다}\label{sec:noself}
+
+반사판은 26개 접점을 13쌍으로 묶는다. 따라서 반사판에 들어간 전류는 반드시 \emph{다른} 접점으로 나온다.
+가는 길과 오는 길은 같은 로터들을 반대 방향으로 지나므로, 반사판에서 서로 다른 접점이었던 두 선은
+자판 쪽으로 돌아와서도 서로 다른 글자다. 수식으로는 로터 전체의 치환을 $\rho$, 반사판을 $U$라 할 때
+\[
+  \Scr_k = \rho^{-1}\, U\, \rho, \qquad \text{전체 암호화} = \Stk\,\rho^{-1}\, U\, \rho\,\Stk
+\]
+이고, $U$가 고정점이 없는 치환이면 그 앞뒤를 같은 치환과 그 역으로 감싼 것도 고정점이 없다.
+즉 어떤 설정에서도 글자는 자기 자신으로 암호화되지 않는다.
+
+이 성질은 크립을 놓을 자리를 추리는 데 쓰인다. 추정 평문을 암호문 아래에 놓았을 때 위아래 글자가 같은
+자리가 하나라도 있으면 그 위치는 불가능하다(\ref{sec:crib}절).
+
+\section{약점 2: 상호성과 플러그보드의 대칭성}\label{sec:symmetry}
+
+같은 식에서 두 번째 성질이 나온다. $U$는 쌍을 맞바꾸는 치환이므로 두 번 적용하면 원래대로 돌아온다.
+이런 치환을 앞뒤로 감싼 $\Scr_k$와 전체 암호화도 마찬가지다. 같은 설정에서 \texttt{W}가 \texttt{I}로
+바뀌면 \texttt{I}는 \texttt{W}로 바뀐다. 암호화와 복호화가 같은 조작이 되어 운용은 편해졌지만,
+해독자에게는 관계 하나가 두 개의 사실을 준다.
+
+플러그보드도 같은 꼴이다. 케이블 하나가 두 글자를 맞바꾸므로
+\begin{equation}
+  \Stk(a) = b \iff \Stk(b) = a \label{eq:stecker-sym}
+\end{equation}
+가 항상 성립한다. 웰치먼의 대각선 보드는 이 한 줄을 배선으로 옮긴 것이다(\ref{sec:diagonal}절).
+
+\begin{keybox}[title={봄베가 이용하는 것}]
+식~\eqref{eq:enigma}에서 플러그보드를 한쪽으로 넘기면 $\Stk(c) = \Scr_k(\Stk(p))$가 된다.
+스크램블러 $\Scr_k$는 로터 순서와 코어 위치만 정하면 알 수 있는 치환이다. 따라서 평문 글자 $p$의
+스테커 짝을 하나 가정하면 암호문 글자 $c$의 스테커 짝이 \emph{계산되어} 나온다. 크립이 주는 여러 관계가
+이렇게 서로의 스테커를 결정하므로, 로터 위치가 틀리면 대개 어딘가에서 한 글자의 짝이 둘이 되는 모순이
+생긴다. 봄베는 이 모순을 전기로 찾는 기계다.
+\end{keybox}

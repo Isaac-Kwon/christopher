@@ -1,0 +1,138 @@
+\chapter{메뉴: \texorpdfstring{\code{menu}}{menu}}\label{ch:rust-menu}
+
+\code{menu} 모듈은 봄베를 돌리기 전에 해독자가 종이 위에서 하던 일을 한다. 크립을 놓을 자리를 추리고,
+크립과 암호문의 글자 관계를 그래프로 만들고, 기계에 걸 수 있는 크기로 다듬는다.
+
+\section{크립을 놓을 자리: \texorpdfstring{\code{possible\_offsets}}{possible\_offsets}}
+
+\begin{lstlisting}[language=Rust,caption={\code{menu.rs}: 크립이 놓일 수 있는 위치.}]
+pub fn possible_offsets(ciphertext: &[u8], crib: &[u8]) -> Vec<usize> {
+    if crib.is_empty() || crib.len() > ciphertext.len() {
+        return Vec::new();
+    }
+    (0..=ciphertext.len() - crib.len())
+        .filter(|&o| crib.iter().zip(&ciphertext[o..]).all(|(p, c)| p != c))
+        .collect()
+}
+\end{lstlisting}
+
+읽는 법: 가능한 모든 시작 위치 \code{o}에 대해, 크립의 글자 \code{p}와 그 아래 놓이는 암호문 글자 \code{c}를
+짝지어(\code{zip}) \emph{모든} 짝이 서로 다르면(\code{all(p != c)}) 그 위치를 남긴다.
+
+\Why 에니그마는 어떤 글자도 자기 자신으로 암호화하지 않는다(앞 장). 그러므로 크립의 글자와 암호문의 글자가
+같은 자리가 하나라도 있으면 그 위치는 있을 수 없다.
+
+\General 낱말 맞추기 놀이에서 ``이 자리에는 이 글자가 올 수 없다''는 단서로 후보를 지워 나가는 것과 같다.
+단서 하나는 약하지만 크립이 길수록 단서가 많아진다. 틀린 위치가 우연히 살아남을 확률은 글자 하나마다
+$25/26$씩 곱해진다.
+
+\Ours 예제 전문(121글자)에서 16글자 크립 \texttt{WETTERVORHERSAGE}를 놓을 수 있는 위치는 106곳이고,
+이 검사로 46곳이 지워져 60곳이 남는다.
+
+\section{메뉴의 자료 구조}
+
+\begin{lstlisting}[language=Rust,caption={\code{menu.rs}: 선과 메뉴(주석 일부 생략).}]
+pub struct Edge {
+    pub plain: u8,
+    pub cipher: u8,
+    pub pos: u16,
+}
+
+pub struct Menu {
+    pub offset: usize,
+    pub crib: Vec<u8>,
+    pub edges: Vec<Edge>,
+    pub test_letter: u8,
+    pub input_wire: u8,
+}
+\end{lstlisting}
+
+\code{Edge}는 메뉴의 선 하나다. 크립의 \code{pos}번째 자리(0부터)에서 평문 글자 \code{plain}이 암호문 글자
+\code{cipher}가 되었다는 사실이다. 봄베에서는 선 하나에 스크램블러 하나가 걸린다. \code{Menu}는 선들의
+목록에 두 가지를 더한 것이다. 전류를 넣고 관찰할 글자 \code{test\_letter}와, 그 글자의 케이블 26가닥
+가운데 전압을 걸 선 \code{input\_wire}다.
+
+\code{Menu::from\_crib}은 크립의 글자마다 \code{Edge}를 하나씩 만든다. 그러고 나서 테스트 글자를 고른다.
+가장 큰 덩어리 안에서 선이 가장 많이 모이는 글자다. 실제 운용에서도 선이 가장 많이 모이는 글자를
+골랐다~\cite[7]{us6812report1944}. 전류가 여러 방향으로 한꺼번에 퍼져 나가 모순이 빨리 드러나기 때문이다.
+
+\section{덩어리와 루프}
+
+메뉴의 품질을 재는 수가 둘 있다. 서로 이어진 글자들의 \term{덩어리}{connected component} 수와 루프 수다.
+
+\begin{lstlisting}[language=Rust,caption={\code{menu.rs}: 루프의 수.}]
+pub fn loops(&self) -> usize {
+    let letters = self.letters().count_ones() as usize;
+    (self.edges.len() + self.components().len()).saturating_sub(letters)
+}
+\end{lstlisting}
+
+\Why 루프의 수가 $(\text{선 수}) - (\text{글자 수}) + (\text{덩어리 수})$인 이유는 이렇다. 글자 $n$개를 한
+덩어리로 잇는 데 필요한 선은 최소 $n-1$개이고, 그때 루프는 없다(나무 모양). 거기에 선을 하나 더하면 이미
+이어져 있던 두 글자 사이에 두 번째 길이 생기므로 루프가 정확히 하나 생긴다. 그러므로 루프의 수는
+``나무에 필요한 것보다 남는 선의 수''다(그림~\ref{fig:g-loops}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \dx/\ttl/\extra in {0/{글자 4, 선 3: 루프 0}/0, 5.3/{글자 4, 선 4: 루프 1}/1, 10.6/{글자 4, 선 5: 루프 2}/2} {
+    \begin{scope}[xshift=\dx cm]
+      \node[ltr] (a) at (0,0) {A}; \node[ltr] (b) at (1.6,1.0) {B};
+      \node[ltr] (c) at (3.2,0) {C}; \node[ltr] (d) at (1.6,-1.0) {D};
+      \draw (a) -- (b) -- (c); \draw (a) -- (d);
+      \ifnum\extra>0 \draw[cblue,line width=1.3pt] (d) -- (c); \fi
+      \ifnum\extra>1 \draw[cblue,line width=1.3pt] (b) -- (d); \fi
+      \node[note] at (1.6,-1.9) {\ttl};
+    \end{scope}
+  }
+\end{tikzpicture}
+\caption{선을 하나 더할 때마다 루프가 하나 는다. 파란 선이 나무에 더해진 선이다.}
+\label{fig:g-loops}
+\end{figure}
+
+덩어리를 세는 \code{components}는 \term{서로소 집합}{union-find}이라는 표준적인 방법을 쓴다. 처음에는 글자마다
+자기만의 묶음에 있고, 선 하나를 볼 때마다 그 양 끝 글자의 묶음을 합친다. 다 보고 나면 남은 묶음이 덩어리다.
+
+\General 서로소 집합은 ``누가 누구와 같은 무리인가''를 묻는 문제에 두루 쓰인다. 친구 관계에서 무리를
+나누거나, 통신망에서 어느 장비끼리 이어져 있는지를 찾는 일이 같은 꼴이다.
+
+\Ours 루프가 중요한 이유는 봄베의 원리에 있다. 테스트 글자의 스테커 짝을 하나 가정하고 루프를 한 바퀴 돌면
+다시 테스트 글자의 스테커 짝이 계산되어 나오는데, 이것이 처음 가정과 같아야 한다. 틀린 드럼 위치에서 우연히
+같아질 확률은 약 $1/26$이다. 그래서 루프 하나가 거짓 정지를 약 $1/26$로 줄인다. 덩어리가 중요한 이유는
+전류가 떨어진 덩어리로는 건너가지 못하기 때문이다. 테스트 글자가 속한 덩어리의 선만 쓸모가 있다.
+
+\section{기계에 맞게 다듬기: \texorpdfstring{\code{select}}{select}}
+
+봄베의 스크램블러 수는 한정되어 있다(영국 봄베는 뱅크당 12개). \code{select(max\_edges)}는 선의 수를 제한한
+부분 메뉴를 고른다. 방법은 \term{탐욕법}{greedy}이다. 그 순간 가장 좋아 보이는 선을 하나씩 고른다.
+
+\begin{lstlisting}[language=Rust,caption={\code{menu.rs}: \code{select}의 핵심(일부).}]
+while chosen.len() < max_edges && !remaining.is_empty() {
+    let inside = |e: &Edge| have >> e.plain & 1 == 1 && have >> e.cipher & 1 == 1;
+    let touches = |e: &Edge| have >> e.plain & 1 == 1 || have >> e.cipher & 1 == 1;
+    let pick = if let Some(i) = remaining.iter().position(inside) {
+        Some(i)
+    } else {
+        remaining.iter().enumerate()
+            .filter(|(_, e)| touches(e))
+            .max_by_key(|(_, e)| {
+                let new = if have >> e.plain & 1 == 1 { e.cipher } else { e.plain };
+                (deg[new as usize], std::cmp::Reverse(e.pos))
+            })
+            .map(|(i, _)| i)
+    };
+    ...
+}
+\end{lstlisting}
+
+\code{have}는 지금까지 고른 글자의 집합을 26비트 정수 하나로 나타낸 것이다. \code{have >> e.plain \& 1 == 1}은
+``글자 \code{e.plain}이 집합에 들어 있는가''다. 글자의 집합을 비트로 다루는 이 표현은 다음 장에서 케이블의
+통전 상태를 나타낼 때에도 쓰인다.
+
+규칙은 둘이다. 양 끝이 \emph{둘 다} 이미 고른 글자인 선(\code{inside})이 있으면 먼저 고른다. 그런 선은
+새 글자를 더하지 않고 루프만 하나 닫는다. 없으면 한쪽 끝만 닿는 선(\code{touches}) 가운데 새로 들어올 글자의
+연결이 가장 많은 것을 고른다. 나중에 루프를 닫을 가능성이 크기 때문이다.
+
+\Ours 예제에서 크립을 23글자(\texttt{WETTERVORHERSAGEFUERDIE})로 늘리고 \code{select(14)}를 하면
+선 14개, 글자 11개, 루프 4개의 메뉴가 나온다. 16글자 크립에서 만든 메뉴(선 14개, 글자 14개, 루프 1개)와
+스크램블러 수는 같지만, Enigma~I의 모든 로터 순서를 돌렸을 때 정지가 157회에서 2회로 줄어든다.

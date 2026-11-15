@@ -1,0 +1,263 @@
+\chapter{자원: 회로는 공간을 차지한다}\label{ch:resources}
+
+프로그램의 비용은 주로 실행 시간이다. 회로의 비용은 둘이다. 부품이 차지하는 \emph{자원}과 신호가 지나는
+데 걸리는 \emph{시간}. 이 장은 FPGA 안에 어떤 부품이 있고, 코드가 그 부품을 얼마나 쓰는지 가늠하는 법을
+설명한다. 이 감각이 없으면 \ref{ch:lesson}장의 사고가 난다.
+
+\section{FPGA 안에 있는 것}
+
+\Why FPGA는 만들어진 뒤에 회로를 바꿀 수 있는 칩이다. 게이트를 그때그때 새로 만들 수는 없으므로,
+FPGA는 ``어떤 논리 함수로든 설정할 수 있는 작은 부품''을 수만 개에서 수십만 개 깔아 두고 그 사이를
+설정 가능한 배선으로 잇는다. 그 작은 부품이 \term{LUT}{look-up table, 조회표}다.
+
+LUT는 이름 그대로 표다. 입력이 6개인 LUT(LUT6)는 $2^6 = 64$칸짜리 1비트 메모리이고, 입력 6비트를 주소로
+삼아 그 칸의 값을 내놓는다. 64칸에 무엇을 적어 두느냐에 따라 입력 6개의 \emph{어떤} 논리 함수든 된다
+(그림~\ref{fig:g-lut}). 합성 도구가 하는 일은 설계자가 적은 논리를 6입력 이하의 조각으로 쪼개 LUT에
+하나씩 담는 것이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % 진리표
+  \node[font=\small\bfseries] at (1.5,3.45) {LUT에 적힌 표 (일부)};
+  \matrix[matrix of nodes,nodes={font=\ttfamily\footnotesize,minimum width=5mm,minimum height=4.2mm,inner sep=0pt},
+          column sep=0pt,row sep=0pt] (m) at (1.5,0.9) {
+     a & b & c & |[text=cgray]|\dots & {} & y \\
+     0 & 0 & 0 & {} & {} & 0 \\
+     0 & 0 & 1 & {} & {} & 1 \\
+     0 & 1 & 0 & {} & {} & 0 \\
+     0 & 1 & 1 & {} & {} & 1 \\
+     1 & 0 & 0 & {} & {} & 0 \\
+     1 & 0 & 1 & {} & {} & 1 \\
+     1 & 1 & 0 & {} & {} & 1 \\
+     1 & 1 & 1 & {} & {} & 1 \\
+  };
+  \draw (m-1-1.south west) -- (m-1-6.south east);
+  \draw (m-1-5.north east) -- (m-9-5.south east);
+  \node[note] at (1.5,-1.85) {\code{y = (a \& b) | c}};
+  % LUT 기호
+  \begin{scope}[xshift=6.6cm]
+  \node[font=\small\bfseries] at (1.6,2.9) {LUT6 하나};
+  \node[draw,fill=cbluebg,draw=cblue,minimum width=22mm,minimum height=30mm,align=center] (lut) at (1.6,0.8) {64칸\\메모리};
+  \foreach \i/\l in {0/a,1/b,2/c,3/{},4/{},5/{}} {
+    \draw[<-] ([yshift=11mm-\i*4.4mm]lut.west) -- ++(-0.8,0) node[left,font=\ttfamily\footnotesize] {\l};
+  }
+  \draw[->] (lut.east) -- ++(0.8,0) node[right,font=\ttfamily\footnotesize] {y};
+  \node[note] at (1.6,-1.4) {입력 6비트가 주소, 출력은 그 칸의 값};
+  \end{scope}
+  % FF
+  \begin{scope}[xshift=11.6cm]
+  \node[font=\small\bfseries] at (1.2,2.9) {짝을 이루는 플립플롭};
+  \node[reg,minimum width=12mm,minimum height=14mm] (ff) at (1.2,0.8) {FF};
+  \pic at (ff.south) {clkmark};
+  \draw[<-] (ff.west) -- ++(-0.6,0);
+  \draw[->] (ff.east) -- ++(0.6,0);
+  \node[note] at (1.2,-1.4) {1비트 기억};
+  \end{scope}
+\end{tikzpicture}
+\caption{LUT는 작은 메모리로 만든 만능 게이트다. 그림~\ref{fig:g-assign}의 게이트 두 개는 LUT 하나에
+들어간다(입력 세 개만 쓴다).}
+\label{fig:g-lut}
+\end{figure}
+
+\General \code{y = (a \& b) | c}는 입력이 셋이므로 LUT 하나다. 게이트가 몇 개인지는 중요하지 않다.
+중요한 것은 \emph{출력 하나가 입력 몇 개에 의존하는가}다. 입력이 여섯 이하이면 아무리 복잡한 식도
+LUT 하나이고, 일곱 이상이면 LUT 여러 개를 엮어야 한다.
+
+FPGA에는 LUT 말고도 몇 가지 부품이 있다(표~\ref{tab:g-res}).
+
+\begin{table}[ht]
+\centering
+\caption{FPGA의 주요 자원. 수량은 이 프로젝트의 대상 칩 두 종의 대략적인 값이다.}
+\label{tab:g-res}
+\small
+\begin{tabularx}{\linewidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{27mm}>{\raggedright\arraybackslash}p{24mm}}
+\toprule
+자원 & 하는 일 & XC7A200T (Nexys Video) & XC7Z020 (PYNQ) \\
+\midrule
+LUT & 6입력 이하의 임의의 논리 함수. 조합 논리가 여기에 담긴다 & 약 13만 4천 & 약 5만 3천 \\
+플립플롭(FF) & 1비트 기억. 레지스터가 여기에 담긴다 & LUT마다 딸려 있다 & \\
+분산 RAM (LUT RAM) & LUT의 64칸 메모리를 그대로 작은 RAM으로 쓰는 것. 작고 빠른 표에 알맞다 & LUT의 일부를 전용 & \\
+블록 RAM & 큰 메모리 전용 블록(수만 비트 단위). 읽는 데 한 클럭이 든다 & 365개 & 140개 \\
+DSP 블록 & 곱셈기. 신호 처리에 쓰인다 & (이 프로젝트에서는 쓰지 않는다) & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\Ours 봄베의 회로에는 곱셈이 없고 큰 메모리도 필요 없다. 자원의 거의 전부가 LUT(전파 논리와 치환 계산)와
+플립플롭(676비트 상태와 치환표)이다. 그래서 이 프로젝트에서 ``회로가 큰가''는 곧 ``LUT를 몇 개 쓰는가''다.
+
+\section{선택 회로는 비싸다}\label{sec:mux-cost}
+
+회로에서 LUT를 가장 많이 잡아먹는 것은 덧셈도 비교도 아니고 \term{선택 회로}{multiplexer, mux}다.
+여러 입력 가운데 하나를 골라 내보내는 회로다.
+
+\Why 선택 회로의 출력은 \emph{모든} 데이터 입력과 선택 신호에 의존한다. 넷 중 하나를 고르는 4:1 선택
+회로는 데이터 4비트와 선택 2비트, 모두 여섯 입력이므로 LUT6 하나에 꼭 맞는다. 그보다 큰 선택 회로는
+4:1을 층층이 쌓아야 한다. 16:1은 4:1 네 개로 16개를 4개로 줄이고 다시 4:1 하나로 고르므로 LUT 다섯 개다.
+이런 식으로 $N$개 가운데 하나를 고르려면 LUT가 대략 $N/3$개 든다($N/4 + N/16 + \cdots$). 그리고 이것은
+\emph{출력 1비트당}의 값이다(그림~\ref{fig:g-muxtree}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[font=\small\bfseries] at (0.9,2.6) {4:1 = LUT 1개};
+  \node[mux,minimum width=20mm] (m0) at (0.9,0.9) {4:1};
+  \foreach \i in {0,1,2,3} { \draw[<-] ([yshift=7.5mm-\i*5mm]m0.west) -- ++(-0.6,0); }
+  \draw[->] (m0.east) -- ++(0.5,0);
+  \draw[<-] (m0.south) -- ++(0,-0.45) node[below,font=\footnotesize] {선택 2비트};
+  \begin{scope}[xshift=5.2cm]
+  \node[font=\small\bfseries] at (2.0,2.6) {16:1 = LUT 5개};
+  \foreach \k/\yy in {0/2.0,1/1.0,2/0.0,3/-1.0} {
+    \node[mux,minimum width=9mm,minimum height=5mm,font=\scriptsize] (a\k) at (0.8,\yy) {4:1};
+    \foreach \i in {0,1,2,3} { \draw ([yshift=3mm-\i*2mm]a\k.west) -- ++(-0.35,0); }
+  }
+  \node[mux,minimum width=20mm] (b) at (3.4,0.5) {4:1};
+  \foreach \k in {0,1,2,3} { \draw[->] (a\k.east) -- ++(0.5,0) |- ([yshift=7.5mm-\k*5mm]b.west); }
+  \draw[->] (b.east) -- ++(0.5,0);
+  \end{scope}
+  \begin{scope}[xshift=11.3cm]
+  \node[font=\small\bfseries] at (1.6,2.6) {크기의 어림 (출력 1비트당)};
+  \node[font=\small,align=left,anchor=north west] at (-0.4,2.2) {
+     \begin{tabular}{@{}rl@{}}
+       4:1 & LUT 1개 \\
+       16:1 & 5개 \\
+       26:1 & 열 개 안팎 \\
+       676:1 & 이백 개 이상 \\
+     \end{tabular}};
+  \end{scope}
+\end{tikzpicture}
+\caption{선택 회로의 크기. 고를 대상이 많아지면 그에 비례해 커진다.}
+\label{fig:g-muxtree}
+\end{figure}
+
+\General 선택 회로는 코드에서 눈에 잘 띄지 않는다. 다음 두 줄은 모두 선택 회로다. 특히 둘째 줄, 변수로
+배열의 원소를 고르는 것은 프로그램에서는 가장 값싼 연산이지만 회로에서는 ``배열의 모든 원소를 선택 회로의
+입력에 연결한다''는 뜻이다.
+
+\begin{lstlisting}[language=SV,numbers=none]
+assign y = sel ? a : b;      // 2:1 mux
+assign z = table[index];     // (size of table):1 mux, for every bit of z
+\end{lstlisting}
+
+\Ours 봄베의 회로는 선택 회로투성이다. ``26글자 가운데 하나''를 고르는 일이 곳곳에 있기 때문이다.
+로터를 통과하는 것은 배선표 26칸에서 한 칸을 고르는 일이고(5비트 폭의 26:1), 전파 논리에서 ``케이블 $a$의
+$y$번 선''을 읽는 것도 선택이다. 코드~\ref{lst:g-spread}의 \code{live\_q[cable\_a + y]}가 그것인데,
+여기서 고르는 대상은 26개가 아니라 676개다. 이 한 줄이 이 프로젝트의 가장 큰 사고의 원인이었다.
+\ref{ch:lesson}장에서 다룬다.
+
+\section{표는 메모리에 담는다}
+
+\Why 같은 계산을 되풀이하는 것보다 계산해 둔 결과를 표에서 읽는 편이 싸다. 프로그램에서도 쓰는 방법이지만
+회로에서는 의미가 더 크다. 계산 회로는 쓰든 안 쓰든 자리를 차지하고 있는 반면, 메모리는 같은 양의 정보를
+훨씬 좁은 자리에 담는다. FPGA에는 메모리가 두 종류 있다. LUT를 메모리로 쓰는 \term{분산 RAM}{distributed
+RAM}은 작지만 주소를 주면 같은 클럭 안에 값이 나오고, \term{블록 RAM}{block RAM}은 크지만 읽는 데 한 클럭이
+걸린다.
+
+\General 소리를 내는 회로가 사인파를 필요로 한다고 하자. 사인 함수를 계산하는 회로를 만드는 대신 한 주기의
+값을 256칸짜리 표에 넣어 두고 차례로 읽어 낸다. 표는 블록 RAM 하나의 일부에 들어간다.
+
+\Ours 로터의 배선표는 바뀌지 않는 상수 표다. 기준 RTL에서는 \code{wirings\_pkg}에 상수로 들어 있고
+로터를 통과하는 함수가 그 표를 읽는다. FPGA 엔진은 한 걸음 더 나아가, 드럼 위치마다 다시 계산하던
+스크램블러의 치환표를 미리 계산해 분산 RAM에 넣어 두고 읽어 쓴다. 다음 절의 주제다.
+
+\section{자원과 시간을 맞바꾼다}\label{sec:tradeoff}
+
+회로 설계에서 가장 자주 하는 결정은 ``부품을 더 쓰고 빨리 끝낼 것인가, 부품을 아끼고 오래 걸릴 것인가''다.
+
+\Why 같은 계산을 하는 회로는 하나가 아니다. 계산에 필요한 연산을 전부 따로따로 부품으로 놓으면 한 클럭에
+끝나지만 부품이 많이 든다. 부품 하나를 여러 클럭에 걸쳐 돌려 쓰면 부품은 적게 들지만 클럭이 여러 번
+필요하다. 프로그램에서는 이 선택이 없다. 처리 장치가 하나이므로 언제나 뒤쪽이다.
+
+\General 수 여덟 개의 합을 구한다고 하자(그림~\ref{fig:g-tradeoff}). 왼쪽은 덧셈기 일곱 개를 나무 모양으로
+엮어 한 클럭에 답을 낸다. 오른쪽은 덧셈기 하나와 누산 레지스터 하나로 여덟 클럭에 걸쳐 하나씩 더한다.
+신호 처리의 필터도 같다. 탭이 여덟 개인 필터는 곱셈기 여덟 개로 한 클럭에 계산할 수도 있고, 곱셈기 하나로
+여덟 클럭에 걸쳐 계산할 수도 있다. 표본이 들어오는 속도가 느리면 뒤쪽으로 충분하다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+   add/.style={draw,circle,fill=cbluebg,draw=cblue,minimum size=6mm,inner sep=0pt,font=\small}]
+  \node[font=\small\bfseries] at (2.6,3.4) {병렬: 덧셈기 7개, 1클럭};
+  \foreach \i in {0,...,7} { \node[font=\ttfamily\scriptsize] (x\i) at (\i*0.75,2.6) {x\i}; }
+  \foreach \k/\a/\b in {0/0/1,1/2/3,2/4/5,3/6/7} {
+    \node[add] (s\k) at (\k*1.5+0.375,1.7) {+};
+    \draw[->] (x\a) -- (s\k); \draw[->] (x\b) -- (s\k);
+  }
+  \node[add] (t0) at (1.125,0.8) {+}; \node[add] (t1) at (4.125,0.8) {+};
+  \draw[->] (s0) -- (t0); \draw[->] (s1) -- (t0); \draw[->] (s2) -- (t1); \draw[->] (s3) -- (t1);
+  \node[add] (u) at (2.625,-0.1) {+};
+  \draw[->] (t0) -- (u); \draw[->] (t1) -- (u);
+  \draw[->] (u) -- ++(0,-0.6) node[below,font=\small] {합};
+  \begin{scope}[xshift=9.0cm]
+  \node[font=\small\bfseries] at (2.0,3.4) {직렬: 덧셈기 1개, 8클럭};
+  \node[font=\ttfamily\small] (xin) at (-0.2,1.6) {x[i]};
+  \node[add,minimum size=8mm] (p) at (1.3,1.6) {+};
+  \node[reg,minimum width=14mm] (acc) at (3.3,1.6) {누산};
+  \pic at (acc.south) {clkmark};
+  \draw[->] (xin) -- (p); \draw[->] (p) -- (acc);
+  \draw[->] (acc.east) -- ++(0.5,0) |- (2.3,0.5) -| (p.south);
+  \draw[->] (acc.east) ++(0.5,0) -- ++(0.6,0) node[right,font=\small] {합};
+  \node[note] at (2.0,-0.3) {클럭마다 수 하나를 더한다};
+  \end{scope}
+\end{tikzpicture}
+\caption{같은 계산의 두 가지 구현.}
+\label{fig:g-tradeoff}
+\end{figure}
+
+\Ours 봄베에서 이 선택은 스크램블러의 치환표를 언제, 어떻게 계산하는가에 나타난다.
+
+실제 기계를 떠올려 보자. 봄베의 드럼 세 개 가운데 하나는 계속 돌지만 나머지 둘은 그 드럼이 한 바퀴 돌 때
+한 칸씩만 움직인다. 26위치 동안 스크램블러의 ``안쪽''(가운데 로터, 왼쪽 로터, 반사판)은 그대로다.
+
+\begin{itemize}
+\item \textbf{기준 RTL}은 이 사실을 이용하지 않는다. 메뉴의 선마다 스크램블러 회로 전체(그림~\ref{fig:g-scr26})를
+하나씩 두고 드럼 위치가 바뀔 때마다 26글자의 치환을 전부 다시 계산한다. 구조가 단순해서 맞는지 확인하기
+쉽지만, 스크램블러 하나가 LUT 19,717개이므로 선이 16개인 메뉴에서는 스크램블러만으로 약 31만 5천 개다.
+대상 칩(약 13만 4천 개)에 들어가지 않는다.
+\item \textbf{FPGA 엔진}은 바뀌는 것만 다시 계산한다. 가운데 로터가 바뀔 때에만 안쪽 치환과 오른쪽 로터
+26위치의 치환표를 여러 클럭에 걸쳐 계산해 분산 RAM에 넣어 두고, 위치마다 표에서 읽는다. 계산 회로는 한
+벌만 있으면 되고 나머지는 메모리다.
+\item \textbf{Rust 코어}도 같은 생각으로 짜여 있다. 가운데 로터가 바뀔 때만 표 26개를 다시 만든다
+(\ref{ch:rust-bombe}장).
+\end{itemize}
+
+그림~\ref{fig:g-engine-idea}는 두 구조의 차이다. 엔진은 표를 만드는 데 클럭을 쓰지만 그것은 26위치에 한
+번이다. 시간을 조금 내주고 LUT를 크게 돌려받았다. 엔진 전체는 LUT 41,040개에 들어간다. 엔진의 내부는
+4부에서 다룬다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[font=\small\bfseries] at (2.8,3.0) {기준 RTL: 위치마다 전부 다시 계산};
+  \foreach \i/\yy in {0/2.1,1/1.3,2/0.5} {
+    \node[blkb,minimum width=38mm,minimum height=6mm,font=\footnotesize] (s\i) at (2.2,\yy) {스크램블러 회로 (26글자분)};
+    \draw[->] (s\i.east) -- ++(1.0,0);
+  }
+  \node at (2.2,-0.1) {$\vdots$};
+  \node[note] at (2.2,-0.8) {메뉴의 선마다 한 벌 (최대 16벌)};
+  \node[blkn,minimum width=10mm,minimum height=24mm] (sp) at (5.7,1.3) {전파};
+  \begin{scope}[xshift=8.6cm]
+  \node[font=\small\bfseries] at (3.1,3.0) {FPGA 엔진: 바뀔 때만 계산해 표에 저장};
+  \node[blkb,minimum width=26mm,minimum height=10mm,font=\footnotesize] (calc) at (0.9,1.6) {치환 계산 회로\\(한 벌)};
+  \node[reg,minimum width=22mm,minimum height=10mm,font=\footnotesize] (ram) at (3.9,1.6) {치환표\\(분산 RAM)};
+  \node[blkn,minimum width=10mm,minimum height=24mm] (sp2) at (6.2,1.3) {전파};
+  \draw[->] (calc) -- (ram); \draw[->] (ram) -- (sp2.west|-ram);
+  \node[note] at (0.9,0.6) {가운데 로터가\\바뀔 때만 동작};
+  \node[note] at (3.9,0.6) {위치마다 읽기};
+  \end{scope}
+\end{tikzpicture}
+\caption{치환표를 얻는 두 가지 방법(개념도).}
+\label{fig:g-engine-idea}
+\end{figure}
+
+\section{정리}
+
+\begin{itemize}
+\item FPGA의 논리는 LUT에, 기억은 플립플롭에 담긴다. 회로의 크기는 주로 LUT의 수로 잰다.
+\item LUT 하나는 입력 여섯 개까지의 함수다. 출력 하나가 많은 입력에 의존할수록 LUT가 많이 든다.
+\item 변수로 무엇인가를 고르는 코드는 선택 회로이고, 고를 대상의 수에 비례해 커진다.
+\item 되풀이되는 계산은 표로 만들어 메모리에 두면 싸다.
+\item 같은 계산을 부품을 많이 써서 빨리 할 수도, 적게 써서 천천히 할 수도 있다. 무엇이 자주 바뀌고 무엇이
+드물게 바뀌는지를 보면 어디서 아낄지가 보인다.
+\end{itemize}

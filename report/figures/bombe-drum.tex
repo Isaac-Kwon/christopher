@@ -1,0 +1,57 @@
+% 봄베 드럼 한 개: 브러시 쪽에서 본 모습(왼쪽)과 옆에서 본 단면(오른쪽). 직접 그린 도해.
+% 근거: docs/reference/bombe-mechanics.md 3, 11절 (ellsbury1998bombe Part 2, jackson-bh10, us6812report1944 p.68).
+% 근거가 있는 것: 동심원 4줄 x 26 = 브러시 104개, 바깥 링과 셋째 링 / 안쪽 링과 둘째 링이 드럼 안에서
+% 로터 배선으로 이어짐(같은 배선 두 벌), 기계 앞면의 접점판에 축마다 104접점, 축의 키와 래치로 고정.
+% 어림해 그린 것: 링의 반지름, 드럼의 두께, 브러시의 모양과 길이. 그림의 배선 짝은 예시다.
+\begin{tikzpicture}[x=0.85cm,y=0.85cm,
+    lab/.style={font=\footnotesize,align=left},
+    lead/.style={draw=cgray,line width=0.4pt}]
+  % ---------- 브러시 면 ----------
+  \node[font=\small\bfseries] at (0,3.5) {브러시 쪽에서 본 드럼};
+  \draw[line width=0.8pt,fill=clight] (0,0) circle (2.9);
+  \draw[fill=white] (0,0) circle (0.45);
+  \fill[cgray] (0,0) circle (0.16);
+  \foreach \rad/\col in {2.55/cblue,2.05/cblue,1.55/corange,1.05/corange} {
+    \draw[\col!35,line width=0.3pt] (0,0) circle (\rad);
+    \foreach \k in {0,...,25} { \fill[\col] ({90-\k*360/26}:\rad) circle (0.055); }
+  }
+  % 내부 배선 예: 바깥(4) <-> 셋째(3), 안쪽(1) <-> 둘째(2)
+  \foreach \a/\b in {0/4,3/9,7/2} {
+    \draw[cblue,line width=0.7pt] ({90-\a*360/26}:2.55) -- ({90-\b*360/26}:2.05);
+  }
+  \foreach \a/\b in {13/17,16/22,20/15} {
+    \draw[corange,line width=0.7pt] ({90-\a*360/26}:1.05) -- ({90-\b*360/26}:1.55);
+  }
+  \node[lab,anchor=north,align=center] at (0,-3.05) {동심원 4줄 × 26 = 브러시 104개\\
+     \textcolor{cblue}{바깥 링(넷째)과 셋째 링: 로터 배선 한 벌}\\
+     \textcolor{corange}{안쪽 링(첫째)과 둘째 링: 같은 배선 한 벌 더}};
+  % ---------- 단면 ----------
+  \begin{scope}[xshift=7.4cm]
+  \node[font=\small\bfseries] at (0.6,3.5) {옆에서 본 단면};
+  % 기계 앞면 패널과 접점판
+  \fill[cgray!30] (-0.5,-3.0) rectangle (0,3.0);
+  \draw[line width=0.8pt] (0,-3.0) -- (0,3.0);
+  \foreach \y in {2.55,2.05,1.55,1.05,-1.05,-1.55,-2.05,-2.55} {
+    \fill[corange!80!black] (-0.12,\y-0.09) rectangle (0,\y+0.09);
+    \draw[black!70,line width=0.5pt] (0.02,\y) -- (0.5,\y);   % 브러시
+  }
+  % 축
+  \fill[cgray] (-0.5,-0.16) rectangle (2.0,0.16);
+  % 드럼 몸체
+  \draw[line width=0.8pt,fill=clight] (0.5,-2.9) rectangle (1.6,2.9);
+  \draw[fill=white] (1.6,-0.5) rectangle (1.9,0.5);
+  % 내부 배선 예
+  \draw[cblue,line width=0.7pt] (0.5,2.55) -- (1.2,2.55) -- (1.2,2.05) -- (0.5,2.05);
+  \draw[corange,line width=0.7pt] (0.5,1.05) -- (0.9,1.05) -- (0.9,1.55) -- (0.5,1.55);
+  \node[lab,anchor=east] at (-0.7,2.3) {\textbf{접점판}\\기계 앞면에 묻힌\\104접점};
+  \draw[lead] (-0.7,2.3) -- (-0.1,2.3);
+  \node[lab,anchor=west] at (2.3,2.3) {\textbf{드럼}\\로터 배선 두 벌};
+  \draw[lead] (2.3,2.3) -- (1.6,2.3);
+  \node[lab,anchor=west] at (2.3,1.1) {\textbf{브러시}\\접점판을 훑는다};
+  \draw[lead] (2.3,1.1) -- (0.3,1.3);
+  \node[lab,anchor=west] at (2.3,0) {\textbf{축}\\키와 래치로 고정};
+  \draw[lead] (2.3,0) -- (2.0,0);
+  \node[lab,anchor=east] at (-0.7,-1.8) {접점판 뒤의 고정 배선이\\이웃 드럼, 반사판,\\26선 케이블로 이어진다};
+  \draw[lead] (-0.7,-1.8) -- (-0.12,-1.8);
+  \end{scope}
+\end{tikzpicture}

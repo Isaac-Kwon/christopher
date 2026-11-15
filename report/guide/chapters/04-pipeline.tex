@@ -1,0 +1,189 @@
+\chapter{시간: 파이프라인과 타이밍 클로저}\label{ch:pipeline}
+
+앞 장이 회로의 공간 비용을 다뤘다면 이 장은 시간 비용을 다룬다. \ref{ch:sync}장의 규칙을 다시 적으면,
+레지스터 사이의 조합 논리는 한 클럭 주기 안에 끝나야 한다. 이 장은 그 규칙을 지키지 못할 때 쓰는 대표적인
+방법(파이프라인)과, 규칙을 지켰는지 확인하는 과정(타이밍 클로저)을 설명한다.
+
+\section{파이프라인}\label{sec:pipeline}
+
+\Why 조합 논리가 길면 신호가 지나는 데 오래 걸리고, 그만큼 클럭을 느리게 해야 한다. 회로에서 가장 긴
+경로 하나가 회로 전체의 속도를 정한다. 긴 조합 논리의 중간에 레지스터를 끼워 넣으면 경로가 둘로 나뉘고,
+각각은 원래의 절반쯤만 걸리므로 클럭을 그만큼 빠르게 할 수 있다. 이것이 \term{파이프라인}{pipeline}이다.
+
+대가는 둘이다. 끼워 넣은 레지스터만큼 플립플롭이 들고, 결과가 나오기까지 클럭이 더 든다(이 지연을
+\term{레이턴시}{latency}라 한다). 그러나 \emph{처리량}은 줄지 않는다. 앞 단이 한 입력을 다음 단에 넘기고
+나면 곧바로 다음 입력을 받을 수 있으므로, 매 클럭 새 입력을 넣고 매 클럭 결과를 하나씩 받는다.
+세탁기와 건조기를 따로 두는 것과 같다. 빨래 한 통이 끝나는 데 걸리는 시간은 같거나 조금 길어지지만,
+세탁이 끝난 통을 건조기로 넘기자마자 다음 통의 세탁을 시작할 수 있다.
+
+\General 수 네 개를 더하는 회로를 보자(그림~\ref{fig:g-pipe}). 위쪽은 덧셈기 세 개가 한 줄로 이어져 있어
+신호가 덧셈기 세 개를 연달아 지나야 한다. 아래쪽은 둘씩 먼저 더하도록 순서를 바꾸고 중간에 레지스터를 넣어
+두 단으로 나눴다. 첫 단의 덧셈기 둘은 나란히 놓여 동시에 동작하므로, 어느 단에서든 신호가 지나는 덧셈기는
+하나다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+   add/.style={draw,circle,fill=cbluebg,draw=cblue,minimum size=7mm,inner sep=0pt,font=\small}]
+  % 파이프라인 없음
+  \node[anchor=west,font=\small\bfseries] at (-0.5,3.6) {파이프라인 없음: 한 클럭에 덧셈 세 번};
+  \node[reg] (i0) at (0,2.4) {입력};
+  \node[add] (a0) at (2.2,2.4) {+}; \node[add] (a1) at (4.4,2.4) {+}; \node[add] (a2) at (6.6,2.4) {+};
+  \node[reg] (o0) at (8.8,2.4) {합};
+  \draw[->] (i0) -- (a0); \draw[->] (a0) -- (a1); \draw[->] (a1) -- (a2); \draw[->] (a2) -- (o0);
+  \draw[<->,cred] (0.5,1.65) -- node[below,note,text=cred] {덧셈기 세 개의 지연이 클럭 주기를 정한다} (8.3,1.65);
+  % 파이프라인 있음
+  \node[anchor=west,font=\small\bfseries] at (-0.5,0.3) {두 단 파이프라인: 한 클럭에 덧셈 한 번};
+  \node[reg] (i1) at (0,-1.0) {입력};
+  \node[add] (b0) at (2.2,-0.5) {+}; \node[add] (b1) at (2.2,-1.5) {+};
+  \node[reg,fill=cgreenbg,draw=cgreen] (m) at (4.4,-1.0) {중간};
+  \node[add] (b2) at (6.6,-1.0) {+};
+  \node[reg] (o1) at (8.8,-1.0) {합};
+  \draw[->] (i1) -- (b0); \draw[->] (i1) -- (b1);
+  \draw[->] (b0) -- (m); \draw[->] (b1) -- (m); \draw[->] (m) -- (b2); \draw[->] (b2) -- (o1);
+  \draw[<->,cgreen] (0.5,-2.25) -- node[below,note,text=cgreen] {1단} (3.9,-2.25);
+  \draw[<->,cgreen] (4.9,-2.25) -- node[below,note,text=cgreen] {2단} (8.3,-2.25);
+  \node[note,anchor=west,text width=40mm,align=left] at (10.0,-1.0) {초록 레지스터가 추가된 것. 각 단의 지연이 짧아져 클럭을 빠르게 할 수 있다.};
+\end{tikzpicture}
+
+\medskip
+\begin{tikztimingtable}[timing/slope=0.1,timing/coldist=4pt,xscale=2.4,yscale=1.25,semithick]
+  \code{clk} & 7{.5L .5H} \\
+  입력       & .5D{A} 1D{B} 1D{C} 1D{D} 1D{E} 1D{F} 1D{G} .5D{H} \\
+  중간       & .5U 1D{A} 1D{B} 1D{C} 1D{D} 1D{E} 1D{F} .5D{G} \\
+  합         & 1.5U 1D{A} 1D{B} 1D{C} 1D{D} 1D{E} .5D{F} \\
+\extracode
+  \begin{pgfonlayer}{background}
+    \vertlines[cgray!50,dashed]{0.5,1.5,...,6.5}
+  \end{pgfonlayer}
+\end{tikztimingtable}
+\caption{덧셈 회로의 파이프라인. 아래 파형은 두 단 파이프라인의 동작이다. 글자는 입력 묶음의 이름이다.
+결과는 두 클럭 늦게 나오지만 매 클럭 하나씩 나온다.}
+\label{fig:g-pipe}
+\end{figure}
+
+\Ours FPGA 엔진에서 스크램블러의 안쪽 치환을 계산하는 부분이 파이프라인이다. 글자 하나가 가운데 로터,
+왼쪽 로터, (그리스 로터,) 반사판을 지나 다시 돌아오는 계산인데, 이것을 한 클럭에 다 하면 표 조회 일곱
+번이 한 줄로 이어진 긴 경로가 된다. 그래서 로터 한 단을 지날 때마다 레지스터를 두어 일곱 단으로 나눴다.
+글자 26개를 차례로 흘려 넣으면 26개의 결과가 차례로 나온다.
+
+처음의 일곱 단 구성은 그래도 목표 클럭을 맞추지 못했다. 로터 한 단의 통과는 사실 두 가지 일이다.
+글자에 회전량을 더해 표의 주소를 만드는 일($x + s \bmod 26$)과, 표를 읽고 회전량을 빼는 일이다.
+두 일을 한 단에 넣으면 덧셈, 26으로 나눈 나머지, 표 조회, 뺄셈이 한 클럭 안에 이어진다. 각 단을 이 두
+일로 다시 쪼개 열네 단으로 만들자 타이밍이 맞았다(그림~\ref{fig:g-inner-pipe}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[anchor=west,font=\small\bfseries] at (-0.3,2.2) {7단: 로터 한 단 통과가 한 클럭};
+  \foreach \i/\t in {0/M,1/L,2/G,3/반사,4/G,5/L,6/M} {
+    \node[blkb,minimum width=13mm,minimum height=8mm,font=\footnotesize] (p\i) at (\i*1.75+0.5,1.3) {\t};
+    \draw[fill=cyellowbg] (\i*1.75+1.3,0.9) rectangle ++(0.22,0.8);
+  }
+  \foreach \i/\j in {0/1,1/2,2/3,3/4,4/5,5/6} { \draw[->] (\i*1.75+1.52,1.3) -- (p\j); }
+  \draw[->] (-0.6,1.3) -- (p0);
+  \node[anchor=west,font=\small\bfseries] at (-0.3,0.0) {14단: 한 단을 둘로 (주소 만들기 / 표 읽기)};
+  \foreach \i in {0,...,13} {
+    \pgfmathtruncatemacro{\odd}{mod(\i,2)}
+    \ifnum\odd=0
+      \node[blkb,minimum width=5.5mm,minimum height=8mm,font=\tiny,inner sep=1pt] (q\i) at (\i*0.875+0.1,-0.9) {주소};
+    \else
+      \node[blkg,minimum width=5.5mm,minimum height=8mm,font=\tiny,inner sep=1pt] (q\i) at (\i*0.875+0.1,-0.9) {읽기};
+    \fi
+    \draw[fill=cyellowbg] (\i*0.875+0.48,-1.3) rectangle ++(0.14,0.8);
+  }
+  \node[note,anchor=west,text width=30mm,align=left] at (12.2,1.3) {노란 막대가\\레지스터};
+  \node[note,anchor=west,text width=30mm,align=left] at (12.2,-0.9) {단마다 할 일이\\절반};
+\end{tikzpicture}
+\caption{안쪽 치환 파이프라인의 분할. M, L, G는 가운데, 왼쪽, 그리스 로터의 통과다. 단 수가 두 배가 되어
+결과가 나오기까지 클럭이 더 들지만, 이 계산은 가운데 로터가 바뀔 때에만 하므로 전체 시간에는 거의 영향이
+없다.}
+\label{fig:g-inner-pipe}
+\end{figure}
+
+이 예에서 볼 점은 파이프라인을 \emph{어디에} 썼는가다. 안쪽 치환의 계산은 26위치에 한 번만 하는 일이므로
+레이턴시가 늘어도 아깝지 않다. 반면 전파 논리(상태 레지스터에서 나와 다시 상태 레지스터로 들어가는 고리)는
+단순히 레지스터를 끼워 나눌 수 없다. 한 걸음의 결과가 다음 걸음의 입력이므로, 한 걸음을 두 클럭으로 나누면
+걸음마다 두 클럭이 든다. 그래서 그쪽은 논리 자체를 짧게 만드는 방법으로 풀어야 한다
+(\ref{ch:lesson}장).
+
+\section{합성, 배치, 배선}
+
+지금까지 ``합성 도구가 코드를 회로로 바꾼다''고만 했다. 실제로는 세 단계다(그림~\ref{fig:g-flow}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkn,minimum width=22mm,minimum height=12mm] (hdl) at (0,0) {HDL 코드};
+  \node[blkb,minimum width=24mm,minimum height=12mm] (syn) at (3.3,0) {합성\\{\footnotesize synthesis}};
+  \node[blkb,minimum width=24mm,minimum height=12mm] (pl) at (6.8,0) {배치\\{\footnotesize place}};
+  \node[blkb,minimum width=24mm,minimum height=12mm] (rt) at (10.3,0) {배선\\{\footnotesize route}};
+  \node[blkg,minimum width=22mm,minimum height=12mm] (bit) at (13.6,0) {비트스트림};
+  \draw[->] (hdl) -- (syn); \draw[->] (syn) -- (pl); \draw[->] (pl) -- (rt); \draw[->] (rt) -- (bit);
+  \node[note,below=2mm of syn] {논리를 LUT와\\플립플롭으로};
+  \node[note,below=2mm of pl] {각 LUT를 칩의\\어느 자리에};
+  \node[note,below=2mm of rt] {자리 사이를\\어느 배선으로};
+  \node[note,below=2mm of bit] {칩에 써넣는\\설정 파일};
+  \draw[decorate,decoration={brace,amplitude=5pt}] (2.0,0.9) -- (4.6,0.9) node[midway,above=6pt,note] {크기가 정해진다};
+  \draw[decorate,decoration={brace,amplitude=5pt}] (5.5,0.9) -- (11.6,0.9) node[midway,above=6pt,note] {지연이 정해진다};
+\end{tikzpicture}
+\caption{HDL 코드가 FPGA에 올라가기까지.}
+\label{fig:g-flow}
+\end{figure}
+
+\Why 세 단계로 나뉘는 이유는 FPGA에서 신호의 지연이 두 부분으로 이루어지기 때문이다. LUT를 지나는 시간과
+LUT 사이의 \emph{배선}을 지나는 시간이다. 배선의 지연은 두 LUT가 칩 위에서 얼마나 떨어져 놓였는지,
+그 사이를 어떤 배선으로 이었는지에 달려 있고, LUT의 지연보다 큰 경우가 흔하다. 그러므로 회로의 크기는
+합성만 하면 알 수 있지만, 회로의 속도는 배치와 배선까지 끝나야 정확히 알 수 있다. 합성 직후에 도구가
+알려 주는 속도는 배선의 지연을 어림한 \emph{추정값}이다.
+
+\General 플립플롭 두 개 사이에 LUT 하나가 있는 회로도, 도구가 두 플립플롭을 칩의 양 끝에 놓으면 느려진다.
+회로가 작을 때에는 도구가 관련된 부품을 가까이 모아 놓을 수 있지만, 칩이 꽉 찰수록 놓을 자리가 없어 부품이
+흩어지고 배선이 길어진다. 그래서 같은 설계도 칩을 절반쯤 채웠을 때보다 거의 다 채웠을 때 속도를 맞추기가
+훨씬 어렵다.
+
+\Ours 이 프로젝트의 도구는 Xilinx Vivado다. FPGA 엔진의 크기(LUT 41,040개, 대상 칩의 30.5\%)는 합성
+단계의 결과다. 엔진을 여러 대 넣으면 칩이 차오르므로, 한 대일 때 맞던 타이밍이 여러 대일 때에도 맞는지는
+배치와 배선을 해 보아야 안다. 보드별 엔진 수는 그 결과를 보고 정한다.
+
+\section{타이밍 클로저}\label{sec:timing}
+
+\Why 배선까지 끝나면 도구는 회로의 모든 레지스터 사이 경로에 대해 지연을 계산하고, 클럭 주기와 비교한다.
+주기에서 지연을 뺀 값을 \term{슬랙}{slack, 여유}이라 한다. 슬랙이 양수이면 신호가 제때 도착하고, 음수이면
+늦는다. 가장 나쁜 경로의 슬랙이 0 이상이 되도록 설계를 고쳐 나가는 과정이
+\term{타이밍 클로저}{timing closure}다. 경로 하나라도 슬랙이 음수이면 그 회로는 그 클럭에서 동작을 보장할
+수 없다. ``대체로 동작한다''는 없다. 온도나 전압에 따라 가끔 틀린 값을 내는 회로가 되기 때문이다.
+
+\General 클럭이 100MHz이면 주기는 10나노초다(그림~\ref{fig:g-slack}). 어떤 경로의 지연이 8나노초이면
+슬랙은 $+2$나노초로 여유가 있다. 12나노초이면 슬랙은 $-2$나노초로 실패다. 실패한 경로를 고치는 방법은
+세 가지다. 그 경로를 파이프라인으로 나누거나, 논리의 구조를 바꿔 거치는 LUT의 수(논리 단수)를 줄이거나,
+클럭을 느리게 한다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=0.9cm,y=1cm]
+  \draw[->] (0,0) -- (14,0) node[right,font=\small] {시간 (ns)};
+  \foreach \t in {0,2,4,6,8,10,12} { \draw (\t,0.08) -- (\t,-0.08) node[below,font=\footnotesize] {\t}; }
+  \draw[cblue,line width=1.2pt,dashed] (0,-0.5) -- (0,3.3) node[above,font=\footnotesize] {클럭 에지};
+  \draw[cblue,line width=1.2pt,dashed] (10,-0.5) -- (10,3.3) node[above,font=\footnotesize] {다음 에지};
+  \fill[cgreen!60] (0,2.2) rectangle (8,2.8);
+  \node[font=\footnotesize,anchor=west] at (0.2,2.5) {경로 A: 지연 8 ns};
+  \draw[<->,cgreen] (8,2.5) -- node[above,font=\footnotesize,text=cgreen] {슬랙 $+2$} (10,2.5);
+  \fill[cred!55] (0,1.0) rectangle (12,1.6);
+  \node[font=\footnotesize,anchor=west] at (0.2,1.3) {경로 B: 지연 12 ns};
+  \draw[<->,cred] (10,1.9) -- (12,1.9) node[right,font=\footnotesize,text=cred] {슬랙 $-2$ (실패)};
+\end{tikzpicture}
+\caption{슬랙. 100MHz 클럭(주기 10ns)에서의 두 경로.}
+\label{fig:g-slack}
+\end{figure}
+
+\Ours FPGA 엔진의 목표 클럭은 보드의 클럭과 같은 100MHz다. 케이블 단위 구조로 바꾼 뒤 합성 단계에서 추정한
+슬랙은 $+0.18$나노초였고, 가장 느린 경로는 전파 논리로 LUT를 11단 거친다. 여유가 0.18나노초라는 것은
+거의 없다는 뜻이고, 더구나 배선 지연을 어림한 추정값이다. 배치와 배선을 마친 뒤의 실제 슬랙에 따라 구조를
+더 손보거나 클럭을 조정해야 한다. 이 문서를 쓰는 시점에 그 조정이 진행 중이며 결과는 4부에 적는다.
+
+\begin{keybox}[title={회로 설계의 두 가지 실패}]
+회로 설계가 실패하는 방식은 두 가지다. 회로가 칩에 \emph{들어가지 않거나}(자원), 원하는 클럭에서
+\emph{제때 끝나지 않거나}(타이밍). 프로그램은 느려도 답은 맞게 내지만, 타이밍을 맞추지 못한 회로는 답이
+틀린다. 그래서 회로 설계에서는 ``동작한다''와 ``들어간다''와 ``제 속도로 돈다''를 따로 확인한다.
+\end{keybox}

@@ -1,0 +1,259 @@
+\chapter{봄베: \texorpdfstring{\code{bombe}}{bombe}}\label{ch:rust-bombe}
+
+이 장이 2부의 중심이다. \code{bombe.rs}는 봄베 한 대를 옮긴 것이고, 3부의 회로는 이 파일과 같은 답을 내야
+한다. 읽는 순서는 상태, 스크램블러 표, 전류의 확산, 구동이다.
+
+\section{상태: 정수 26개}
+
+\ref{sec:bombe-one-page}절에서 본 대로 봄베의 상태는 26개 케이블 × 26가닥 = 676가닥의 통전 여부다.
+코드에서는 이것이 다음 한 줄이다.
+
+\begin{lstlisting}[language=Rust,numbers=none]
+let mut live = [0u32; N];
+\end{lstlisting}
+
+32비트 정수 26개의 배열이다. \code{live[c]}가 케이블 $c$이고, 그 정수의 $w$번째 비트가 1이면 케이블 $c$의
+$w$번 선이 통전된 것, 곧 ``글자 $c$의 스테커 짝은 $w$다''라는 가설이 살아 있는 것이다
+(그림~\ref{fig:g-state}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=3.6mm,y=-4.4mm]
+  \foreach \r/\lab/\bits in {0/A/{16},1/B/{},2/C/{},3/D/{},4/E/{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,22,23,24,25}} {
+    \node[font=\ttfamily\footnotesize,anchor=east] at (-0.8,\r) {live[\r]};
+    \node[font=\footnotesize,anchor=east,text=cgray] at (-5.2,\r) {케이블 \texttt{\lab}};
+    \foreach \c in {0,...,25} { \draw[cgray!60,fill=white] (\c-0.5,\r-0.42) rectangle (\c+0.5,\r+0.42); }
+    \foreach \c in \bits { \fill[cblue] (\c-0.5,\r-0.42) rectangle (\c+0.5,\r+0.42); }
+  }
+  \node at (12.5,5.1) {$\vdots$};
+  \foreach \l [count=\i from 0] in {a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z} {
+    \node[font=\ttfamily\tiny] at (\i,-0.95) {\l};
+  }
+  \node[note,anchor=west] at (26.3,0) {$\Stk(\mathtt{A})=\mathtt{Q}$ 하나};
+  \node[note,anchor=west,text=corange] at (26.3,4) {테스트 레지스터: 25/26};
+  \draw[corange,line width=0.9pt] (-0.5,3.58) rectangle (25.5,4.42);
+\end{tikzpicture}
+\caption{\code{live} 배열(일부). 가로줄 하나가 정수 하나, 칸 하나가 비트 하나이자 전선 한 가닥이다.
+테스트 글자가 \texttt{E}이면 \code{live[4]}가 테스트 레지스터다.}
+\label{fig:g-state}
+\end{figure}
+
+\Why 26가닥을 정수 하나에 담으면 두 가지가 싸진다. 선 하나를 통전시키는 것은 비트 하나를 켜는 것
+(\code{live[c] |= 1 << w})이고, ``26가닥이 전부 통전되었는가''는 정수 비교 한 번(\code{live[c] == FULL})이다.
+
+\General 비트 하나에 참/거짓 하나를 담는 이 방법은 흔하다. 파일의 권한(읽기, 쓰기, 실행)을 수 하나의 비트로
+나타내는 것, 요일 일곱 개의 선택을 7비트로 나타내는 것이 같은 생각이다.
+
+\Ours 이 표현은 회로와 일대일로 대응한다. 3부의 \code{bombe\_core}에는 676비트 레지스터 \code{live\_q}가
+있고, 그 $26c + w$번째 비트가 여기의 \code{live[c]}의 $w$번째 비트다. 검증할 때에는 이 676비트를 통째로
+비교한다.
+
+\section{스크램블러 표와 위치}
+
+\begin{lstlisting}[language=Rust,caption={\code{bombe.rs}: 드럼 위치와 스크램블러 표(주석 생략, 그리스 로터 부분 생략).},label={lst:scramblers}]
+pub struct Position {
+    pub greek: u8,
+    pub left: u8,
+    pub middle: u8,
+    pub right: u8,
+}
+
+fn inner(&self, g: u8, l: u8, m: u8) -> [u8; N] {
+    let [lr, mr, _] = self.rotors;
+    std::array::from_fn(|c| {
+        let mut x = through(&mr.forward, m, c as u8);
+        x = through(&lr.forward, l, x);
+        ...
+        x = self.reflector.map[x as usize];
+        ...
+        x = through(&lr.backward, l, x);
+        through(&mr.backward, m, x)
+    })
+}
+
+pub fn scramblers(&self, g: u8, l: u8, m: u8) -> [[u8; N]; N] {
+    let inner = self.inner(g, l, m);
+    let rr = self.rotors[2];
+    std::array::from_fn(|r| {
+        std::array::from_fn(|c| {
+            let x = through(&rr.forward, r as u8, c as u8);
+            through(&rr.backward, r as u8, inner[x as usize])
+        })
+    })
+}
+\end{lstlisting}
+
+\code{Position}은 드럼의 위치, 정확히는 \emph{크립의 첫 글자를 암호화하는 순간}의 네 로터의 코어 위치다
+(3로터 기종에서는 \code{greek}이 0). \code{std::array::from\_fn(|c| ...)}은 ``번호 \code{c}마다 이 식을 계산해
+배열을 만든다''는 뜻이다.
+
+\code{inner}는 스크램블러의 안쪽, 곧 가운데 로터에서 반사판을 거쳐 다시 가운데 로터까지의 치환을 26글자에
+대해 계산한다. \code{scramblers}는 그 안쪽 치환의 앞뒤에 오른쪽 로터를 씌우되, 오른쪽 로터의 26가지 위치
+\code{r}에 대해 모두 계산해 표 26개를 만든다.
+
+\Why 표를 이렇게 나누는 이유는 무엇이 자주 바뀌고 무엇이 드물게 바뀌는가에 있다. 메뉴의 모든 스크램블러는
+가운데와 왼쪽 드럼의 위치가 같고, 오른쪽 드럼만 크립 위치 $k$만큼 어긋나 있다. 크립 위치 $k$의 선에 필요한
+것은 오른쪽 코어 위치 $r+k$의 스크램블러다. 그러므로 가운데와 왼쪽이 정해진 동안 필요한 표는 이 26개가
+전부이고, 선은 그 가운데 $(r+k) \bmod 26$번째를 골라 쓰기만 하면 된다. 오른쪽 드럼이 26칸을 도는 동안
+표를 다시 계산할 일이 없다.
+
+\General 구구단을 외워 두고 곱셈을 할 때마다 표에서 꺼내 쓰는 것과 같다. 같은 계산을 여러 번 해야 하면
+한 번 해 두고 꺼내 쓴다. 다만 표가 쓸모 있으려면 표를 만드는 데 쓴 조건(여기서는 가운데와 왼쪽의 위치)이
+한동안 변하지 않아야 한다.
+
+\Ours \ref{sec:tradeoff}절에서 본 FPGA 엔진의 구조가 이것이다. 엔진은 가운데 로터가 바뀔 때만 이 표
+26개를 계산해 메모리에 넣는다. 소프트웨어에서 속도를 위해 한 일이 회로에서는 크기를 줄이는 방법이 된다.
+
+\section{메뉴를 기계에 걸기: \texorpdfstring{\code{Plugged}}{Plugged}}
+
+\begin{lstlisting}[language=Rust,caption={\code{bombe.rs}: 배선된 메뉴.}]
+pub struct Plugged {
+    /// For each cable: (other cable, edge index).
+    adj: Vec<Vec<(u8, usize)>>,
+    /// Crib position of each edge.
+    edge_pos: Vec<u16>,
+    pub test_letter: u8,
+    pub input_wire: u8,
+}
+\end{lstlisting}
+
+\code{Plugged}는 메뉴를 봄베에 배선한 상태다. 실제 조작자가 뒷면의 잭에 케이블을 꽂던 일에 해당한다.
+\code{adj[a]}는 글자 $a$의 케이블에 이어진 스크램블러들의 목록이다. 항목 하나는 ``건너편 글자, 선의 번호''다.
+메뉴의 선 하나는 양쪽 글자의 목록에 한 번씩 들어간다. 전류가 양방향으로 흐르기 때문이다.
+
+\section{전류의 확산: \texorpdfstring{\code{propagate}}{propagate}}\label{sec:propagate}
+
+이 함수가 봄베다.
+
+\begin{lstlisting}[language=Rust,caption={\code{bombe.rs}: 전류의 확산.},label={lst:propagate}]
+pub fn propagate(&self, tables: &[[u8; N]], edge_table: &[usize],
+                 start: (u8, u8), diagonal: bool, stop_when_full: bool) -> [u32; N] {
+    let mut live = [0u32; N];
+    let mut stack: [(u8, u8); N * N] = [(0, 0); N * N];
+    let mut sp = 0usize;
+    let test = self.test_letter as usize;
+    live[start.0 as usize] |= 1 << start.1;
+    stack[sp] = start;
+    sp += 1;
+    while sp > 0 {
+        sp -= 1;
+        let (a, w) = stack[sp];
+        for &(b, e) in &self.adj[a as usize] {
+            let w2 = tables[edge_table[e]][w as usize];
+            let bit = 1u32 << w2;
+            if live[b as usize] & bit == 0 {
+                live[b as usize] |= bit;
+                stack[sp] = (b, w2);
+                sp += 1;
+                if stop_when_full && b as usize == test && live[test] == FULL {
+                    return live;
+                }
+            }
+        }
+        if diagonal {
+            let bit = 1u32 << a;
+            if live[w as usize] & bit == 0 {
+                live[w as usize] |= bit;
+                stack[sp] = (w, a);
+                sp += 1;
+                if stop_when_full && w as usize == test && live[test] == FULL {
+                    return live;
+                }
+            }
+        }
+    }
+    live
+}
+\end{lstlisting}
+
+한 줄씩 읽는다.
+
+\begin{itemize}
+\item 3--9행. 상태를 모두 0으로 하고, 전압을 거는 선 \code{start}(케이블, 선) 하나를 켠다. \code{stack}은
+``새로 통전되었지만 아직 이웃을 살피지 않은 선''의 목록이다. 선은 676가닥뿐이고 한 선은 한 번만 들어가므로
+크기 676이면 넘치지 않는다.
+\item 10--12행. 목록이 빌 때까지, 선 하나 $(a, w)$를 꺼낸다. ``글자 $a$의 짝이 $w$''라는 가설이다.
+\item 13--24행. \textbf{스크램블러.} 케이블 $a$에 이어진 스크램블러마다, 건너편 케이블 $b$의 어느 선으로
+가는지 표에서 읽는다(\code{w2}). ``$a$의 짝이 $w$이면 $b$의 짝은 \code{w2}''라는 추론이다. 그 선이 아직
+꺼져 있으면 켜고 목록에 넣는다.
+\item 25--35행. \textbf{대각선 보드.} 케이블 $a$의 $w$번 선이 켜졌으면 케이블 $w$의 $a$번 선을 켠다.
+``$a$의 짝이 $w$이면 $w$의 짝은 $a$''다. 이 여섯 줄이 웰치먼의 개량 전부다.
+\item 20--22행과 31--33행. \textbf{조기 종료.} 테스트 레지스터의 26가닥이 다 켜지면 그 위치는 정지가 아닌 것이
+확정되었으므로 곧바로 돌아간다.
+\end{itemize}
+
+\Why 이 함수가 구하는 것은 ``전압을 건 선에서 배선을 따라 닿을 수 있는 선 전체''다. 새로 닿은 선을 목록에
+넣고, 하나씩 꺼내 그 이웃을 살피는 방식은 이 집합을 빠짐없이 찾는다. 닿을 수 있는 선은 언젠가 목록에
+들어가고, 목록에 들어간 선은 언젠가 꺼내져 이웃이 살펴지기 때문이다. 한 번 켜진 선은 다시 꺼지지 않고
+(\code{if ... == 0}으로 이미 켜진 선은 건너뛴다) 선은 676가닥뿐이므로 반드시 끝난다. 그리고 결과는 선을
+꺼내는 순서와 무관하다. 닿을 수 있는 선의 집합은 하나뿐이기 때문이다.
+
+\General 그림판의 ``채우기'' 기능이 같은 알고리즘이다. 한 점에서 시작해 같은 색으로 이어진 점을 모두 칠한다.
+새로 칠한 점을 목록에 넣고, 하나씩 꺼내 그 상하좌우를 살핀다. 소문이 퍼지는 것도 같다. 소문을 들은 사람이
+아는 사람 모두에게 전하고, 이미 들은 사람은 다시 전하지 않는다.
+
+\Ours 실제 봄베는 이 계산을 전류로 한다. 전선은 이어져 있기만 하면 전압이 저절로 전해지므로 ``목록''도
+``순서''도 없다. 회로(3부)는 또 다른 방식으로 한다. 클럭마다 켜진 선 \emph{전부}의 이웃을 한꺼번에 켠다.
+세 방식이 같은 답을 내는 근거가 위의 ``순서와 무관하다''이다.
+
+\paragraph{왜 이것이 가설의 검사가 되는가.} 전압을 건 가설이 틀렸고 드럼 위치도 틀리면, 추론은 금세 서로
+어긋나 테스트 케이블의 26가닥이 모두 켜진다. 드럼 위치가 맞으면 배선은 모두 참인 추론이 된다. 이때 틀린
+가설에서 출발한 전류는 참인 가설의 선에 닿지 못한다. 배선이 양방향이어서, 닿는다면 참인 가설에서 거짓이
+유도되는 셈이기 때문이다. 그래서 맞는 위치에서는 테스트 레지스터에 꺼진 선이 남는다.
+
+\section{구동: \texorpdfstring{\code{run\_slice}}{run\_slice}}
+
+\begin{lstlisting}[language=Rust,caption={\code{bombe.rs}: 한 로터 순서의 모든 위치를 돈다(일부).},label={lst:run}]
+for g in greeks {
+    for l in 0..N as u8 {
+        for m in 0..N as u8 {
+            let tables = Plugged::tables(order, g, l, m, opts.turnover_at.is_some());
+            for r in 0..N as u8 {
+                positions += 1;
+                plugged.edge_indices(r, opts.turnover_at, &mut idx);
+                let live = plugged.propagate(&tables, &idx, start, opts.diagonal_board, true);
+                let reg = live[plugged.test_letter as usize];
+                if reg != FULL {
+                    stops.push(Stop {
+                        wheel_order: *order,
+                        position: Position { greek: g, left: l, middle: m, right: r },
+                        test_register: reg,
+                        turnover_at: opts.turnover_at,
+                    });
+                }
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+네 겹의 반복문이 드럼 구동 기구다. 가장 안쪽이 오른쪽 로터다. 스크램블러 표(\code{tables})는 가운데 로터의
+반복 안, 오른쪽 로터의 반복 \emph{밖}에서 만든다. 앞에서 본 ``바뀌는 것만 다시 계산한다''가 코드의 줄
+위치로 나타난 것이다. \code{edge\_indices}는 메뉴의 선마다 26개의 표 가운데 $(r+k) \bmod 26$번째를 고른다.
+
+정지 판정은 한 줄이다. \code{if reg != FULL}. 테스트 레지스터의 26가닥이 전부 켜지지는 않았으면 정지다.
+1차 자료가 적은 정지 조건(``입력에 통전되지 않은 점이 있으면 정지'')~\cite[32]{us6812report1944}과 같다.
+
+\paragraph{실제 기계와 다른 점.} 실제 봄베는 에니그마의 왼쪽 로터에 해당하는 드럼을 가장 빨리 돌린다%
+~\cite[59]{us6812report1944}. 모델은 오른쪽 로터를 가장 안쪽에 둔다. 모든 위치를 한 번씩 지나기만 하면
+정지의 \emph{집합}은 같으므로 표를 다시 쓰기 좋은 순서를 택했다. 회로도 이 순서를 따르게 해서, 정지의
+\emph{목록}을 순서까지 비교할 수 있게 했다.
+
+\section{넘어감 가설}
+
+봄베는 크립 구간에서 가운데 로터가 움직이지 않는다고 가정한다. 구간 안에서 가운데 로터가 넘어가면 그 뒤쪽
+선들의 스크램블러는 가운데 드럼이 한 칸 틀린 셈이어서, 맞는 위치에서도 정지하지 않는다.
+
+모델은 ``크립 위치 $t$에서 넘어갔다''는 가설을 받을 수 있다(\code{turnover\_at}). 가설이 있으면 표를 두 벌
+만든다. 가운데 위치 $m$의 26개와 $m+1$의 26개다. 크립 위치가 $t$ 이상인 선은 두 번째 벌에서 고른다.
+
+\begin{lstlisting}[language=Rust,numbers=none]
+out[i] = match turnover_at {
+    Some(t) if k >= t => N + r,
+    _ => r,
+};
+\end{lstlisting}
+
+\code{N + r}은 ``두 번째 벌의 \code{r}번째 표''다. 예제 전문을 넘어감이 크립 한가운데에 오는 키로 암호화하면,
+맞는 로터 순서를 돌려도 가설 없이는 정지가 하나도 나오지 않고, 가설을 켜면 실제 넘어감 위치의 가설에서
+맞는 정지가 나온다.

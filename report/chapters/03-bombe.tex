@@ -1,0 +1,418 @@
+\chapter{봄베의 원리}\label{ch:bombe}
+
+봄베는 로터 순서 하나에 대해 드럼 위치 $26^3 = 17{,}576$가지를 차례로 지나가며 위치마다 한 가지
+질문에 답한다. \emph{이 위치에서, 크립이 주는 모든 관계를 동시에 만족하는 플러그보드가 있을 수 있는가?}
+없으면 지나가고, 있을 수 있으면 멈춘다. 이 장은 그 질문이 어떻게 전기 회로가 되는지를 순서대로 설명한다.
+예제는 모두 이 프로젝트의 소프트웨어 모델로 만든 하나의 전문(121글자, 로터 순서 B~III-V-II)에서
+가져왔다(\ref{ch:software}장).
+
+\section{크립과 정렬}\label{sec:crib}
+
+\term{크립}{crib}은 평문에 들어 있을 것으로 추측하는 문구다. 독일군 전문은 형식이 정해져 있어 추측이
+가능했다. 예제에서는 \texttt{WETTERVORHERSAGE}(일기예보)를 쓴다.
+
+크립이 암호문의 어디에 놓이는지는 \ref{sec:noself}절의 성질로 추린다. 크립을 암호문 아래에 놓았을 때
+위아래 글자가 같은 자리가 하나라도 있으면 그 위치는 불가능하다(그림~\ref{fig:align}). 예제 전문에서는
+놓을 수 있는 106곳 가운데 46곳이 이 검사로 배제된다. 글자 하나가 우연히 겹치지 않을 확률이 $25/26$이므로
+16글자 크립이 틀린 위치에서 살아남을 확률은 $(25/26)^{16} \approx 53\%$이고, 크립이 길수록 더 많이 걸러진다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=4.6mm,y=5.5mm,font=\ttfamily\small]
+  % 위치 2 (불가능)
+  \node[anchor=east,font=\small] at (-0.8,0) {암호문};
+  \node[anchor=east,font=\small] at (-0.8,-1) {크립};
+  \foreach \c [count=\i from 0] in {F,L,O,G,G,S,L,V,I,X,B,T,V,W,V,E} { \node at (\i,0) {\c}; }
+  \foreach \c [count=\i from 0] in {W,E,T,T,E,R,V,O,R,H,E,R,S,A,G,E} { \node at (\i,-1) {\c}; }
+  \draw[cred,line width=0.9pt,rounded corners=1pt] (14.5,0.5) rectangle (15.5,-1.5);
+  \node[anchor=west,font=\small,text=cred] at (16.2,-0.5) {위치 2: 불가능 (\texttt{E} 아래 \texttt{E})};
+  % 위치 28 (가능)
+  \begin{scope}[yshift=-17mm]
+  \node[anchor=east,font=\small] at (-0.8,0) {암호문};
+  \node[anchor=east,font=\small] at (-0.8,-1) {크립};
+  \foreach \c [count=\i from 0] in {I,L,Z,L,I,I,U,F,M,W,A,J,N,W,T,U} { \node at (\i,0) {\c}; }
+  \foreach \c [count=\i from 0] in {W,E,T,T,E,R,V,O,R,H,E,R,S,A,G,E} { \node at (\i,-1) {\c}; }
+  \foreach \i in {1,...,16} { \node[font=\tiny\rmfamily,text=cgray] at (\i-1,-1.8) {\i}; }
+  \node[anchor=west,font=\small,text=cgreen] at (16.2,-0.5) {위치 28: 가능 (실제 위치)};
+  \end{scope}
+\end{tikzpicture}
+\caption{크립 정렬. 같은 글자가 위아래로 겹치는 위치는 배제된다. 아래 줄의 작은 숫자는 크립 안에서의 위치다.}
+\label{fig:align}
+\end{figure}
+
+\section{메뉴}\label{sec:menu}
+
+정렬된 크립은 글자 쌍의 목록을 준다. 크립의 $k$번째 글자가 평문 $p$, 암호문 $c$이면 ``$k$번째 위치의
+에니그마가 $p$를 $c$로 바꾼다''는 뜻이다. 글자를 점으로, 이 관계를 선으로 그린 그래프가
+\term{메뉴}{menu}다. 선에는 크립 안에서의 위치 $k$를 적는다(그림~\ref{fig:menu}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    ed/.style={line width=0.6pt},
+    lp/.style={line width=1.4pt,draw=cblue},
+    el/.style={font=\scriptsize,fill=white,inner sep=1pt,text=cgray}]
+  \node[ltr,fill=corangebg,draw=corange,line width=1pt] (E) at (0,0) {E};
+  \node[ltr] (I) at (2,1.2) {I};
+  \node[ltr] (W) at (4,0) {W};
+  \node[ltr] (A) at (2,-1.2) {A};
+  \node[ltr] (L) at (-2,1.2) {L};
+  \node[ltr] (T) at (-4,1.2) {T};
+  \node[ltr] (Z) at (-6,1.9) {Z};
+  \node[ltr] (G) at (-6,0.5) {G};
+  \node[ltr] (U) at (-2,-1.2) {U};
+  \node[ltr] (V) at (-4,-1.2) {V};
+  \node[ltr] (R) at (4,2.3) {R};
+  \node[ltr] (M) at (6,2.9) {M};
+  \node[ltr] (J) at (6,1.7) {J};
+  \node[ltr] (H) at (6,0) {H};
+  \draw[lp] (E) -- node[el] {5} (I);
+  \draw[lp] (I) -- node[el] {1} (W);
+  \draw[lp] (W) -- node[el] {14} (A);
+  \draw[lp] (A) -- node[el] {11} (E);
+  \draw[ed] (E) -- node[el] {2} (L);
+  \draw[ed] (L) -- node[el] {4} (T);
+  \draw[ed] (T) -- node[el] {3} (Z);
+  \draw[ed] (T) -- node[el] {15} (G);
+  \draw[ed] (E) -- node[el] {16} (U);
+  \draw[ed] (U) -- node[el] {7} (V);
+  \draw[ed] (I) -- node[el] {6} (R);
+  \draw[ed] (R) -- node[el] {9} (M);
+  \draw[ed] (R) -- node[el] {12} (J);
+  \draw[ed] (W) -- node[el] {10} (H);
+  \node[note,text=corange,anchor=east,font=\scriptsize] at (-0.42,0) {테스트 글자};
+  \node[note,text=cblue] at (2,0) {루프};
+\end{tikzpicture}
+\caption{그림~\ref{fig:align}의 정렬에서 만든 메뉴. 글자 14개, 선 14개, 루프 1개(파랑). 선의 숫자는
+크립 안에서의 위치다. 크립 16글자 가운데 이 덩어리에 이어지지 않는 두 관계(\texttt{O}--\texttt{F},
+\texttt{S}--\texttt{N})는 전류가 닿지 않으므로 뺐다.}
+\label{fig:menu}
+\end{figure}
+
+메뉴의 품질을 정하는 것은 두 가지다.
+
+\begin{itemize}
+\item \textbf{루프(closure).} \texttt{E}--\texttt{I}--\texttt{W}--\texttt{A}--\texttt{E}처럼 출발한 글자로
+돌아오는 경로다. \texttt{E}의 스테커 짝을 하나 가정하고 루프를 한 바퀴 돌면 다시 \texttt{E}의 스테커 짝이
+계산되어 나오는데, 이것이 처음 가정과 같아야 한다. 틀린 위치에서 우연히 같아질 확률은 약 $1/26$이므로,
+루프 하나가 거짓 정지를 약 $1/26$로 줄인다. 루프의 수는 $(\text{선 수}) - (\text{글자 수}) + (\text{덩어리 수})$다.
+\item \textbf{글자 수.} 글자가 많을수록 제약이 많아져 거짓 정지가 줄어든다. 다만 메뉴가 길어지면 그 구간
+안에서 가운데 로터가 넘어갈 가능성이 커진다(\ref{sec:turnover}절).
+\end{itemize}
+
+전류를 넣고 결과를 관찰하는 글자를 \term{테스트 글자}{input}라 하며, 루프와 선이 가장 많이 모이는 글자를
+고른다~\cite[7]{us6812report1944}. 예제에서는 \texttt{E}다. 선 하나에는 스크램블러 하나가 필요하므로
+메뉴의 크기는 기계의 유닛 수(뱅크당 12개)로 제한된다. 12유닛 이하의 메뉴는 한 대에서 로터 순서 세 개를
+동시에 돌릴 수 있었다~\cite[43]{us6812report1944}.
+
+\section{가설을 전선으로: 케이블과 스크램블러}\label{sec:cables}
+
+봄베의 핵심은 ``글자 $X$의 스테커 짝이 $y$다''라는 \emph{가설 하나를 전선 한 가닥}으로 나타내는 것이다.
+
+\begin{itemize}
+\item 메뉴의 글자마다 \textbf{26선 케이블}이 하나 있다. 케이블 $X$의 $y$번 선에 전류가 흐른다는 것은
+가설 $\Stk(X) = y$가 ``살아 있다''는 뜻이다. 26개 케이블 × 26선 = 676가닥의 통전 여부가 기계의 상태 전부다.
+\item 메뉴의 선마다 \textbf{스크램블러}(드럼 세 개 한 벌, 플러그보드 없는 에니그마) 하나가 두 글자의
+케이블을 잇는다.
+\end{itemize}
+
+스크램블러가 두 케이블을 어떻게 이어야 하는지는 \ref{ch:enigma}장의 식에서 바로 나온다. 크립 위치 $k$에서
+$p$가 $c$로 암호화되었다면 $\Stk(c) = \Scr_k(\Stk(p))$이다. 그러므로 케이블 $p$의 $y$번 선은 케이블 $c$의
+$\Scr_k(y)$번 선에 이어져야 한다. 이 연결이 바로 ``$\Stk(p)=y$이면 $\Stk(c)=\Scr_k(y)$''라는 추론이다
+(그림~\ref{fig:edge}). 스크램블러는 상호적이므로 전류는 양방향으로 흐르고, 추론도 양방향이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=0.52cm]
+  % 케이블 E
+  \node[font=\small\bfseries] at (0,6.9) {케이블 \texttt{E}};
+  \node[font=\small\bfseries] at (9,6.9) {케이블 \texttt{I}};
+  \foreach \l [count=\i from 0] in {a,b,c,d,e,f} {
+    \node[font=\ttfamily\footnotesize,anchor=east] at (-0.15,6-\i) {\l};
+    \node[font=\ttfamily\footnotesize,anchor=west] at (9.15,6-\i) {\l};
+    \coordinate (L\i) at (0,6-\i);
+    \coordinate (R\i) at (9,6-\i);
+    \draw[wire] (0,6-\i) -- (2.6,6-\i);
+    \draw[wire] (6.4,6-\i) -- (9,6-\i);
+  }
+  \node[font=\footnotesize] at (-0.3,0.2) {$\vdots$};
+  \node[font=\footnotesize] at (9.3,0.2) {$\vdots$};
+  \node[font=\ttfamily\footnotesize,anchor=east] at (-0.15,-0.6) {z};
+  \node[font=\ttfamily\footnotesize,anchor=west] at (9.15,-0.6) {z};
+  \draw[wire] (0,-0.6) -- (2.6,-0.6);
+  \draw[wire] (6.4,-0.6) -- (9,-0.6);
+  % 스크램블러
+  \draw[fill=cbluebg,draw=cblue,rounded corners=2pt] (2.6,-1.1) rectangle (6.4,6.5);
+  \node[align=center,font=\small] at (4.5,-0.45) {스크램블러 $\Scr_5$};
+  % 내부 교차 (개념)
+  \draw[wire,cgray] (2.6,6) -- (6.4,3);
+  \draw[wire,cgray] (2.6,5) -- (6.4,6);
+  \draw[wire,cgray] (2.6,3) -- (6.4,1);
+  \draw[wire,cgray] (2.6,2) -- (6.4,4);
+  \draw[wire,cgray] (2.6,1) -- (6.4,5);
+  % 통전 경로
+  \draw[live] (0,4) -- (2.6,4) -- (6.4,2) -- (9,2);
+  \fill[cblue] (0,4) circle (2pt) (9,2) circle (2pt);
+  \node[note,text=cblue,anchor=east] at (-0.7,4) {$\Stk(\mathtt{E})=\mathtt{c}$};
+  \node[note,text=cblue,anchor=west] at (9.7,2) {$\Stk(\mathtt{I})=\mathtt{e}$};
+  \node[note] at (4.5,7.2) {드럼 세 개 한 벌 (로터 + 반사판)};
+\end{tikzpicture}
+\caption{메뉴의 선 하나(\texttt{E}--\texttt{I}, 크립 위치 5)에 해당하는 배선. 스크램블러는 한쪽 케이블의
+$y$번 선을 다른 쪽 케이블의 $\Scr_5(y)$번 선에 잇는다. 그림의 교차 모양은 개념을 보이기 위한 것이며
+실제 치환은 드럼 위치마다 다르다.}
+\label{fig:edge}
+\end{figure}
+
+\paragraph{양단 스크램블러.} 에니그마의 스크램블러는 들어간 26개 접점으로 다시 나온다. 봄베는 여러
+스크램블러를 케이블로 이어야 하므로 입력 26선과 출력 26선을 분리했다. 이를 위해 드럼 하나에 같은 로터
+배선이 두 벌 들어 있고, 브러시는 동심원 네 줄에 26개씩 104개다~\cite{ellsbury1998bombe,jackson-bh10}.
+바깥 링과 셋째 링이 한 벌, 안쪽 링과 둘째 링이 또 한 벌의 로터 배선으로 이어진다. 한 벌은 전류가 반사판으로
+가는 길에, 다른 한 벌은 돌아오는 길에 쓰인다(그림~\ref{fig:bombe-drum}).
+
+\begin{figure}[ht]
+\centering
+\input{figures/bombe-drum}
+\caption{봄베 드럼의 도해(직접 그린 것). 브러시의 수와 배열, 링 사이의 배선 관계, 기계 앞면의 접점판은
+\cite{ellsbury1998bombe,jackson-bh10} 및 \cite[68]{us6812report1944}를 따랐다. 링의 반지름, 드럼의 두께,
+브러시의 모양은 확인하지 못해 어림해 그렸고, 그려 넣은 배선은 예시다. 봄베 본체 드럼의 브러시와 접점의 재질도
+확인하지 못했다.}
+\label{fig:bombe-drum}
+\end{figure}
+
+\paragraph{크립 위치와 드럼 오프셋.} 크립의 $k$번째 관계를 맡은 스크램블러는 첫 관계의 스크램블러보다
+오른쪽 로터에 해당하는 드럼을 $k-1$칸 앞서게 맞춘다. 메뉴에는 이것을 \texttt{ZZA}, \texttt{ZZB}, \ldots처럼
+적는다~\cite[7]{us6812report1944}. 가운데와 왼쪽 로터에 해당하는 드럼은 모든 스크램블러에서 같은 위치다.
+이렇게 맞춘 뒤 모든 드럼을 함께 돌리면, 스크램블러들은 서로의 상대 위치를 유지한 채 $26^3$가지 위치를
+지나간다.
+
+\section{전류의 확산은 논리적 귀결의 계산이다}\label{sec:spread}
+
+테스트 글자 케이블의 선 하나에 전압을 건다. 예제에서는 케이블 \texttt{E}의 \texttt{a}번 선, 즉 가설
+$\Stk(\mathtt{E}) = \mathtt{A}$다. 전류는 이 선에 연결된 모든 스크램블러를 지나 이웃 케이블의 선으로
+퍼지고, 거기서 다시 퍼진다. 전류가 닿은 선은 모두 처음 가설에서 \emph{유도되는} 가설이다.
+
+드럼 위치가 \textbf{틀린} 경우를 보자. 스크램블러들이 실제와 무관한 치환이므로 추론은 금세 모순에
+빠진다. 루프를 한 바퀴 돌아 케이블 \texttt{E}로 돌아온 전류는 대개 \texttt{a}가 아닌 다른 선에 닿고
+(``$\Stk(\mathtt{E})=\mathtt{A}$이면 $\Stk(\mathtt{E})=\mathtt{Q}$''), 그 선에서 다시 출발한 전류는 또 다른
+선에 닿는다. 이렇게 케이블 \texttt{E}의 26선이 전부 통전된다. \texttt{E}의 짝은 하나뿐이어야 하므로
+26가지 가설이 모두 기각된 것이고, 이 위치는 버려도 된다.
+
+드럼 위치가 \textbf{맞는} 경우에는 다른 일이 일어난다. 이제 스크램블러의 연결은 모두 참인 추론이다.
+\texttt{E}의 실제 짝이 \texttt{V}라고 하자.
+
+\begin{itemize}
+\item 참인 가설(케이블 \texttt{E}의 \texttt{v}번 선)에 전압을 걸면 참인 귀결만 통전된다. 케이블마다 선이
+하나씩만 살아나고, 그것이 각 글자의 실제 스테커 짝이다.
+\item 틀린 가설(\texttt{a}번 선)에 전압을 걸면 틀린 귀결들이 퍼진다. 그러나 전류는 \texttt{v}번 선에는
+\emph{닿을 수 없다}. 배선은 양방향이어서, \texttt{a}에서 \texttt{v}로 가는 길이 있다면 \texttt{v}에서
+\texttt{a}로 가는 길도 있어야 한다. 그러면 참인 가설에서 거짓이 유도된 셈이 되는데, 맞는 위치에서는
+그럴 수 없다.
+\end{itemize}
+
+정리하면, 676가닥의 선은 배선에 의해 서로 이어진 묶음들로 나뉘고, 전류는 전압을 건 선이 속한 묶음
+하나를 채운다. 맞는 위치에서 참인 가설들은 자기들끼리 한 묶음을 이루므로 틀린 가설의 묶음과 섞이지 않는다.
+
+\section{정지 판정: 테스트 레지스터}\label{sec:register}
+
+테스트 글자 케이블의 26선에는 감지 릴레이가 하나씩 달려 있다. 이것이 \term{테스트 레지스터}{test register}다.
+위의 논의에서 정지 조건이 나온다. 그림~\ref{fig:register}는 예제 전문의 실제 통전 상태다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=4.6mm,y=4.6mm]
+  \def\letters{A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z}
+  % (a) 틀린 위치: 26선 모두
+  \foreach \l [count=\i from 0] in \letters {
+    \node[draw=white,fill=cblue,minimum size=4.3mm,inner sep=0pt,font=\ttfamily\scriptsize,text=white] at (\i,0) {\l};
+  }
+  \node[anchor=west,font=\small] at (26.5,0) {26/26 --- 통과};
+  \node[anchor=east,font=\small] at (-1,0) {(a)};
+  % (b) 맞는 위치, 틀린 가설: V만 죽음
+  \foreach \l [count=\i from 0] in \letters {
+    \ifnum\i=21
+      \node[draw=cred,line width=0.9pt,fill=white,minimum size=4.3mm,inner sep=0pt,font=\ttfamily\scriptsize,text=cred] at (\i,-2) {\l};
+    \else
+      \node[draw=white,fill=cblue,minimum size=4.3mm,inner sep=0pt,font=\ttfamily\scriptsize,text=white] at (\i,-2) {\l};
+    \fi
+  }
+  \node[anchor=west,font=\small] at (26.5,-2) {25/26 --- \textbf{정지}};
+  \node[anchor=east,font=\small] at (-1,-2) {(b)};
+  % (c) 맞는 위치, 맞는 가설: V만 통전
+  \foreach \l [count=\i from 0] in \letters {
+    \ifnum\i=21
+      \node[draw=white,fill=cblue,minimum size=4.3mm,inner sep=0pt,font=\ttfamily\scriptsize,text=white] at (\i,-4) {\l};
+    \else
+      \node[draw=white,fill=clight,minimum size=4.3mm,inner sep=0pt,font=\ttfamily\scriptsize,text=cgray] at (\i,-4) {\l};
+    \fi
+  }
+  \node[anchor=west,font=\small] at (26.5,-4) {1/26 --- \textbf{정지}};
+  \node[anchor=east,font=\small] at (-1,-4) {(c)};
+\end{tikzpicture}
+\caption{테스트 레지스터(케이블 \texttt{E})의 세 경우. 파란 칸이 통전된 선이다.
+(a)~틀린 드럼 위치: 가설 하나에서 26가지가 모두 유도되어 전부 기각된다.
+(b)~맞는 드럼 위치에 틀린 가설 $\Stk(\mathtt{E})=\mathtt{A}$를 넣은 경우: 참인 가설 \texttt{V}에만
+전류가 닿지 않는다. (c)~같은 위치에 맞는 가설 $\Stk(\mathtt{E})=\mathtt{V}$를 넣은 경우.
+소프트웨어 모델의 실제 출력이다.}
+\label{fig:register}
+\end{figure}
+
+\begin{keybox}[title={정지 조건}]
+테스트 레지스터의 26선이 \emph{전부 통전되지는 않으면} 정지한다. 25선이 통전되었으면 죽은 선 하나가
+테스트 글자의 스테커 후보이고, 1선만 통전되었으면 그 선이 후보다.
+\end{keybox}
+
+틀린 가설 하나를 넣어 나머지 가설을 한꺼번에 기각하는 것이 튜링의 착상이다. 26가지 가설을 하나씩
+시험하지 않아도 되고, 처음에 고른 선이 맞든 틀리든 결과가 같다.
+
+정지 조건을 ``1선 또는 25선''으로 한정하지 않은 데에는 근거가 있다. 1차 자료는 정지 조건을 ``입력에
+통전되지 않은 점이 있는 것''으로 적고~\cite[32]{us6812report1944}, 정상적인 정지에서 릴레이가 한 개에서
+세 개 올라온다고 하며, 릴레이 두 개가 뜨는 정지의 체킹 절차를 따로 둔다~\cite[32, 50]{us6812report1944}.
+재현 프로젝트의 설명도 ``전류가 돌아오지 않는 감지 릴레이가 적어도 하나 있으면 정지''다~\cite{jackson-bh10}.
+
+정지한 봄베에서 조작자는 로터 순서, 지시 드럼의 세 글자, 테스트 글자의 스테커 후보를 정지 전표에
+적었다~\cite[49]{us6812report1944}.
+
+\section{대각선 보드}\label{sec:diagonal}
+
+지금까지의 배선에서 전류가 퍼질 길은 메뉴의 선뿐이다. 루프가 적은 메뉴에서는 전류가 케이블
+\texttt{E}로 돌아올 길이 부족해 26선을 다 채우지 못하고, 거의 모든 위치에서 정지해 버린다.
+
+웰치먼은 아직 쓰지 않은 사실, 플러그보드의 대칭성(식~\eqref{eq:stecker-sym})을 배선에 넣었다.
+$\Stk(X)=y$이면 $\Stk(Y)=x$이므로, \emph{케이블 $X$의 $y$번 선과 케이블 $Y$의 $x$번 선을 영구히 이어 둔다}.
+1차 자료의 표현으로는 ``모든 역이 영구 배선되어 있다. A가 f에 연결되면 F는 a에 연결된다''%
+~\cite[6]{us6812report1944}. 26×26 격자에 그리면 주대각선에 대해 대칭인 칸끼리 이어지므로 대각선
+보드라는 이름이 붙었다(그림~\ref{fig:diagonal}). 자기 자신과의 스테커를 뜻하는 대각선 위의 칸은 어디에도
+이어지지 않으며, 연결은 모두 $26\cdot25/2 = 325$개다~\cite{ellsbury1998bombe}.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=8mm,y=-8mm]
+  \foreach \l/\s [count=\i from 0] in {A/a,B/b,C/c,D/d,E/e,F/f} {
+    \node[font=\ttfamily\small] at (\i,-0.9) {\s};
+    \node[font=\ttfamily\small] at (-0.9,\i) {\l};
+  }
+  \node[note,anchor=south] at (2.5,-1.3) {선 (스테커 짝 가설)};
+  \node[note,rotate=90,anchor=south] at (-1.4,2.5) {케이블 (글자)};
+  \foreach \r in {0,...,5} { \foreach \c in {0,...,5} {
+     \ifnum\r=\c
+       \node[draw=cgray,fill=clight,minimum size=6.4mm,inner sep=0pt] (c\r\c) at (\c,\r) {};
+     \else
+       \node[draw=cgray,fill=white,minimum size=6.4mm,inner sep=0pt] (c\r\c) at (\c,\r) {};
+     \fi
+  } }
+  \foreach \r/\c/\col in {0/1/cblue,0/2/cgreen,0/3/corange,0/4/cpurple,0/5/cred,1/2/corange,1/3/cpurple,1/4/cred,1/5/cblue,2/3/cred,2/4/cblue,2/5/cgreen,3/4/cgreen,3/5/corange,4/5/cpurple} {
+     \draw[line width=0.9pt,draw=\col] (c\r\c.center) -- (c\c\r.center);
+     \fill[\col] (c\r\c.center) circle (1.6pt) (c\c\r.center) circle (1.6pt);
+  }
+  \node[note,anchor=west,text width=58mm,align=left] at (6.2,1.2)
+     {예: 케이블 \texttt{B}의 \texttt{e}번 선 $\leftrightarrow$ 케이블 \texttt{E}의 \texttt{b}번 선.\\[2pt]
+      회색 칸(자기 자신과의 스테커)은 연결이 없다.};
+  \node[note,anchor=west,text width=58mm,align=left] at (6.2,3.6)
+     {실제 보드는 26×26이며 연결은 325개다. 그림은 여섯 글자만 보인 것이다.};
+\end{tikzpicture}
+\caption{대각선 보드. 격자의 가로줄이 케이블, 세로줄이 그 케이블의 선이다. 주대각선에 대해 대칭인 칸끼리
+영구 배선되어 있다.}
+\label{fig:diagonal}
+\end{figure}
+
+이 배선이 왜 그렇게 효과가 큰가. 대각선 보드는 메뉴에 없던 연결을 대량으로 만들어 준다. 케이블
+\texttt{E}의 \texttt{q}번 선이 통전되면 케이블 \texttt{Q}의 \texttt{e}번 선이 통전되는데, \texttt{Q}가
+메뉴에 있는 글자라면 거기서 다시 스크램블러들을 지나 퍼진다. 메뉴의 루프가 하던 일(전류를 테스트
+케이블로 되돌려 보내 모순을 드러내는 일)을 대각선 보드가 모든 글자 쌍에 대해 해 주는 셈이다.
+
+예제의 메뉴(루프 1개)를 실제 로터 순서에 걸어 대각선 보드의 유무만 바꿔 보면 차이가 분명하다.
+대각선 보드가 없으면 17,576곳 \emph{전부}에서 정지하고, 있으면 2곳에서만 정지한다. 여러 메뉴에 대한
+통계는 \ref{sec:stopstats}절에 있다. 대각선 보드 덕분에 루프가 하나거나 없는 메뉴로도 봄베를 돌릴 수
+있게 되었고~\cite{carter2010bombe}, 짧은 크립으로 메뉴를 만들 수 있게 된 것은 다음 절의 문제에도 도움이 된다.
+
+\section{드럼의 구동과 가운데 로터 넘어감}\label{sec:turnover}
+
+\paragraph{드럼과 로터의 대응.} 봄베의 드럼 3단은 에니그마의 로터 세 개에 대응하지만 도는 속도는
+반대다(표~\ref{tab:drums}). 봄베는 에니그마의 느린(왼쪽) 로터에 해당하는 드럼을 가장 빨리 돌린다.
+17,576 위치를 모두 지나기만 하면 되므로 순서는 결과에 영향이 없다. 설계 속도는 분당 자리올림
+64회이고~\cite[59]{us6812report1944}, 재현팀의 수치(분당 65회)로 계산한 정지 없는 1회 구동 시간이
+$26\cdot26/65 \approx 10.4$분이다~\cite{jackson-bh09,jackson-bh11}.
+
+\begin{table}[ht]
+\centering
+\caption{봄베 드럼과 에니그마 로터의 대응~\cite[59, 73]{us6812report1944}.}
+\label{tab:drums}
+\begin{tabular}{lll}
+\toprule
+봄베 드럼 & 움직임 & 에니그마 로터 \\
+\midrule
+위 & 연속 회전 (가장 빠름) & 왼쪽 (느린 로터) \\
+가운데 & 위 드럼 1회전마다 한 칸 & 가운데 \\
+아래 & 가운데 드럼 1회전마다 한 칸 & 오른쪽 (빠른 로터) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{넘어감이 없다는 가정.} 봄베의 드럼에는 노치가 없고 스크램블러 사이의 상대 위치는 고정이다.
+즉 봄베는 메뉴 구간 안에서 가운데 로터가 움직이지 않는다고 가정한다%
+~\cite[4]{us6812report1944}. 미 해군 봄베의 설계 메모도 같은 전제에 선다~\cite{desch1942memo}. 구간 안에 넘어감이 있으면 그 뒤쪽 스크램블러들의 가운데
+드럼이 실제와 한 칸 어긋나므로 올바른 위치에서도 정지하지 않는다. 가운데 로터는 26글자마다 한 번
+움직이므로 23글자 크립이면 그 안에 넘어감이 있을 확률이 $23/26$이다~\cite{ellsbury1998bombe}.
+
+전시의 대처는 여러 가지였다. 크립을 둘로 나눠 적어도 한쪽에는 넘어감이 없게 하거나%
+~\cite{ellsbury1998bombe}, 뒤쪽 관계의 드럼을 넘어간 위치로 맞춘 메뉴를 다시 돌리거나%
+~\cite[37]{us6812report1944}, 구동 중에 지정한 유닛의 가운데 드럼을 한 칸 전진시키는 장치(``hoppity'')를
+썼다~\cite[38]{us6812report1944}. 이 프로젝트의 모델은 두 번째 방법에 해당하는 ``넘어감 가설''을
+지원한다(\ref{sec:sw-turnover}절).
+
+\section{체킹: 정지에서 키까지}\label{sec:checking}
+
+정지 하나가 알려 주는 것은 로터 순서, 코어 위치, 테스트 글자의 스테커 후보뿐이다. 그리고 정지의
+대부분은 메뉴의 제약만으로는 걸러지지 않은 거짓 정지다. 정지를 검증하고 나머지 스테커를 얻는 단계가
+\term{체킹}{checking}이다.
+
+실제로는 체킹 머신을 썼다. 드럼 자리 네 개와 글자 키 26개, 램프 26개가 있고 스테핑 기구는
+없는 기계다~\cite[12, 74]{us6812report1944}. 절차는 다음과 같다~\cite[12--16, 49--50]{us6812report1944}.
+
+\begin{enumerate}
+\item 정지의 로터 순서대로 드럼을 끼우고, 각 드럼의 원판을 지시 드럼에서 읽은 글자에 맞춘다.
+\item 드럼을 메뉴의 첫 관계에 적힌 설정으로 돌리고, 테스트 글자의 스테커 후보에 해당하는 키를 누른다.
+켜진 램프가 그 관계 반대쪽 글자의 스테커다.
+\item 다음 관계의 설정으로 드럼을 돌리고 방금 얻은 스테커를 눌러 그다음 글자의 스테커를 얻는다.
+메뉴의 모든 관계를 이렇게 따라간다.
+\item 루프는 한 바퀴 돌아 처음 스테커로 돌아오는지 확인한다.
+\end{enumerate}
+
+이것은 그림~\ref{fig:register}(c)의 상황, 곧 참인 가설에 전압을 걸었을 때 케이블마다 선 하나만 살아나는
+것을 손으로 한 가닥씩 따라가는 일이다. 결과의 판정은 표~\ref{tab:verdicts}와 같다.
+
+\begin{table}[ht]
+\centering
+\caption{체킹 결과의 분류~\cite[12--16, 49--50]{us6812report1944}.}
+\label{tab:verdicts}
+\small
+\begin{tabularx}{\linewidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+용어 & 뜻 & 처리 \\
+\midrule
+confirmation & 메뉴 글자 $X$의 스테커가 메뉴 글자 $Y$이고 $Y$의 스테커가 $X$ & 좋은 징후 \\
+legal contradiction & 메뉴 글자 둘이 메뉴 밖의 같은 글자에 스테커됨 & 기계로서는 정상적인 정지(대각선 보드가 걸러 내지 못하는 모순). 바깥쪽 관계에 걸린 한 건까지는 Hut~6에 보고 \\
+illegal contradiction & 메뉴 글자끼리의 스테커가 비대칭이거나 루프가 닫히지 않음 & 기계 고장. 대각선 보드가 전기적으로 배제하는 경우이므로 나와서는 안 된다 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+표의 마지막 줄(illegal contradiction)은 소프트웨어 모델의 자체 검증 조건으로 쓸 수 있다. 대각선 보드가 올바로 구현되었다면
+정지한 위치에서 illegal contradiction은 나올 수 없다.
+
+봄베를 운용한 출장소의 체킹은 스테커의 일관성 검사까지였다. 메뉴에 없는 글자의 스테커와 실제 링 설정은
+Hut~6에서 손으로 구했다~\cite{ellsbury1998bombe,carter2010bombe}. 이 프로젝트의 체킹 단계는 이 수작업까지
+포함해 키 전체와 평문을 내놓는다(\ref{sec:sw-check}절).
+
+\section{4로터 봄베}\label{sec:fourrotor}
+
+M4의 네 번째 로터는 전문을 치는 동안 움직이지 않는다. 따라서 네 번째 로터와 얇은 반사판을 묶으면
+``반사판 26종 가운데 하나를 고르는 선택기''로 볼 수 있다~\cite{cryptomuseum-bombe}. 봄베의 논리는
+3로터와 같고 탐색할 위치만 $26^4 = 456{,}976$으로 늘어난다. 미 해군 봄베의 정지 조건(``cold point test'')도
+입력 글자의 26선 가운데 전류가 닿지 않는 선이 있으면 정지하는 것으로 영국 봄베와
+같다~\cite{ekhall-hallenberg2018}.
+
+차이는 정지 이후에 있다. 미 해군 봄베는 정지한 위치로 되돌아가 입력 케이블의 선에 차례로 전압을 걸어
+스테커를 구하고(``hot point test''), 모순이면 기각하며, 통과한 정지만 인쇄한 뒤 스스로 다시
+출발했다~\cite{ekhall-hallenberg2018,desch1942memo}. 영국 봄베에서 사람이 체킹 머신으로 하던 일의 앞부분을
+기계 안에 넣은 것이다. 이 프로젝트의 전체 탐색이 정지마다 체킹을 자동으로 수행하는 것은 이 방식에 해당한다.

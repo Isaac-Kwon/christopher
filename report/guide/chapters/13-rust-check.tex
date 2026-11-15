@@ -1,0 +1,191 @@
+\chapter{체킹과 전체 탐색: \texorpdfstring{\code{check}, \code{search}}{check, search}}\label{ch:rust-check}
+
+봄베의 정지 하나가 알려 주는 것은 로터 순서, 드럼 위치, 테스트 글자의 스테커 후보뿐이다. 그리고 정지의
+대부분은 거짓 정지다. \code{check} 모듈은 정지 하나를 받아 거짓이면 버리고, 참이면 키 전체와 평문을 내놓는다.
+실제로는 체킹 머신이라는 별도의 기계와 사람의 손이 하던 일이다. \code{search} 모듈은 이 모든 것을 여러 로터
+순서에 대해 병렬로 돌린다.
+
+\section{네 단계}
+
+\code{check\_stop}은 네 단계로 이루어진다(그림~\ref{fig:g-check}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkr,minimum width=18mm,minimum height=13mm] (s0) at (0,0) {정지};
+  \node[blkb,minimum width=27mm,minimum height=13mm] (s1) at (3.1,0) {1. 스테커 가설\\{\footnotesize 전류를 흘려 읽기}};
+  \node[blkb,minimum width=27mm,minimum height=13mm] (s2) at (6.5,0) {2. 크립 전체\\{\footnotesize 대조하며 채우기}};
+  \node[blkg,minimum width=27mm,minimum height=13mm] (s3) at (9.9,0) {3. 링 설정\\{\footnotesize 넘어감 시점}};
+  \node[blkg,minimum width=27mm,minimum height=13mm] (s4) at (13.3,0) {4. 남은 스테커\\{\footnotesize 언어 통계}};
+  \draw[->] (s0) -- (s1); \draw[->] (s1) -- (s2); \draw[->] (s2) -- (s3); \draw[->] (s3) -- (s4);
+  \draw[decorate,decoration={brace,amplitude=5pt,mirror}] (1.8,-0.95) -- (7.8,-0.95) node[midway,below=6pt,note] {논리로 확정 (기각 가능)};
+  \draw[decorate,decoration={brace,amplitude=5pt,mirror}] (8.6,-0.95) -- (14.6,-0.95) node[midway,below=6pt,note] {점수로 고름};
+\end{tikzpicture}
+\caption{체킹의 네 단계.}
+\label{fig:g-check}
+\end{figure}
+
+\section{1단계: 가설 하나에 전류를 흘린다}
+
+\begin{lstlisting}[language=Rust,caption={\code{check.rs}: 스테커 가설(일부).}]
+for v in 0..N as u8 {
+    let live = plugged.trace(&stop.wheel_order, stop.position, v, &opts);
+    if live.iter().any(|m| m.count_ones() > 1) {
+        continue;
+    }
+    let mut map = [UNKNOWN; N];
+    let mut ok = true;
+    for (a, &m) in live.iter().enumerate() {
+        if m != 0 {
+            ok &= set_pair(&mut map, a as u8, m.trailing_zeros() as u8);
+        }
+    }
+    if ok {
+        out.push(map);
+    }
+}
+\end{lstlisting}
+
+테스트 글자의 스테커 짝 후보 26가지(\code{v}) 각각에 대해 그 선 하나에 전압을 걸고, 조기 종료 없이 끝까지
+퍼뜨린다(\code{trace}). 그리고 케이블마다 켜진 선의 수를 센다(\code{count\_ones}).
+
+\Why 참인 가설에서는 참인 귀결만 나온다. 글자 하나의 스테커 짝은 하나뿐이므로, 가설이 참이면 어떤 케이블에도
+선이 \emph{둘 이상} 켜질 수 없다. 둘 이상 켜진 케이블이 하나라도 있으면 그 가설은 거짓이다(3--5행).
+살아남은 가설에서는 케이블마다 켜진 선이 그 글자의 스테커 짝이다. \code{m.trailing\_zeros()}는 ``켜진 비트의
+위치''를 읽는 것이다. \code{set\_pair}는 $a$의 짝이 $b$이면 $b$의 짝도 $a$라고 표에 적되, 이미 적힌 값과
+어긋나면 실패를 알린다.
+
+\General 스도쿠를 풀 때 ``이 칸이 7이라면''이라고 가정하고 그 귀결을 따라가다가 같은 줄에 7이 둘 생기면
+가정을 버리는 것과 같다. 가정에서 출발해 귀결을 끝까지 밀어 보고 모순을 찾는다.
+
+\Ours 이것은 봄베가 하는 일과 방향만 다르다. 봄베는 틀린 가설 하나로 나머지를 한꺼번에 기각했고, 체킹은
+남은 후보에 전압을 걸어 그 귀결을 \emph{읽는다}. 실제 체킹 머신에서는 조작자가 스테커 후보의 키를 누르고
+켜진 램프를 읽어 메뉴의 선을 하나씩 따라갔다~\cite[12--16]{us6812report1944}. 여기서는 그것을
+\code{propagate}가 한 번에 한다.
+
+\section{2단계: 크립 전체와 대조한다}
+
+메뉴에는 크립의 일부만 들어 있다. 스크램블러 수가 모자라 뺀 선도 있고 떨어진 덩어리의 선도 있다.
+\code{extend\_with\_crib}은 크립의 \emph{모든} 글자에 대해 에니그마의 식
+$\Stk(c) = \Scr_k(\Stk(p))$를 확인한다.
+
+\begin{lstlisting}[language=Rust,caption={\code{check.rs}: 크립 한 글자의 대조(일부).}]
+let (sp, sc) = (map[pl as usize], map[ci as usize]);
+if sp != UNKNOWN {
+    let want = s[sp as usize];
+    if sc == UNKNOWN {
+        if !set_pair(&mut map, ci, want) { return None; }
+        changed = true;
+    } else if sc != want {
+        return None;
+    }
+} else if sc != UNKNOWN {
+    if !set_pair(&mut map, pl, s[sc as usize]) { return None; }
+    changed = true;
+}
+\end{lstlisting}
+
+평문 글자의 짝 \code{sp}를 알면 암호문 글자의 짝은 스크램블러 표 \code{s}에서 계산된다(\code{want}).
+암호문 글자의 짝을 아직 모르면 채워 넣고, 이미 알고 있는데 다르면 모순이므로 이 정지를 버린다
+(\code{return None}). 반대 방향도 같다. 이 일을 새로 채워지는 것이 없을 때까지 되풀이한다. 하나를 채우면
+그것이 다른 글자를 채우는 실마리가 되기 때문이다.
+
+\Ours 거짓 정지의 대부분이 이 단계에서 탈락한다. 예제에서 157개의 정지 가운데 통과하는 것은 하나다.
+
+\section{3단계: 링 설정}
+
+봄베가 찾은 것은 코어 위치(창 글자 $-$ 링 설정)다. 창 글자와 링 설정을 따로 알려면 정보가 더 필요하다.
+
+\Why 링 설정이 암호화에 영향을 주는 길은 하나뿐이다. 노치가 링에 붙어 있으므로, 링 설정은 로터가 옆 로터를
+\emph{언제} 넘기는지를 정한다. 따라서 링 설정은 넘어감이 일어나는 긴 전문을 복호화해 보아야 알 수 있다.
+오른쪽 로터의 링은 가운데 로터가 언제 움직이는지를 정하고, 가운데 로터의 링은 왼쪽 로터가 언제 움직이는지를
+정한다. 왼쪽 로터의 링은 아무것도 넘기지 않으므로 어떤 값이든 결과가 같다. 원리적으로 알아낼 수 없고,
+알 필요도 없다.
+
+코드는 오른쪽과 가운데 링의 $26 \times 26$가지 조합을 모두 시험한다. 조합마다
+
+\begin{enumerate}
+\item 크립 구간에서 로터가 움직이는 모양이 봄베의 가정과 맞는지 확인하고,
+\item 크립 위치에서 전문의 처음으로 로터를 되감아 시작 위치를 구하고(\code{wind\_back}),
+\item 전문 전체를 복호화해 크립 자리에 크립이 나오는지 확인하고,
+\item 복호문이 독일어다운 정도를 점수로 매긴다.
+\end{enumerate}
+
+점수가 가장 높은 조합을 택한다. 정해지지 않는 링은 \texttt{A}로 둔다.
+
+\Ours 예제의 실제 키는 링 \texttt{GMC}, 시작 위치 \texttt{KDC}이고 복원된 키는 링 \texttt{AAC}, 시작 위치
+\texttt{ERC}다. 글자는 다르지만 틀린 것이 아니다. 창 글자에서 링을 뺀 코어 위치는 둘 다 \texttt{ERA}이고,
+복원된 키로 설정한 에니그마는 실제 키의 에니그마와 똑같이 동작한다. 오른쪽 링 \texttt{C}는 정확히 맞았다.
+가운데 링이 \texttt{M}이 아니라 \texttt{A}로 나온 것은 이 전문(121글자) 동안 왼쪽 로터가 한 번도 움직이지
+않아서 가운데 링을 정할 정보가 전문에 없었기 때문이다.
+
+\section{점수: 독일어다운 정도}
+
+\begin{lstlisting}[language=Rust,caption={\code{check.rs}: 복호문의 점수.}]
+pub fn score_german(text: &[u8]) -> f64 {
+    if text.len() < 2 {
+        return f64::NEG_INFINITY;
+    }
+    let t = bigram_log_probs();
+    text.windows(2).map(|w| t[w[0] as usize][w[1] as usize]).sum::<f64>() / (text.len() - 1) as f64
+}
+\end{lstlisting}
+
+\code{text.windows(2)}는 이웃한 두 글자의 쌍을 차례로 내놓는다. 쌍마다 ``앞 글자 다음에 뒤 글자가 올
+확률''의 로그를 표에서 읽어 평균을 낸다. 표는 독일어 글에서 두 글자 쌍(\term{바이그램}{bigram})의 빈도를
+세어 만든 것이다. 무작위 글자열은 약 $-3.5$, 독일어 문장은 약 $-2.4$가 나온다.
+
+\Why 글자 하나하나의 빈도가 아니라 \emph{이웃한 두 글자}를 보는 데에는 이유가 있다. 처음에는 글자의 빈도만
+보았는데, 그 점수로는 다음 단계에서 스테커를 복원하지 못했다. 글자의 빈도는 글자의 순서를 보지 않는다.
+스테커 한 쌍이 틀려 몇 글자가 다른 글자로 바뀌어도 전체 빈도는 거의 그대로다. 두 글자 쌍을 보면 틀린 글자
+하나가 앞뒤 두 쌍을 독일어에 없는 조합으로 만들므로 점수에 뚜렷이 드러난다.
+
+\begin{lesson}{점수 함수는 풀려는 문제의 글과 닮아야 한다}
+바이그램으로 바꾼 뒤에도 전문의 첫 세 글자가 틀리는 경우가 남았다. 올바른 \texttt{ANX}가 아니라 \texttt{SLE}나
+\texttt{AGI}가 나왔다. 가운데 링의 후보들이 전문의 앞부분에서만 서로 다른 복호문을 주는데, 올바른 복호문에는
+군용 전문이 낱말 사이에 넣는 \texttt{X}가 들어 있었다. 바이그램 표는 문학 작품에서 만든 것이어서
+\texttt{NX}나 \texttt{XO} 같은 쌍을 거의 본 적이 없었고, 그래서 올바른 답에 나쁜 점수를 주었다.
+같은 글에서 낱말 사이를 \texttt{X}로 바꿔 한 번 더 센 것을 표에 더하자 이 경우까지 맞게 되었다.
+\end{lesson}
+
+\section{4단계: 남은 스테커}
+
+크립 구간의 평문에도 암호문에도 나오지 않은 글자는 1, 2단계의 논리로 스테커를 정할 수 없다. 이 글자들에
+대해서는 \term{언덕 오르기}{hill climbing}를 한다. 정해지지 않은 글자 두 개를 짝지어 보고, 전문 전체의
+점수가 분명히(0.01 넘게) 오르는 짝 가운데 가장 많이 오르는 것을 채택한다. 더 오르는 짝이 없을 때까지
+되풀이한다.
+
+\General 언덕 오르기는 안개 속에서 산꼭대기를 찾는 방법이다. 지금 선 자리에서 한 걸음씩 디뎌 보고 가장 많이
+올라가는 쪽으로 간다. 어느 쪽으로도 올라가지 않으면 멈춘다. 전체를 다 살피지 않고도 좋은 답에 이르지만,
+그것이 가장 높은 꼭대기라는 보장은 없다.
+
+\Ours 이 단계는 추론이 아니라 추측이다. 그래서 결과에 따로 표시한다. \code{unresolved}는 논리로 정하지
+못한 글자들이고 \code{guessed}는 그 가운데 추측으로 짝을 지은 글자들이다. 예제에서는 \texttt{X}와
+\texttt{Y}가 정해지지 않았고, 점수가 오르는 짝이 없어 스테커가 없는 것으로 두었다. 실제 키에서도 그 두
+글자에는 플러그가 꽂혀 있지 않았다.
+
+\section{전체 탐색: \texorpdfstring{\code{search}}{search}}
+
+\begin{lstlisting}[language=Rust,caption={\code{search.rs}: 일을 나눠 병렬로 돌린다(일부).}]
+let results = par_map(&tasks, opts.parallel, |&(i, t, g)| {
+    let bo = BombeOptions { diagonal_board: opts.diagonal_board, turnover_at: t };
+    let res = run_slice(&plugged, &orders[i], &bo, g);
+    let sols: Vec<Solution> =
+        res.stops.iter().flat_map(|s| check_stop(ciphertext, menu, s, opts.diagonal_board)).collect();
+    (res, sols)
+});
+\end{lstlisting}
+
+\code{tasks}는 (로터 순서, 넘어감 가설, 그리스 로터 위치)의 모든 조합이다. \code{par\_map}은 이 일들을
+컴퓨터의 모든 처리 장치 코어에 나눠 준다. 일 하나는 봄베를 돌리고(\code{run\_slice}) 나온 정지를 모두
+체킹한다(\code{check\_stop}).
+
+\Why 이렇게 나눌 수 있는 것은 일들이 서로 독립이기 때문이다. 한 로터 순서의 결과는 다른 로터 순서의 결과에
+아무 영향을 주지 않는다. 공유하는 것은 읽기만 하는 메뉴와 암호문뿐이다.
+
+\General 계산대가 여러 개인 가게와 같다. 손님(일)들이 서로 상관없으므로 계산대를 늘리는 만큼 빨라진다.
+
+\Ours 블레츨리 파크에서도 같은 방식이었다. 봄베 여러 대가 서로 다른 로터 순서를 나눠 맡았다. 그리고 이것은
+1부에서 본 ``회로에서는 동시가 기본''의 소프트웨어 쪽 모습이기도 하다. FPGA에서는 엔진 여러 대를 나란히
+놓는 것으로 같은 일을 한다. 측정 결과, 논리 스레드 24개의 PC에서 Enigma~I의 120가지 로터 순서(약 211만
+위치)는 0.2초대에, M4의 1,344가지(약 6억 1천만 위치)는 98초에 끝난다.

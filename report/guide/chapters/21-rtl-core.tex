@@ -1,0 +1,267 @@
+\chapter{한 위치의 판정: \texorpdfstring{\code{bombe\_core}}{bombe\_core}}\label{ch:rtl-core}
+
+\code{bombe\_core}는 드럼 위치 하나에 대해 봄베가 하는 일 전부를 한다. 메뉴대로 스크램블러를 걸고, 전류를
+퍼뜨리고, 테스트 레지스터를 읽어 정지 여부를 알린다. Rust의 \code{propagate}에 해당한다.
+
+\section{가장 큰 설계 결정: 고리를 레지스터로 끊는다}
+
+실제 봄베의 배선망은 전선이다. 전압을 걸면 전류는 이어진 선 전체로 사실상 즉시 퍼지고, 드럼이 움직여 접점이
+떨어지면 사라진다. 이것을 게이트로 그대로 옮기려는 것이 첫 번째 유혹이다.
+
+\Why 그대로 옮길 수 없는 이유는 배선이 \emph{양방향}이기 때문이다. 스크램블러는 케이블 $a$의 선을 케이블 $b$의
+선에 잇는다. 게이트로 쓰면 ``$b$의 선은 $a$의 선들의 OR''이고 동시에 ``$a$의 선은 $b$의 선들의 OR''이다.
+출력이 자기 입력으로 돌아오는 고리, \term{조합 루프}{combinational loop}가 된다
+(그림~\ref{fig:g-loop}). 이 고리에는 문제가 둘 있다.
+
+\begin{itemize}
+\item \textbf{꺼지지 않는다.} OR 게이트 두 개가 서로의 출력을 입력으로 받으면, 한번 1이 된 뒤에는 바깥 입력을
+거두어도 서로를 1로 붙들고 있다. 전선의 전류는 접점이 떨어지면 사라지지만 게이트의 고리는 의도하지 않은
+기억 소자가 된다. 다음 드럼 위치를 시험하려면 선을 모두 0으로 되돌려야 하는데 방법이 없다.
+\item \textbf{시간을 따질 수 없다.} \ref{ch:sync}장의 규칙은 ``레지스터에서 레지스터까지의 지연이 클럭
+주기보다 짧아야 한다''였다. 고리에는 출발 레지스터도 도착 레지스터도 없다. 도구가 지연을 계산할 수 없으므로
+회로가 제 속도로 도는지 확인할 길이 없다.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[font=\small\bfseries] at (2.0,2.2) {조합 루프 (쓸 수 없다)};
+  \node[or gate US,gate] (o1) at (1.2,1.0) {};
+  \node[or gate US,gate] (o2) at (3.0,-0.4) {};
+  \draw (o1.input 1) -- ++(-0.8,0) node[left,font=\footnotesize] {바깥 입력};
+  \draw[cred,line width=0.9pt] (o1.output) -- ++(0.5,0) |- (o2.input 1);
+  \draw (o2.input 2) -- ++(-1.2,0) node[left,font=\footnotesize] {0};
+  \draw[cred,line width=0.9pt] (o2.output) -- ++(0.4,0) |- (1.6,-1.3) -| (0.2,0.5) |- (o1.input 2);
+  \node[note,text=cred] at (2.0,-1.9) {한번 1이 되면 서로를 붙든다};
+  \begin{scope}[xshift=7.6cm]
+  \node[font=\small\bfseries] at (2.9,2.2) {레지스터로 끊은 구조};
+  \node[reg,minimum height=15mm,minimum width=15mm] (r) at (0,0.2) {\code{live\_q}};
+  \pic at (r.south) {clkmark};
+  \node[cloud,minimum width=36mm,minimum height=15mm] (f) at (3.9,0.2) {한 걸음 퍼뜨리기};
+  \draw[->] (r) -- (f);
+  \draw[->] (f.east) -- ++(0.5,0) |- (2.0,-1.3) node[pos=0.75,below,font=\footnotesize] {\code{live\_n}} -| ([xshift=-7mm]r.west) -- (r.west);
+  \node[note] at (2.9,-2.2) {지우려면 레지스터에 0을 넣으면 된다};
+  \end{scope}
+\end{tikzpicture}
+\caption{고리와 그 해결.}
+\label{fig:g-loop}
+\end{figure}
+
+해결은 고리의 한 곳을 레지스터로 끊는 것이다. 676가닥의 상태를 레지스터 \code{live\_q}에 담고, 조합 논리는
+``지금 상태에서 \emph{한 걸음} 더 퍼진 상태'' \code{live\_n}만 계산한다. 클럭이 뛸 때마다 그 결과를 레지스터에
+다시 담는다. 더 변하지 않으면 전류가 다 퍼진 것이다. 새 위치를 시작할 때는 레지스터에 0을 넣고 전압을 거는
+선 하나만 1로 둔다.
+
+\General 이런 꼴의 계산을 \term{고정점 반복}{fixed-point iteration}이라 한다. 같은 규칙을 되풀이 적용하다가
+결과가 더 변하지 않으면 멈춘다. 소문이 퍼지는 것을 하루 단위로 보면 같다. 매일 아침, 어제까지 소문을 들은
+사람 \emph{모두}가 아는 사람들에게 동시에 전한다. 어느 날 새로 들은 사람이 없으면 소문은 다 퍼진 것이다.
+
+\Ours 이 구조가 실제 기계와 같은 답을 내는 까닭은 \ref{sec:propagate}절에서 보았다. 구하는 것은 전압을 건
+선에서 닿을 수 있는 선의 집합이고, 그 집합은 살피는 순서와 무관하다. Rust는 한 가닥씩, 회로는 클럭마다
+전부를 한 걸음씩 살피지만 도달하는 상태는 같다. 이 주장은 시험으로도 확인한다. 회로의 676비트를 Rust의
+676비트와 통째로 비교한다.
+
+\section{입출력}
+
+\begin{lstlisting}[language=SV,caption={\code{bombe\_core.sv}의 입출력(로터 순서 입력은 \code{scrambler}와 같아 생략).}]
+module bombe_core #(parameter int MAX_EDGES = 16) (
+  input  logic                       clk, rst_n,
+  ...
+  // menu
+  input  logic [MAX_EDGES-1:0]       edge_en,
+  input  logic [MAX_EDGES-1:0][4:0]  edge_a,
+  input  logic [MAX_EDGES-1:0][4:0]  edge_b,
+  input  logic [MAX_EDGES-1:0][7:0]  edge_pos,
+  input  logic [4:0]                 test_letter, input_wire,
+  input  logic                       diagonal_en,
+  input  logic                       turnover_en,
+  input  logic [7:0]                 turnover_at,
+  input  logic                       early_exit,
+  // drum position (core offsets at the first crib letter)
+  input  logic [4:0]                 pos_g, pos_l, pos_m, pos_r,
+  // control
+  input  logic                       start,
+  output logic                       busy, done, stop,
+  output logic [25:0]                test_register,
+  output logic [26*26-1:0]           live,
+  output logic [15:0]                iterations
+);
+\end{lstlisting}
+
+메뉴가 어떻게 들어오는지를 보자. 소프트웨어에서 메뉴는 길이가 정해지지 않은 목록이었다. 회로에는 길이가
+변하는 것이 없다. 그래서 선을 걸 수 있는 \emph{자리}를 \code{MAX\_EDGES}개(기본 16개) 만들어 두고, 자리마다
+쓰는지 여부(\code{edge\_en}), 양 끝 글자(\code{edge\_a}, \code{edge\_b}), 크립 위치(\code{edge\_pos})를 준다.
+
+\Why 회로의 부품 수는 만들 때 정해진다. ``선이 14개인 메뉴''와 ``선이 9개인 메뉴''를 같은 회로로 다루려면
+가장 큰 경우에 맞춰 자리를 만들고 안 쓰는 자리를 끄는 수밖에 없다.
+
+\Ours 실제 봄베가 꼭 이렇다. 스크램블러는 36개가 고정으로 달려 있고, 조작자는 메뉴에 필요한 만큼만
+케이블로 이어 쓴다. \code{MAX\_EDGES}는 기계에 달린 스크램블러의 수이고 \code{edge\_en}은 그 스크램블러에
+케이블이 꽂혀 있는가다.
+
+제어 신호는 셋이다. \code{start}를 한 클럭 올리면 판정을 시작하고, 끝나면 \code{done}이 한 클럭 올라온다.
+그때 \code{stop}이 1이면 정지다.
+
+\section{스크램블러를 선마다 하나씩}
+
+\begin{lstlisting}[language=SV,caption={\code{bombe\_core.sv}: 선마다 스크램블러 하나(일부).}]
+for (genvar e = 0; e < MAX_EDGES; e++) begin : g_edge
+  ...
+  always_comb begin
+    sum_r    = {4'd0, pos_r} + {1'b0, edge_pos[e]};
+    mod_r    = sum_r % 9'd26;
+    core_r_e = mod_r[4:0];
+    core_m_e = (turnover_en && edge_pos[e] >= turnover_at)
+               ? wirings_pkg::add26(pos_m, 5'd1) : pos_m;
+  end
+  scrambler u_scrambler (
+    ...
+    .core_g (pos_g), .core_l (pos_l), .core_m (core_m_e), .core_r (core_r_e),
+    .perm   (perm_c[e*130 +: 130])
+  );
+end
+\end{lstlisting}
+
+\code{for (genvar ...)}는 \term{생성 반복문}{generate loop}이다. \ref{ch:hdl}장의 반복문과 마찬가지로 시간을
+쓰지 않고 부품을 복사한다. 여기서는 \code{scrambler} 모듈을 16개 놓는다. \code{scrambler u\_scrambler (...)}는
+부품 하나를 놓고 단자를 잇는 문장이다. \code{.core\_m(core\_m\_e)}는 ``부품의 \code{core\_m} 단자에 전선
+\code{core\_m\_e}를 잇는다''는 뜻이다.
+
+선마다 다른 것은 오른쪽 코어 위치뿐이다. 드럼 위치 \code{pos\_r}에 그 선의 크립 위치를 더한다. Rust의
+$(r + k) \bmod 26$이다. 넘어감 가설이 켜져 있고 크립 위치가 가설 이후이면 가운데 코어 위치에 1을 더한다.
+
+두 가지를 짚어 둔다. 첫째, \code{sum\_r \% 9'd26}에는 앞 장에서 피하라고 한 \code{\%}가 있다. 크립 위치는
+0--255일 수 있어 ``26을 한 번 빼기''로는 안 되기 때문인데, 시뮬레이션용이라 그대로 두었다. FPGA 엔진에서는
+이런 계산을 구동 전에 미리 해 둔다. 둘째, 이 구조는 \ref{sec:tradeoff}절에서 본 대로 ``위치마다 전부 다시
+계산''이다. Rust 모델보다도 단순하다. 표를 미리 만들지 않고 16개의 스크램블러가 늘 계산하고 있다.
+
+\section{전파 논리}
+
+코드~\ref{lst:g-spread}의 전파 논리를 다시 읽는다. 이번에는 대각선 보드까지 본다.
+
+\begin{lstlisting}[language=SV,caption={\code{bombe\_core.sv}: 한 걸음 퍼뜨리기.},label={lst:spread-full}]
+always_comb begin
+  live_n = live_q;
+  y      = '0;
+  for (int i = 0; i < MAX_EDGES; i++) begin
+    cable_a = 26 * edge_a[i];
+    cable_b = 26 * edge_b[i];
+    if (edge_en[i]) begin
+      for (int x = 0; x < 26; x++) begin
+        y = {27'd0, perm_q[(i*26 + x)*5 +: 5]};
+        if (live_q[cable_a + y]) live_n[cable_b + x] = 1'b1;
+        if (live_q[cable_b + y]) live_n[cable_a + x] = 1'b1;
+      end
+    end
+  end
+  if (diagonal_en) begin
+    for (int c = 0; c < 26; c++) begin
+      for (int w = 0; w < 26; w++) begin
+        if (live_q[c*26 + w]) live_n[w*26 + c] = 1'b1;
+      end
+    end
+  end
+end
+\end{lstlisting}
+
+\begin{itemize}
+\item 2행. 다음 상태는 현재 상태에서 출발한다. 한 번 켜진 선은 꺼지지 않는다.
+\item 4--14행. 메뉴의 선 \code{i}마다, 건너편 케이블의 선 \code{x}마다: 치환표에서 \code{y = perm[x]}를
+읽는다. 이쪽 케이블의 \code{y}번 선이 켜져 있으면 건너편의 \code{x}번 선을 켠다. 스크램블러의 치환은 두 번
+적용하면 원래대로 돌아오므로(반사판 때문에), ``$y$가 $x$로 간다''와 ``$x$가 $y$로 간다''가 같은 표로 표현된다.
+그래서 10행과 11행이 같은 \code{y}를 쓴다. 두 줄은 전류의 두 방향이다.
+\item 15--21행. 대각선 보드. 케이블 $c$의 $w$번 선이 켜져 있으면 케이블 $w$의 $c$번 선을 켠다. 여기서
+\code{c}와 \code{w}는 반복 변수라 합성할 때 상수가 된다. 그러므로 이 부분은 선택 회로가 아니라 고정된 전선
+연결과 OR이다. 실제 봄베의 대각선 보드가 \emph{영구 배선}이었던 것과 정확히 같다.
+\end{itemize}
+
+\Why 주의할 것은 읽는 쪽이 모두 \code{live\_q}(현재 상태)이고 쓰는 쪽이 모두 \code{live\_n}(다음 상태)이라는
+점이다. 이번 걸음에 새로 켜진 선은 이번 걸음에서는 이웃을 켜지 못한다. 다음 클럭에 \code{live\_q}가 된 뒤에
+켠다. 그래서 정확히 ``한 걸음''이다. 만약 \code{live\_n}을 읽었다면 한 클럭 안에서 여러 걸음이 이어져
+앞에서 피하려던 고리가 되살아난다.
+
+4--14행의 \code{live\_q[cable\_a + y]}가 \ref{ch:lesson}장의 그 코드다. 대각선 보드의
+\code{live\_q[c*26 + w]}와 생긴 것은 비슷하지만 회로로는 전혀 다르다. 한쪽은 번호가 상수여서 전선 한 가닥이고,
+다른 쪽은 번호가 실행 중에 정해져서 676:1 선택 회로다. 같은 꼴의 코드가 번호가 상수인가 변수인가에 따라
+수백 배 다른 크기가 된다.
+
+\section{제어: 상태 기계}
+
+\begin{lstlisting}[language=SV,caption={\code{bombe\_core.sv}: 제어(리셋 부분 생략).},label={lst:core-fsm}]
+always_ff @(posedge clk or negedge rst_n) begin
+  ...
+    done <= 1'b0;
+    case (state)
+      IDLE: begin
+        if (start) begin
+          perm_q     <= perm_c;
+          live_q     <= '0;
+          live_q[26*test_letter + input_wire] <= 1'b1;
+          iterations <= '0;
+          state      <= SPREAD;
+        end
+      end
+      SPREAD: begin
+        live_q     <= live_n;
+        iterations <= iterations + 16'd1;
+        if (live_n == live_q || (early_exit && test_n == FULL)) begin
+          state <= IDLE;
+          done  <= 1'b1;
+        end
+      end
+    endcase
+end
+
+assign test_register = test_q;
+assign stop          = (test_q != FULL);
+\end{lstlisting}
+
+\ref{sec:fsm}절에서 본 두 상태짜리 상태 기계다.
+
+\begin{itemize}
+\item 3행. \code{done}은 기본으로 0이다. 아래에서 1을 넣는 클럭에만 1이 된다. 같은 레지스터에 \code{<=}가 두
+번 나오면 나중 것이 이긴다는 규칙을 이용해 ``한 클럭짜리 신호''를 만드는 흔한 방법이다.
+\item 6--11행. \code{IDLE}에서 \code{start}를 보면: 스크램블러들이 내놓고 있는 치환표를 레지스터
+\code{perm\_q}에 붙잡는다. 상태를 모두 0으로 하고(8행) 전압을 거는 선 하나만 1로 한다(9행). 8행과 9행도
+같은 규칙이다. 나중에 나온 9행이 그 한 비트에 대해 이긴다.
+\item 15--16행. \code{SPREAD}에서는 클럭마다 다음 상태를 받아들이고 걸음 수를 센다.
+\item 17--20행. 끝내는 조건은 둘이다. 다음 상태가 현재 상태와 같거나(고정점), 조기 종료가 켜져 있고 테스트
+레지스터가 다 찼거나.
+\item 26행. 정지 판정. Rust의 \code{if reg != FULL}과 같은 한 줄이다.
+\end{itemize}
+
+그림~\ref{fig:g-core-timing}은 이 상태 기계가 한 위치를 판정하는 동안의 신호다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikztimingtable}[timing/slope=0.1,timing/coldist=4pt,xscale=2.6,yscale=1.3,semithick]
+  \code{clk}      & 9{.5L .5H} \\
+  \code{start}    & .5L 1H 7.5L \\
+  \code{state}    & 1.5D{IDLE} 4D{SPREAD} 3.5D{IDLE} \\
+  \code{live\_q}  & 1.5U 1D{$L_0$} 1D{$L_1$} 1D{$L_2$} 4.5D{$L_3$} \\
+  \code{live\_n}  & 1.5U 1D{$L_1$} 1D{$L_2$} 5.5D{$L_3$} \\
+  \code{iterations} & 1.5U 1D{0} 1D{1} 1D{2} 1D{3} 3.5D{4} \\
+  \code{done}     & 5.5L 1H 2.5L \\
+\extracode
+  \begin{pgfonlayer}{background}
+    \vertlines[cgray!50,dashed]{0.5,1.5,...,8.5}
+  \end{pgfonlayer}
+\end{tikztimingtable}
+\caption{\code{bombe\_core}의 한 위치(개념도). $L_0$은 선 하나만 켜진 상태, $L_i$는 $i$걸음 퍼진 상태다.
+네 번째 클럭에 \code{live\_n}과 \code{live\_q}가 같아져 다음 에지에서 \code{done}이 올라온다.}
+\label{fig:g-core-timing}
+\end{figure}
+
+마지막 한 클럭은 ``더 변하지 않는다''는 것을 확인하는 데 쓰인다. 시뮬레이션에서 구동 중(조기 종료 사용)의
+평균은 위치당 약 12클럭이었고, 끝까지 퍼뜨릴 때의 걸음 수는 13에서 25 사이였다.
+
+\paragraph{리셋.} \code{negedge rst\_n}은 리셋 신호다. 전원이 들어온 직후 레지스터의 값은 정해져 있지 않으므로,
+리셋으로 상태 기계를 \code{IDLE}에 놓는다. 프로그램에서 변수를 초기화하는 것에 해당하지만, 회로에서는 그
+초기화도 전선(리셋 신호)을 통해 해야 한다.
+
+\section{이 모듈의 시험}
+
+테스트벤치는 Rust 코어가 내보낸 벡터 파일을 읽는다. 벡터 하나는 메뉴, 로터 순서, 드럼 위치, 그리고 그
+위치에서의 676비트 상태와 정지 여부다. 벡터마다 두 번 돌린다. 조기 종료를 끄고 676비트 상태 \emph{전체}와
+정지 여부를 비교하고, 조기 종료를 켜고 정지 여부와 테스트 레지스터를 비교한다. 벡터에는 넘어감 가설이 있는
+경우, 대각선 보드를 끈 경우, M4의 경우가 들어 있다.

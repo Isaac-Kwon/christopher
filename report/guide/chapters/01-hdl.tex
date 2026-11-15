@@ -1,0 +1,259 @@
+\chapter{프로그램이 아니라 회로를 기술한다}\label{ch:hdl}
+
+SystemVerilog 코드는 겉모습이 프로그램과 비슷하다. 변수 같은 것이 있고, \code{if}와 \code{for}가 있고,
+대입문이 있다. 그러나 이 코드는 실행되는 것이 아니다. 이 장의 요점은 두 문장이다.
+
+\begin{keybox}
+\begin{enumerate}
+\item 하드웨어 기술 언어(HDL)의 코드는 ``무엇을 차례로 하라''가 아니라 ``어떤 부품이 어떻게 이어져
+있는가''를 적은 것이다.
+\item 그렇게 적힌 부품들은 전원이 들어와 있는 한 모두 동시에, 항상 동작한다.
+\end{enumerate}
+\end{keybox}
+
+\section{코드 한 줄은 부품 하나다}
+
+\Why 프로그램은 메모리에 놓인 명령의 목록이고, 처리 장치가 그 목록을 위에서부터 하나씩 읽어 수행한다.
+그래서 ``지금 몇 번째 줄을 실행 중인가''라는 개념이 있다. 회로에는 명령을 읽는 주체가 없다. 있는 것은
+게이트와 전선뿐이고, 게이트는 입력이 바뀌면 조금 뒤에 출력이 바뀌는 물건이다. HDL은 이 게이트와 전선의
+\emph{배치도}를 글로 적는 방법이다. 코드의 한 줄은 수행할 동작이 아니라 놓일 부품이다.
+도구가 HDL 코드를 읽어 실제 게이트의 연결로 바꾸는 일을 \term{합성}{synthesis}이라고 한다.
+
+\General 다음 한 줄을 보자.
+
+\begin{lstlisting}[language=SV,numbers=none]
+assign y = (a & b) | c;
+\end{lstlisting}
+
+프로그램으로 읽으면 ``\code{a}와 \code{b}를 AND하고, \code{c}와 OR해서, \code{y}에 넣는다''는 한 번의
+계산이다. 회로로 읽으면 그림~\ref{fig:g-assign}과 같은 부품 두 개와 전선이다. \code{y}는 값을 담는
+상자가 아니라 OR 게이트의 출력에 붙은 전선의 이름이다. \code{a}가 바뀌면 \code{y}는 언제든 따라 바뀐다.
+``한 번 계산하고 끝''이 아니다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % 왼쪽: 프로그램
+  \node[font=\small\bfseries] at (1.6,2.3) {프로그램으로 읽으면};
+  \node[blkn,minimum width=34mm,align=left,font=\ttfamily\footnotesize] (p1) at (1.6,1.4) {1: t = a \& b};
+  \node[blkn,minimum width=34mm,align=left,font=\ttfamily\footnotesize] (p2) at (1.6,0.5) {2: y = t | c};
+  \draw[->,cred,line width=1pt] (-0.9,1.4) -- (p1.west);
+  \node[note,text=cred] at (-1.6,1.4) {지금\\여기};
+  \node[note] at (1.6,-0.4) {한 줄씩, 차례로, 한 번};
+  % 오른쪽: 회로
+  \begin{scope}[xshift=7.2cm]
+  \node[font=\small\bfseries] at (2.4,2.3) {회로로 읽으면};
+  \node[and gate US,gate] (g1) at (1.6,1.2) {};
+  \node[or gate US,gate] (g2) at (3.6,0.8) {};
+  \draw (g1.input 1) -- ++(-0.9,0) node[left,font=\ttfamily\small] {a};
+  \draw (g1.input 2) -- ++(-0.9,0) node[left,font=\ttfamily\small] {b};
+  \draw (g1.output) -- ++(0.4,0) |- (g2.input 1);
+  \draw (g2.input 2) -- ++(-2.9,0) node[left,font=\ttfamily\small] {c};
+  \draw (g2.output) -- ++(0.8,0) node[right,font=\ttfamily\small] {y};
+  \node[note] at (2.4,-0.4) {부품 두 개가 늘 거기 있다};
+  \end{scope}
+\end{tikzpicture}
+\caption{같은 식을 읽는 두 가지 방법.}
+\label{fig:g-assign}
+\end{figure}
+
+이 차이에서 곧바로 나오는 결과가 있다. 회로를 기술하는 문장은 \emph{적는 순서가 의미가 없다}.
+다음 두 코드는 같은 회로다. 배치도에서 부품을 어느 것부터 그리든 완성된 그림은 같기 때문이다.
+
+\begin{lstlisting}[language=SV,numbers=none]
+assign t = a & b;          |   assign y = t | c;
+assign y = t | c;          |   assign t = a & b;
+\end{lstlisting}
+
+\Ours 봄베의 스크램블러는 26글자 각각이 어느 글자로 바뀌는지를 내놓는 회로다. 기준 RTL의
+\code{scrambler} 모듈은 그 전부가 \code{always\_comb}(조합 논리를 기술하는 블록) 하나다. 글자 하나가
+오른쪽 로터, 가운데 로터, 왼쪽 로터, 반사판을 지나 다시 돌아오는 경로를 적었다.
+
+\begin{lstlisting}[language=SV,caption={\code{rtl/src/scrambler.sv}의 본체(그리스 로터 부분 생략).},label={lst:g-scr}]
+always_comb begin
+  for (int c = 0; c < 26; c++) begin
+    letter = c[4:0];
+    x = wirings_pkg::rotor_fwd(right_id, core_r, letter);
+    x = wirings_pkg::rotor_fwd(middle_id, core_m, x);
+    x = wirings_pkg::rotor_fwd(left_id, core_l, x);
+    ...
+    x = wirings_pkg::reflect(refl_id, x);
+    ...
+    x = wirings_pkg::rotor_bwd(left_id, core_l, x);
+    x = wirings_pkg::rotor_bwd(middle_id, core_m, x);
+    x = wirings_pkg::rotor_bwd(right_id, core_r, x);
+    perm[c] = x;
+  end
+end
+\end{lstlisting}
+
+프로그램처럼 보이지만 여기에는 ``실행''이 없다. \code{x = ...}가 일곱 번 이어진 것은 변수 \code{x}를 일곱
+번 고쳐 쓰는 것이 아니라, 로터를 통과하는 회로 일곱 개를 \emph{한 줄로 이어 붙인} 것이다. 줄마다
+\code{x}는 서로 다른 전선이다. 그러면 \code{for}는 무엇일까. 다음 절의 주제다.
+
+\section{반복문은 시간이 아니라 공간을 쓴다}
+
+\Why 프로그램의 반복문은 같은 명령을 \emph{시간을 들여} 여러 번 수행한다. 회로에는 명령을 되풀이할
+주체가 없으므로, 합성 도구는 반복문을 펼쳐서 본체를 반복 횟수만큼 \emph{복사해 나란히 놓는다}.
+반복 횟수는 합성할 때 정해져 있어야 한다. 부품의 개수는 만들기 전에 정해져야 하기 때문이다.
+
+\General 4비트 두 수의 비트별 XOR을 반복문으로 적으면 XOR 게이트 네 개가 된다
+(그림~\ref{fig:g-unroll}). 네 번 ``돈'' 것이 아니라 네 개가 ``놓인'' 것이고, 네 개는 동시에 동작한다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[anchor=west,font=\ttfamily\footnotesize,align=left,draw=cgray!50,fill=clight!60,inner sep=6pt] (code) at (-0.5,1.3)
+    {always\_comb\\\ \ for (int i = 0; i < 4; i++)\\\ \ \ \ y[i] = a[i] \^{} b[i];};
+  \draw[->,line width=1pt] (5.0,1.3) -- node[above,note] {합성} (6.4,1.3);
+  \foreach \i/\yy in {0/3.1,1/1.9,2/0.7,3/-0.5} {
+    \node[xor gate US,gate,minimum height=8mm] (x\i) at (9,\yy) {};
+    \draw (x\i.input 1) -- ++(-0.7,0) node[left,font=\ttfamily\footnotesize] {a[\i]};
+    \draw (x\i.input 2) -- ++(-0.7,0) node[left,font=\ttfamily\footnotesize] {b[\i]};
+    \draw (x\i.output) -- ++(0.6,0) node[right,font=\ttfamily\footnotesize] {y[\i]};
+  }
+\end{tikzpicture}
+\caption{반복문의 펼침. 반복 네 번은 게이트 네 개다.}
+\label{fig:g-unroll}
+\end{figure}
+
+\Ours 코드~\ref{lst:g-scr}의 \code{for (int c = 0; c < 26; c++)}도 같다. 로터 여섯 번과 반사판을 지나는
+회로 한 줄이 26개 놓인다(그림~\ref{fig:g-scr26}). 26글자의 치환이 동시에 나온다. 빠르지만 공짜가 아니다.
+이 모듈 하나를 합성하면 FPGA의 기본 논리 소자인 LUT를 19,717개 쓴다. 왜 이렇게 큰지, 그리고 그래서 어떻게
+했는지는 \ref{ch:resources}장과 \ref{ch:lesson}장에서 다룬다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=0.9cm]
+  \foreach \row/\lab in {0/A,1/B,2/C} {
+    \node[font=\ttfamily\small] at (-0.6,-\row) {\lab};
+    \foreach \j/\t/\st in {0/R/blkb,1/M/blkb,2/L/blkb,3/반사/blkn,4/L/blkb,5/M/blkb,6/R/blkb} {
+      \node[\st,minimum width=11mm,minimum height=6mm,font=\footnotesize] (n\row\j) at (\j*1.6+0.6,-\row) {\t};
+    }
+    \foreach \j/\k in {0/1,1/2,2/3,3/4,4/5,5/6} { \draw[->] (n\row\j) -- (n\row\k); }
+    \draw[->] (-0.3,-\row) -- (n\row0);
+    \draw[->] (n\row6) -- ++(1.1,0) node[right,font=\ttfamily\footnotesize] {perm[\row]};
+  }
+  \node at (5.4,-3) {$\vdots$};
+  \node[font=\ttfamily\small] at (-0.6,-3.9) {Z};
+  \foreach \j/\t/\st in {0/R/blkb,1/M/blkb,2/L/blkb,3/반사/blkn,4/L/blkb,5/M/blkb,6/R/blkb} {
+    \node[\st,minimum width=11mm,minimum height=6mm,font=\footnotesize] (z\j) at (\j*1.6+0.6,-3.9) {\t};
+  }
+  \foreach \j/\k in {0/1,1/2,2/3,3/4,4/5,5/6} { \draw[->] (z\j) -- (z\k); }
+  \draw[->] (-0.3,-3.9) -- (z0);
+  \draw[->] (z6) -- ++(1.1,0) node[right,font=\ttfamily\footnotesize] {perm[25]};
+  \draw[decorate,decoration={brace,amplitude=5pt}] (12.9,0.3) -- (12.9,-4.2) node[midway,right=6pt,note,align=left] {같은 회로\\26벌};
+\end{tikzpicture}
+\caption{\code{scrambler}의 반복문이 만드는 회로. R, M, L은 오른쪽, 가운데, 왼쪽 로터를 통과하는 회로다.}
+\label{fig:g-scr26}
+\end{figure}
+
+\section{모든 것이 동시에 동작한다}\label{sec:concurrent}
+
+\Why 부품은 전원이 들어와 있으면 늘 동작한다. 회로의 한쪽이 일하는 동안 다른 쪽이 기다리는 일은 없다.
+그래서 코드에 블록이 여러 개 있으면 그 블록들은 \emph{차례로} 실행되는 것이 아니라 \emph{나란히} 놓여
+동시에 동작한다. 프로그램에서 여러 일을 동시에 하려면 스레드를 따로 만들어야 하지만, 회로에서는 동시가
+기본이고 오히려 ``차례로''를 만들려면 따로 장치(다음 장의 상태 기계)를 두어야 한다.
+
+\General LED를 깜박이면서 동시에 버튼이 눌린 횟수를 세는 회로를 생각하자.
+
+\begin{lstlisting}[language=SV,numbers=none]
+// (1) blink: a free-running counter, the LED shows its top bit
+always_ff @(posedge clk) blink_count <= blink_count + 24'd1;
+assign led = blink_count[23];
+
+// (2) count button presses
+always_ff @(posedge clk) if (button_pressed) presses <= presses + 8'd1;
+\end{lstlisting}
+
+프로그램이라면 ``깜박이는 루프''에 들어가 있는 동안 버튼을 볼 수 없어서 고민해야 한다. 회로에서는 (1)과
+(2)가 서로 다른 부품이므로 아무 고민이 없다. 둘은 같은 클럭에 맞춰 각자 동작한다
+(그림~\ref{fig:g-concurrent}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikztimingtable}[timing/slope=0.1,timing/coldist=4pt,xscale=1.7,yscale=1.25,semithick]
+  \code{clk}             & 10{.5L .5H} \\
+  \code{blink\_count}    & .5D{7} 1D{8} 1D{9} 1D{10} 1D{11} 1D{12} 1D{13} 1D{14} 1D{15} 1D{16} .5D{17} \\
+  \code{button\_pressed} & 2.5L 1H 3L 1H 2.5L \\
+  \code{presses}         & 3.5D{0} 4D{1} 2.5D{2} \\
+\extracode
+  \begin{pgfonlayer}{background}
+    \vertlines[cgray!50,dashed]{0.5,1.5,...,9.5}
+  \end{pgfonlayer}
+\end{tikztimingtable}
+\caption{두 블록은 같은 클럭 에지에서 각자 갱신된다. 한쪽이 다른 쪽을 기다리지 않는다.}
+\label{fig:g-concurrent}
+\end{figure}
+
+\Ours 봄베에서 이 성질은 계산 방식 자체를 바꾼다. 전류의 확산을 소프트웨어(Rust)는 선을 \emph{한 가닥씩}
+꺼내 그 이웃을 살피는 식으로 계산한다. 회로는 메뉴의 모든 선, 양방향, 대각선 보드를 \emph{한꺼번에}
+적용한다. 클럭 한 번에 통전된 영역 전체가 한 걸음씩 넓어진다(그림~\ref{fig:g-wave}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=0.8cm,y=0.8cm,
+   nd/.style={circle,draw=cgray,fill=white,minimum size=3.2mm,inner sep=0pt},
+   on/.style={circle,draw=cblue,fill=cblue,minimum size=3.2mm,inner sep=0pt}]
+  % 그래프 모양: 0-1,0-2,1-3,2-3,3-4,2-5,4-6
+  \foreach \p/\dx/\ttl/\lit in {0/0/시작/{0},1/4.1/1클럭 뒤/{0,1,2},2/8.2/2클럭 뒤/{0,1,2,3,5},3/12.3/3클럭 뒤/{0,1,2,3,4,5}} {
+    \begin{scope}[xshift=\dx cm]
+      \coordinate (c0) at (0,0); \coordinate (c1) at (1,1); \coordinate (c2) at (1,-1);
+      \coordinate (c3) at (2,0); \coordinate (c4) at (3,0.8); \coordinate (c5) at (2,-1.8); \coordinate (c6) at (4,0.2);
+      \foreach \a/\b in {0/1,0/2,1/3,2/3,3/4,2/5,4/6} { \draw[cgray] (c\a) -- (c\b); }
+      \foreach \i in {0,...,6} { \node[nd] at (c\i) {}; }
+      \foreach \i in \lit { \node[on] at (c\i) {}; }
+      \node[font=\small] at (2,2.0) {\ttl};
+    \end{scope}
+  }
+\end{tikzpicture}
+\caption{회로에서의 확산(개념도). 점은 선 한 가닥, 선분은 배선이다. 클럭마다 통전된 영역의 가장자리 전체가
+동시에 한 걸음 나아간다. 소프트웨어는 같은 영역을 점 하나씩 채운다.}
+\label{fig:g-wave}
+\end{figure}
+
+기준 RTL에서 이 ``한꺼번에''를 만드는 것도 반복문이다. 다음 코드는 \code{bombe\_core}의 전파 논리다.
+바깥 반복은 메뉴의 선, 안쪽 반복은 26가닥의 선을 돈다. 앞 절에서 본 대로 이 반복문은 시간을 쓰지 않는다.
+메뉴의 선 16개 × 글자 26개 × 양방향에 해당하는 회로가 전부 나란히 놓인다.
+
+\begin{lstlisting}[language=SV,caption={\code{rtl/src/bombe\_core.sv}의 전파 논리(일부).},label={lst:g-spread}]
+always_comb begin
+  live_n = live_q;
+  for (int i = 0; i < MAX_EDGES; i++) begin
+    cable_a = 26 * edge_a[i];
+    cable_b = 26 * edge_b[i];
+    if (edge_en[i]) begin
+      for (int x = 0; x < 26; x++) begin
+        y = {27'd0, perm_q[(i*26 + x)*5 +: 5]};
+        if (live_q[cable_a + y]) live_n[cable_b + x] = 1'b1;
+        if (live_q[cable_b + y]) live_n[cable_a + x] = 1'b1;
+      end
+    end
+  end
+  ...
+end
+\end{lstlisting}
+
+두 방식이 같은 답을 내는 이유는 구하는 것이 순서와 무관하기 때문이다. 찾는 것은 ``전압을 건 선과 이어진
+선 전체''라는 하나의 집합이다. 한 가닥씩 찾든 한꺼번에 찾든 그 집합은 같다. 이 코드는 3부에서 한 줄씩
+다시 읽는다.
+
+\section{정리}
+
+\begin{center}
+\small
+\begin{tabular}{lll}
+\toprule
+ & 프로그램 & 회로 기술 \\
+\midrule
+코드 한 줄 & 수행할 명령 & 놓일 부품 \\
+문장의 순서 & 실행 순서 & 의미 없음 (조합 논리의 경우) \\
+변수 & 값을 담는 메모리 & 전선의 이름 \\
+반복문 & 시간을 들여 되풀이 & 부품을 복사해 나란히 놓음 \\
+여러 블록 & 차례로 & 동시에 \\
+비용 & 실행 시간 & 부품의 수와 신호의 지연 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+표의 ``변수는 전선의 이름''에는 예외가 있다. 값을 \emph{기억}하는 부품인 레지스터다. 다음 장에서 다룬다.

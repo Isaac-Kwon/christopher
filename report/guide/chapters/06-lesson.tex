@@ -1,0 +1,172 @@
+\chapter{실제 사례: LUT 40만 개짜리 회로}\label{ch:lesson}
+
+앞의 다섯 장에서 배운 것이 실제로 문제가 된 사례 하나를 처음부터 끝까지 따라가 본다. FPGA 엔진의 첫 구현은
+시뮬레이션에서 완벽하게 동작했지만 합성해 보니 LUT 약 40만 4천 개가 필요했다. 대상 칩 용량의 300\%다.
+코드를 고친 뒤에는 같은 기능이 41,040개(30.5\%)에 들어갔다. 계산하는 내용은 한 글자도 바뀌지 않았다.
+바뀐 것은 그 계산을 \emph{어떤 구조의 회로로 적었는가}뿐이다.
+
+\section{문제의 코드}
+
+원인은 전파 논리의 두 줄이었다. 기준 RTL에 같은 꼴이 있으므로 그것으로 본다(코드~\ref{lst:g-spread}의 안쪽).
+
+\begin{lstlisting}[language=SV,numbers=none]
+if (live_q[cable_a + y]) live_n[cable_b + x] = 1'b1;
+if (live_q[cable_b + y]) live_n[cable_a + x] = 1'b1;
+\end{lstlisting}
+
+뜻은 분명하다. \code{live\_q}는 676비트의 상태이고, 케이블 $c$의 $w$번 선은 $26c + w$번째 비트다.
+\code{cable\_a}는 메뉴의 선이 잇는 한쪽 글자에 26을 곱한 값이다. ``한쪽 케이블의 $y$번 선이 통전되어 있으면
+다른 쪽 케이블의 $x$번 선을 통전시킨다.'' 소프트웨어의 사고방식으로는 배열 읽기 한 번과 쓰기 한 번,
+가장 값싼 연산이다.
+
+\section{이 두 줄이 만드는 회로}
+
+\Why \ref{sec:mux-cost}절에서 본 대로, 변수로 배열의 원소를 고르는 것은 선택 회로다. 여기서 번호
+\code{cable\_a + y}는 메뉴의 설정(어느 글자인가)과 치환표(어느 선인가)에 따라 실행 중에 달라지는 값이다.
+합성 도구는 이 번호가 0에서 675 사이의 무엇이든 될 수 있다고 보아야 하므로,
+
+\begin{itemize}
+\item \textbf{읽기} \code{live\_q[cable\_a + y]}는 676개의 비트 가운데 하나를 고르는 676:1 선택 회로가 되고
+(앞에 번호를 계산하는 덧셈기도 붙는다),
+\item \textbf{쓰기} \code{live\_n[cable\_b + x] = 1}은 번호를 풀어 676가닥 가운데 한 가닥만 켜는 해독 회로가
+된다. 그리고 \code{live\_n}의 각 비트는 자기를 켤 수 있는 모든 해독 회로의 출력을 OR로 모아야 한다.
+\end{itemize}
+
+이것이 한 번이면 괜찮다. 그런데 이 두 줄은 반복문 안에 있고, \ref{ch:hdl}장에서 본 대로 반복문은 회로를
+복사한다. 메뉴의 선 16개 × 글자 26개 × 두 방향 = \emph{832벌}이다(그림~\ref{fig:g-bad}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[reg,minimum width=12mm,minimum height=34mm] (q) at (0,0) {\rotatebox{90}{\code{live\_q} 676비트}};
+  \node[mux,minimum width=30mm,minimum height=12mm] (m) at (3.2,0) {676:1};
+  \foreach \i in {-6,...,6} { \draw[cgray] (q.east|-0,\i*0.22) -- (m.west|-0,\i*0.22); }
+  \node[blkn,minimum width=18mm,font=\footnotesize] (add) at (3.2,-2.4) {$26a + y$};
+  \draw[->] (add) -- (m.south);
+  \node[blkb,minimum width=24mm,minimum height=12mm] (dec) at (7.0,0) {해독 회로\\{\footnotesize 676가닥 중 하나}};
+  \node[blkn,minimum width=18mm,font=\footnotesize] (add2) at (7.0,-2.4) {$26b + x$};
+  \draw[->] (add2) -- (dec.south);
+  \draw[->] (m.east) -- node[above,note] {1비트} (dec.west);
+  \node[reg,minimum width=12mm,minimum height=34mm] (n) at (10.6,0) {\rotatebox{90}{\code{live\_n} 676비트}};
+  \foreach \i in {-6,...,6} { \draw[cgray] (dec.east|-0,\i*0.22) -- (n.west|-0,\i*0.22); }
+  \node[note,text=cred,anchor=west,text width=36mm,align=left] at (11.8,0.6) {이 그림 전체가\\832벌};
+  \node[note,anchor=west,text width=36mm,align=left] at (11.8,-0.7) {\code{live\_n}의 비트마다\\832벌의 출력을 OR};
+\end{tikzpicture}
+\caption{문제의 두 줄 가운데 한 줄이 만드는 회로. 676:1 선택 회로 하나만 해도 LUT가 이백 개 넘게 든다.}
+\label{fig:g-bad}
+\end{figure}
+
+어림해 보면 읽기 쪽만 $832 \times 200$을 넘는다. 합성 결과 40만 개라는 수가 이상하지 않다. 그리고 이
+회로는 크기만 문제가 아니다. 상태 레지스터에서 나온 신호가 거대한 선택 회로와 해독 회로와 넓은 OR를 지나
+다시 상태 레지스터로 들어가므로 경로도 길다.
+
+\section{왜 미리 알아채지 못했는가}
+
+시뮬레이션은 아무 경고도 주지 않았다. 시뮬레이터에게 이 코드는 정말로 배열 접근 한 번이고, 금방 계산되며,
+결과도 옳다. 시험은 전부 통과했다. \ref{sec:sim-vs-synth}절의 간격이 바로 이것이다. 시뮬레이션이 알려 주는
+것은 ``동작이 옳은가''뿐이고, ``칩에 들어가는가''는 합성을 해 보아야 안다.
+
+기준 RTL에서는 징후가 이미 있었다. 합성을 시도했을 때 도구가 끝나지 않거나 메모리가 바닥났다. 그때는
+기준 RTL이 원래 시뮬레이션용이라 그러려니 했지만, 같은 꼴의 코드를 FPGA 엔진에 그대로 가져온 것이 실수였다.
+
+\section{고친 구조: 케이블 단위로 생각한다}
+
+\Why 676개 가운데 하나를 고르는 일에는 사실 구조가 있다. 번호 $26a + y$는 ``$a$번 케이블의 $y$번 선''이다.
+676개에서 바로 하나를 고르지 말고 \emph{먼저 케이블을 고르고, 그 안에서 선을 고르면} 26개 가운데 하나를
+고르는 일 두 번이 된다. 게다가 케이블을 고르는 일은 26가닥이 함께 움직이므로 선마다 따로 할 필요가 없다.
+
+고친 전파 회로는 메뉴의 선 하나에 대해 세 단계로 되어 있다(그림~\ref{fig:g-good}).
+
+\begin{enumerate}
+\item \textbf{케이블 선택.} 선의 양 끝 글자에 해당하는 케이블 두 개를 통째로 꺼낸다. 26개의 케이블 가운데
+하나를 고르는 26:1 선택을 26비트 폭으로 한다.
+\item \textbf{치환.} 꺼낸 26가닥을 스크램블러의 치환에 따라 자리를 옮긴다. 출력의 선마다 입력 26가닥
+가운데 하나를 고르는 26:1 선택이다.
+\item \textbf{모으기.} 자리를 옮긴 26가닥을 목적지 케이블에 OR로 더한다. ``이 선의 목적지가 몇 번
+케이블인가''를 26가닥 중 하나만 켜진 신호(원핫)로 미리 만들어 두면, 케이블마다 ``이 선이 나에게 오는가''와
+AND해서 OR로 모으기만 하면 된다. 메뉴는 구동 중에 바뀌지 않으므로 이 신호는 구동을 시작할 때 한 번만
+만든다.
+\end{enumerate}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[reg,minimum width=20mm,minimum height=30mm,align=center] (q) at (0,0) {케이블\\26개\\{\footnotesize 각 26비트}};
+  \node[mux,minimum width=26mm,minimum height=11mm] (m1) at (3.4,0) {26:1};
+  \node[note] at (3.4,1.75) {① 케이블 선택\\{\footnotesize 26비트 폭}};
+  \draw[->,line width=1.6pt,cgray] (q) -- (m1);
+  \node[blkb,minimum width=24mm,minimum height=16mm] (pm) at (7.0,0) {26:1 × 26\\{\footnotesize 선마다}};
+  \node[note] at (7.0,1.75) {② 치환};
+  \draw[->,line width=1.6pt,cgray] (m1) -- node[above,font=\scriptsize,text=cgray] {26} (pm);
+  \node[blkg,minimum width=26mm,minimum height=16mm] (orr) at (10.8,0) {원핫 AND\\+ OR};
+  \node[note] at (10.8,1.75) {③ 목적지 케이블에 모으기};
+  \draw[->,line width=1.6pt,cgray] (pm) -- node[above,font=\scriptsize,text=cgray] {26} (orr);
+  \node[reg,minimum width=18mm,minimum height=30mm,align=center] (n) at (14.0,0) {다음\\상태};
+  \draw[->,line width=1.6pt,cgray] (orr) -- (n);
+  \node[blkn,font=\footnotesize] (ea) at (3.4,-1.9) {글자 $a$};
+  \draw[->] (ea) -- (m1.south);
+  \node[blkn,font=\footnotesize] (pp) at (7.0,-1.9) {치환표};
+  \draw[->] (pp) -- (pm);
+  \node[blkn,font=\footnotesize] (oh) at (10.8,-1.9) {글자 $b$의 원핫 (미리 계산)};
+  \draw[->] (oh) -- (orr);
+\end{tikzpicture}
+\caption{케이블 단위의 전파 회로(메뉴의 선 하나, 한 방향). 676:1 선택이 26:1 선택 두 층으로 바뀌었다.}
+\label{fig:g-good}
+\end{figure}
+
+\General 같은 생각은 어디에나 쓰인다. 사전에서 낱말을 찾을 때 30만 낱말을 처음부터 훑지 않고 첫 글자로
+구역을 고른 뒤 그 안에서 찾는다. 메모리 칩도 주소를 행과 열로 나눠 두 번에 걸쳐 고른다. 큰 선택을 구조에
+맞춰 작은 선택 여러 번으로 나누는 것이다. 회로에서는 이 나눔을 도구가 알아서 해 주지 않는다. $26a + y$라는
+덧셈으로 번호를 만들어 버리면 도구에게는 그 안의 구조가 보이지 않는다.
+
+\section{결과}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    xbar, width=0.78\linewidth, height=50mm,
+    xmin=0, xmax=480000, bar width=7mm, bar shift=0pt,
+    ymin=-0.7, ymax=1.9, clip=false,
+    ytick={0,1}, yticklabels={케이블 단위 구조,첫 구현},
+    y tick label style={font=\small},
+    xlabel={LUT 수 (Vivado 합성, XC7A200T)}, xlabel style={font=\small},
+    scaled x ticks=false,
+    xtick={0,100000,200000,300000,400000},
+    xticklabels={0,10만,20만,30만,40만},
+    x tick label style={font=\small},
+    axis lines*=left,
+  ]
+  \addplot[fill=cblue!70,draw=cblue] coordinates {(41040,0)};
+  \addplot[fill=cred!70,draw=cred] coordinates {(404000,1)};
+  \node[anchor=west,font=\small] at (axis cs:41040,0) {\,41,040 (30.5\%)};
+  \node[anchor=west,font=\small] at (axis cs:404000,1) {\,약 40만 4천 (300\%)};
+  \draw[dashed,line width=0.9pt,cgray] (axis cs:134000,-0.7) -- (axis cs:134000,1.75)
+     node[above,font=\footnotesize,text=cgray] {칩의 용량 약 13만 4천};
+\end{axis}
+\end{tikzpicture}
+\caption{같은 기능의 두 가지 기술. 나머지 자원은 LUT RAM 2,858개, 플립플롭 7,338개다.}
+\label{fig:g-lutbars}
+\end{figure}
+
+크기는 약 10분의 1이 되었다(그림~\ref{fig:g-lutbars}). 경로도 짧아져 100MHz에서 합성 단계의 추정 슬랙이
+$+0.18$나노초가 되었다. 가장 느린 경로는 여전히 이 전파 회로이고 LUT를 11단 거친다. 남은 타이밍 문제였던
+안쪽 치환 파이프라인은 \ref{sec:pipeline}절에서 본 대로 7단을 14단으로 나누어 풀었다. 이 수치들은
+2026년 11월 14일 기준이며 조정이 계속되고 있다.
+
+\section{교훈}
+
+\begin{keybox}
+\begin{itemize}
+\item \textbf{회로의 크기는 계산의 양이 아니라 적은 구조가 정한다.} 같은 계산도 적는 방식에 따라 열 배
+차이가 난다.
+\item \textbf{넓은 벡터를 변수로 고르는 코드를 보면 선택 회로를 떠올린다.} 고를 대상이 몇 개인지, 그
+코드가 반복문으로 몇 벌 복사되는지를 곱해 본다.
+\item \textbf{번호를 산술로 만들지 않는다.} $26a + y$처럼 덧셈과 곱셈으로 번호를 합치면 구조가 사라진다.
+자료를 2차원(케이블, 선)으로 두고 차원마다 따로 고른다.
+\item \textbf{바뀌지 않는 것은 미리 풀어 둔다.} 구동 중에 변하지 않는 설정(메뉴)에서 나오는 신호는 시작할
+때 한 번 계산해 레지스터에 둔다.
+\item \textbf{일찍, 자주 합성해 본다.} 시뮬레이션은 크기를 알려 주지 않는다. 모듈 하나를 쓰면 그것만이라도
+합성해 LUT 수를 확인한다.
+\end{itemize}
+\end{keybox}

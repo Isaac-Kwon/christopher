@@ -1,0 +1,162 @@
+\chapter{역사적 배경}\label{ch:history}
+
+이 장은 봄베가 어떤 문제를 풀기 위해, 누구에 의해, 어떤 순서로 만들어졌는지를 요약한다.
+기계의 동작 원리는 \ref{ch:enigma}장과 \ref{ch:bombe}장에서 다룬다.
+
+\section{에니그마}
+
+에니그마는 글자를 누를 때마다 치환표가 바뀌는 로터식 암호기다. 1920년대에 상업용으로 나온 뒤 독일군이
+채택했고, 군용 기종에는 글자 쌍을 맞바꾸는 플러그보드가 추가되었다~\cite{welchman1982hutsix,hinsley1993codebreakers}.
+이 프로젝트가 다루는 기종은 세 가지다(표~\ref{tab:models}). 육군과 공군의 Enigma~I은 로터 다섯 개 중
+세 개를 골라 쓰고, 해군의 M3는 로터를 여덟 개로 늘렸으며, U보트 부대의 M4는 네 번째 로터(그리스 로터)와
+얇은 반사판을 더했다. 4로터 기종에서는 로터 순서 하나당 탐색할 위치가 $26^3$에서 $26^4$으로 26배
+늘어난다~\cite{wenger1944history}.
+
+\begin{table}[ht]
+\centering
+\caption{재현 대상 에니그마 기종. 로터 순서 수는 로터를 끼우는 순서의 가짓수이며 반사판 선택은 포함하지 않는다.}
+\label{tab:models}
+\begin{tabular}{llll}
+\toprule
+기종 & 로터 & 반사판 & 로터 순서 수 \\
+\midrule
+Enigma I (육군·공군) & I--V 중 3개 & B, C & $5\cdot4\cdot3 = 60$ \\
+M3 (해군) & I--VIII 중 3개 & B, C & $8\cdot7\cdot6 = 336$ \\
+M4 (해군 U보트) & I--VIII 중 3개 + Beta/Gamma & 얇은 B, 얇은 C & $336\cdot 2\cdot 2 = 1{,}344$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{폴란드의 선행 연구와 블레츨리 파크}
+
+에니그마를 처음 수학적으로 공략한 것은 폴란드 암호국이다. 마리안 레예프스키는 1930년대 초 군용 에니그마의
+로터 배선을 복원했고, 폴란드 팀은 당시 독일군의 지시자(indicator) 절차가 가진 약점을 이용하는 전기기계식
+장치 ``봄바(bomba)''를 만들었다~\cite{rejewski1981polish}. 전쟁 직전인 1939년 여름 폴란드는 이 성과를
+영국과 프랑스에 넘겼다~\cite{rejewski1981polish,welchman1982hutsix}.
+
+영국의 암호 해독 기관인 정부암호학교(GC\&CS)는 블레츨리 파크에 자리를 잡았고, 앨런 튜링은 전쟁이 시작된
+1939년 가을부터 그곳에서 에니그마를 맡았다~\cite{hodges1983turing}. 폴란드의 봄바는 지시자 절차에 의존했으므로
+독일군이 절차를 바꾸면 쓸 수 없게 된다. 튜링은 절차가 아니라 \emph{추정 평문}(크립)에 기대는 새 기계를
+설계했다. 전문 내용의 일부를 짐작할 수 있기만 하면 통하는 방법이다~\cite{hodges1983turing,copeland2004essential}.
+이것이 봄베다.
+
+\section{튜링의 봄베와 웰치먼의 대각선 보드}
+
+튜링의 설계는 British Tabulating Machine(BTM)사가 제작했다. 첫 기계는 1940년 봄에 가동되었으나, 튜링의
+원래 배선은 루프(폐회로)가 여러 개 있는 메뉴에서만 쓸모가 있었고 그런 크립은
+드물었다~\cite{carter2010bombe,welchman1982hutsix}. 고든 웰치먼은 플러그보드가 대칭이라는 사실을
+배선으로 강제하는 \term{대각선 보드}{diagonal board}를 고안했다. 대각선 보드가 없으면 동시 탐색에 루프가
+세 개 이상 필요했지만, 있으면 루프가 하나거나 특수한 경우에는 없어도 된다~\cite{carter2010bombe}.
+이후의 봄베는 모두 이 개량을 포함하며, 이 보고서에서 ``봄베''는 튜링--웰치먼 봄베를 가리킨다.
+
+표준 3로터 봄베는 에니그마 등가 유닛(드럼 세 개 한 벌) 36개를 12개씩 세 뱅크로 배열했고, 드럼 108개와
+지시 드럼 3개를 가졌다~\cite[5]{us6812report1944}. 폭 약 7피트, 높이 6피트 6인치, 무게 약 1톤의
+기계다~\cite{ellsbury1998bombe,us6812report1944}. 정지가 없을 때 로터 순서 하나를 훑는 데 약 10.4분이
+걸렸다~\cite{jackson-bh09,jackson-bh11}. 영국에서 제작된 봄베는 3로터와 4로터 기종을 합쳐
+211대로 집계된다~\cite{jackson-bh14}.
+
+그림~\ref{fig:bombe-front}은 문헌의 기술을 바탕으로 그린 이 기계의 모습이다. 앞면에는 드럼이 아홉 줄로
+놓인다. 세 줄이 한 뱅크이고, 세로로 놓인 드럼 세 개가 스크램블러 한 벌, 곧 플러그보드 없는 에니그마 한
+대다. 가운데 뱅크의 오른쪽에 정지 위치를 읽는 지시 드럼 세 개가 있다~\cite[5]{us6812report1944}.
+뒷면은 메뉴를 배선하는 곳이다. 잭이 아홉 열로 놓이는데, 뱅크마다 대각선 보드의 잭 열, 커먼 잭 열,
+스크램블러의 입출력 잭 열이 하나씩이다~\cite[59, 68]{us6812report1944}\cite{jackson-bh10}. 조작자는 26선
+케이블로 스크램블러의 양 끝을 메뉴의 두 글자에 해당하는 잭에 꽂았다~\cite[8--10]{us6812report1944}.
+반사판은 기계 왼쪽 측면의 플러그보드로 뱅크마다 설정했다~\cite[5, 39]{us6812report1944}.
+각 부분이 하는 일은 \ref{ch:bombe}장에서 설명한다.
+
+\begin{figure}[p]
+\centering
+\input{figures/bombe-front}
+\caption{영국 3로터 봄베의 도해(직접 그린 것이며 사진을 옮긴 것이 아니다). 위는 앞면, 아래는 뒷면의 잭 배치다.
+뱅크와 유닛과 드럼의 수, 지시 드럼의 위치, 드럼과 로터의 대응, 뒷면 잭 열의 용도는
+1차 자료~\cite[5, 59, 68, 73]{us6812report1944}를, 외형 치수와 드럼 지름은~\cite{ellsbury1998bombe,us6812report1944}를
+따랐다. 드럼 사이의 간격과 캐비닛 안에서의 정확한 위치, 지시 드럼의 배열 방향, 바퀴의 모양, 뒷면 잭의 개수와
+간격, 세 묶음과 뱅크의 대응은 확인하지 못해 어림해 그렸다. 실제 드럼은 로터 종류에 따라 색이
+달랐으나~\cite[9]{us6812report1944} 그림에서는 구분하지 않았다.}
+\label{fig:bombe-front}
+\end{figure}
+
+\section{4로터 문제와 미국의 봄베}\label{sec:us-bombes}
+
+1942년 독일 해군 U보트 부대가 M4를 도입하자 탐색 공간이 26배로 늘었다. 미 해군은 이를 ``26배 많은 봄베
+또는 26배 빠른 봄베''가 필요한 문제로 보고 고속 봄베 개발을 승인했다(1942년 9월)~\cite{wenger1944history}.
+National Cash Register(NCR)사의 조지프 데시가 설계를 맡았고~\cite{desch1942memo}, 튜링은 1942년 12월
+데이턴의 NCR를 방문해 설계를 검토했다~\cite{turing1942ncr}. 미 해군 봄베는 4휠 에니그마 등가 유닛 16개를
+가졌고, 정지 감지를 전자식으로 했으며, 정지한 위치에서 스테커를 자동으로 검사해 통과한 것만
+인쇄했다~\cite{ekhall-hallenberg2018}. 양산기는 1943년 6월 초부터 가동되었다~\cite{wenger1944history}.
+
+미 육군은 다른 길을 택했다. 벨 연구소가 만든 육군 봄베는 회전 드럼을 없애고 전화 교환기용 릴레이로
+로터의 치환과 위치 진행을 구현했다~\cite{dturing2021army}. 영국에서도 3로터 봄베에 초고속 네 번째 휠을
+덧붙인 4로터 변형들이 만들어졌다~\cite{jackson-bh12}. 세 계열의 차이는 표~\ref{tab:families}와 같다.
+
+\begin{table}[ht]
+\centering
+\caption{봄베 세 계열의 비교. 출처: 영국~\cite{us6812report1944,jackson-bh10,jackson-bh11},
+미 해군~\cite{ekhall-hallenberg2018,turing1942ncr,desch1942memo}, 미 육군~\cite{dturing2021army}.
+미 해군의 구동 시간은 직접 열람하지 못한 문헌을 거친 간접 인용이다.}
+\label{tab:families}
+\small
+\begin{tabularx}{\linewidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+ & 영국 3로터 (BTM) & 미 해군 4로터 (NCR) & 미 육군 (벨 연구소) \\
+\midrule
+스크램블링 & 회전 드럼 & 회전 휠 & 고정 배선 + 릴레이 \\
+위치 진행 & 모터, 웜 구동, 자리올림 기구 & 모터, 단별 기어열 & 펄스로 구동되는 릴레이 \\
+유닛 수 & 36 (12 × 3뱅크) & 16 & 144 (전체) \\
+메뉴 설정 & 26선 케이블 배선 & 회전 스위치 & 제어반 \\
+정지 감지 & 감지 릴레이 & 전자식 & 정지 없이 기록 \\
+정지 이후 & 수동 체킹 머신 & 자동 검사 뒤 인쇄 & 부착 장치로 자동 체킹 \\
+1회 구동 & 10.4분 + 정지 처리 & 4휠 약 20분 & 7분 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{이 프로젝트가 재현하는 것}
+
+이 프로젝트의 최종 목표는 \emph{기계식 실물}이다. 드럼이 실제로 돌고 전류가 배선을 흘러 정지하는 봄베를
+만들며, 전시관에 두고 관람객이 직접 메뉴를 배선하고 구동해 볼 수 있는 수준을 설계 요구사항으로 삼는다
+(전시 여부는 아직 정해지지 않았다).
+
+전시의 구성은 같은 봄베를 세 가지 방식으로 만든 세 대다. 기어로 드럼을 돌리는 \emph{기계식}, 회전 부품을
+릴레이로 바꾼 \emph{릴레이식}, 움직이는 부품이 없는 \emph{전자식}(FPGA)이다. 앞의 둘은 \ref{sec:us-bombes}절에서
+본 대로 1940년대에 실제로 있었던 두 방식이고, 셋째는 오늘날의 방식이다. 세 대를 나란히 두고 같은 메뉴를
+걸어 같은 위치에서 정지하는 것을 보이면, 같은 계산이 기계에서 전기기계로, 다시 전자로 옮겨 가며 얼마나
+빨라졌는지가 드러난다. 따라서 FPGA 구현은 실물을 돕는 전자 장치이기도 하지만 그 자체가 세 번째 전시물이다
+(그림~\ref{fig:three-machines}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkg,minimum width=40mm,minimum height=12mm] (sw) at (5.2,2.6) {소프트웨어 기준 모델\\{\footnotesize 세 기계가 내야 할 정지 목록}};
+  \node[blko,minimum width=38mm,minimum height=20mm] (g) at (0,0) {\textbf{기계식}\\{\footnotesize 기어로 도는 드럼과 브러시}\\{\footnotesize 영국 봄베의 방식}};
+  \node[blko,minimum width=38mm,minimum height=20mm] (r) at (5.2,0) {\textbf{릴레이식}\\{\footnotesize 릴레이 접점망과 계수기}\\{\footnotesize 미 육군 봄베의 방식}};
+  \node[blkb,minimum width=38mm,minimum height=20mm] (f) at (10.4,0) {\textbf{전자식 (FPGA)}\\{\footnotesize 움직이는 부품 없음}\\{\footnotesize 내부 상태를 표시 장치로}};
+  \draw[->,line width=1pt] (g) -- (r); \draw[->,line width=1pt] (r) -- (f);
+  \draw[->,dashed] (sw) -- (r); \draw[->,dashed] (sw.west) -| (g); \draw[->,dashed] (sw.east) -| (f);
+  \node[note] at (5.2,-1.6) {같은 메뉴 카드 $\Rightarrow$ 같은 정지. 위치 하나를 시험하는 시간은 오른쪽으로 갈수록 짧아진다.};
+  \node[note] at (0,-2.25) {기계};
+  \node[note] at (5.2,-2.25) {전기기계};
+  \node[note] at (10.4,-2.25) {전자};
+\end{tikzpicture}
+\caption{이 프로젝트가 계획하는 세 대의 전시물(계획을 나타낸 개념도이며 완성된 기계의 모습이 아니다).
+점선은 기준 모델과의 결과 대조다.}
+\label{fig:three-machines}
+\end{figure}
+
+소프트웨어 모델은 세 기계 모두의 기준 모델이다. 세 기계가 내야 할 답을 정의하고, 각 기계의 결과를 대조하는
+근거가 된다. 이 보고서의 장 순서는 이 구성을 따른다. \ref{ch:software}장은 기준 모델을, \ref{ch:rtl}장은
+전자식 구현을, \ref{ch:hardware}장은 기계식과 릴레이식 실물을 다룬다. 전자식을 먼저 다루는 것은 역사의
+순서와는 반대지만 제작의 순서다. 기준 모델과 비트 단위로 대조할 수 있는 회로를 먼저 완성해 두면 그것이
+실물의 구동 제어와 결과 대조에도 쓰인다.
+
+``재현''에는 두 기준이 있다. 첫째는 기능이다. 암호문과 크립이 주어지면 로터 순서, 로터 위치,
+플러그보드 배선 후보를 찾아내고 검증해 실제로 해독한다. 둘째는 구조다. 결과만 맞추는 탐색기가 아니라
+실제 기계의 구성요소를 일대일로 옮긴다. 영국 3로터 봄베가 기본 대상이고, 4로터는 자료가 가장 충분한
+미 해군형의 동작(자동 검사 포함)을 따른다. 실물 단계에서는 영국식 회전 드럼(기어식)과 미 육군식
+릴레이 구성(릴레이식)을 둘 다 만든다. 미 육군 봄베가 로터 한 단을 ``고정 배선 + 순환 시프트''로
+구현했다는 기록~\cite{dturing2021army}이 릴레이식 설계의 출발점이다.
+
+이 보고서의 역사적 서술은 1차 자료(미 육군 6812 파견대의 봄베 운용 보고서~\cite{us6812report1944},
+데시의 설계 메모~\cite{desch1942memo}, 튜링의 NCR 방문 보고~\cite{turing1942ncr})와 재현 프로젝트의
+해설~\cite{jackson-bh10,ellsbury1998bombe,carter2010bombe}에 근거한다. 출처끼리 어긋나는 수치는
+1차 자료를 따랐다.
