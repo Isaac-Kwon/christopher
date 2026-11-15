@@ -34,3 +34,6 @@ desktop.ini
 
 # machine-local cargo config (target dir outside Dropbox)
 /.cargo/config.toml
+
+# LaTeX PDFs built in place by an editor (real build output goes outside the repo, see report/latexmkrc)
+/report/**/main.pdf
