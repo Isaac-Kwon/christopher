@@ -246,6 +246,7 @@ class Sim:
         self.seq = 0
         self.flips: dict[str, int] = {r: 0 for r in circ.relays}
         self.shorts = 0
+        self.line_src = 0      # evaluations in which a J1 line carried a source (HIGH) while the STROBE contact K27 was open
         self.lvl: Level | None = None
 
     def at(self, t, fn):
@@ -268,6 +269,10 @@ class Sim:
         self.lvl = Level(self.c, self.op, self.links(), self.drives())
         if self.lvl.shorts:
             self.shorts += 1
+        # L9 / drum current: a J1 line can only carry current if something drives it HIGH (diode D_i blocks the hold
+        # bus H from the line).  Outside the STROBE contact (JUDGE, CLEAR, stopped, release) no line may be HIGH.
+        if not self.op[self.c.ref["STB"]] and any(self.lvl.hi(l) for l in self.c.line):
+            self.line_src += 1
         return self.lvl
 
     def settle(self):
@@ -491,8 +496,9 @@ def finish(b: Bench):
     errs = [e for e in b.errs if e]
     if b.sim.shorts:
         errs.append(f"[{b.name}] {b.sim.shorts} evaluations with a net both HIGH and LOW (short)")
-    for r, n in b.sim.flips.items():
-        pass
+    if b.sim.line_src:
+        errs.append(f"[{b.name}] {b.sim.line_src} evaluations with a J1 line driven while the STROBE contact is open "
+                    "(current through the drum contacts outside STROBE)")
     return errs
 
 
@@ -624,7 +630,24 @@ def static_checks(circ: Circuit, nl: Netlist) -> list[str]:
         e.append(f"expected 36 diodes D1..D36, found {n_d}")
     if len([r for r in P if re.fullmatch(r"Q\d+", r)]) != 28:
         e.append("expected 28 MOSFETs (26 lamp drivers + LAMPGND switch + stop lamp)")
-    return e + interface_checks(circ, nl)
+    return e + line_isolation_checks(nl) + interface_checks(circ, nl)
+
+
+def line_isolation_checks(nl: Netlist) -> list[str]:
+    """Each J1 line L_i touches only the anode of its blocking diode D_i (cathode = K_i coil +); the test lead J5.1 touches
+    only the two K27 NO contacts.  Then a line carries current only while K27 closes +24 V onto the test lead."""
+    e: list[str] = []
+    net_of = {nd: name for name, nodes in nl.nets.items() for nd in nodes}
+    for i in range(1, N + 1):
+        ln = net_of.get(("J1", str(i)))
+        if ln is None or set(nl.nets[ln]) != {("J1", str(i)), (f"D{i}", "2")}:
+            e.append(f"line L{i}: net has other nodes than J1.{i} and the anode of D{i} ({nl.nets.get(ln)})")
+        if net_of.get((f"D{i}", "1")) != net_of.get((f"K{i}", "1")):
+            e.append(f"line L{i}: D{i} cathode is not on the K{i} coil")
+    tn = net_of.get(("J5", "1"))
+    if tn is None or set(nl.nets[tn]) != {("J5", "1"), ("K27", "5"), ("K27", "8")}:
+        e.append(f"test lead J5.1 is not only on the K27 NO contacts ({nl.nets.get(tn)})")
+    return e
 
 
 def interface_checks(circ: Circuit, nl: Netlist) -> list[str]:
@@ -766,6 +789,9 @@ NEGATIVE_0003 = [
     ("J2 pin 26 (reserved) tied to +24 V", lambda nl: move_node(nl, ("J2", "26"), ("F1", "2"))),
     ("mounting hole H2 on 0 V instead of CHASSIS", lambda nl: move_node(nl, ("H2", "1"), ("J4", "2"))),
     ("CHASSIS tied straight to 0 V (RCH1 pin 1 on 0 V)", lambda nl: move_node(nl, ("RCH1", "1"), ("J4", "2"))),
+    ("blocking diode D5 bypassed: line J1.5 on the K5 coil node (hold voltage back on the drum line)",
+     lambda nl: move_node(nl, ("J1", "5"), ("K5", "1"))),
+    ("line J1.9 also on the hold bus side of K9 (pole-1 common)", lambda nl: move_node(nl, ("J1", "9"), ("K9", "4"))),
 ]
 
 
@@ -819,6 +845,7 @@ def main() -> int:
         return 1
     print(f"PASS ({time.time() - t0:.0f} s): {stat['cycles']} position cycles, {stat['stops']} stops "
           f"(false stops with all 26 live: {stat['false_stops']})")
+    print("  no J1 line is ever driven outside the STROBE contact (JUDGE, CLEAR, stopped, release): no drum current after STROBE.")
     print("  K latched = live lines, P released iff all 26 live, S latched iff not all 26 live, lamps show the latched\n"
           "  pattern only while stopped, CLEAR releases everything when running, stopped state frozen, RELEASE clears all.")
     if not args.quick:
@@ -845,6 +872,14 @@ def main() -> int:
             bad = [f"exception {type(ex).__name__}: {ex}"]
         print(f"  {'detected' if bad else 'MISSED  '}: {name} ({len(bad)} discrepancies)")
         ok &= bool(bad)
+    # the dynamic line-current check must catch a bypassed blocking diode on its own (static line check skipped)
+    try:
+        dyn, _ = case_suite(Circuit(move_node(nl, ("J1", "5"), ("K5", "1"))), True)
+    except Exception as ex:
+        dyn = [f"exception {type(ex).__name__}: {ex}"]
+    hit = any("J1 line driven" in (x or "") for x in dyn)
+    print(f"  {'detected' if hit else 'MISSED  '}: dynamic line-current check alone, D5 bypassed (no J1 line may be driven outside STROBE)")
+    ok &= hit
     if not ok:
         print("FAIL: a negative test was not detected")
         return 1
