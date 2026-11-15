@@ -31,7 +31,7 @@ R_BOARD = 48.0                     # 96 mm drum
 RING_R = {1: 22.0, 2: 29.0, 3: 36.0, 4: 43.0}
 PAD_L = 3.6                        # radial pad length
 PAD_ARC_FRAC = 0.5                 # pad width = 50 % of ring pitch (concept.md section 2)
-BORE_D = 8.0                       # centre bore (provisional)
+BORE_D = 8.6                       # centre bore: clearance on the Ø8 h6 shaft pilot (hardware/gear/layout.md)
 HUB_HOLE_R, HUB_HOLE_D, HUB_N = 7.5, 3.2, 4   # M3 clearance holes, at 45+90k deg
 DOWEL_D = 2.0                      # index (dowel) hole at letter A, same radius
 NOTCH_R = 1.2                      # key notch radius on the rim
@@ -500,9 +500,10 @@ def build_board(rotor, direction=1):
     for i in range(N):
         x, y = fr.polar(LETTER_R, i * DELTA)
         out.append(sexp_text(chr(65 + i), (x, y), fr.kicad_rot(i * DELTA), "F.SilkS", 1.6, 0.2, (rotor, "letter", i)))
-    tri = [fr.local(0, -1.0, 16.4), fr.local(0, 1.0, 16.4), fr.local(0, 0, 19.4)]
+    tri = [fr.local(0, -1.0, 17.8), fr.local(0, 1.0, 17.8), fr.local(0, 0, 19.9)]  # outside the r<=17.5 index-disc seat
     out.append(sexp_poly(tri, "F.SilkS", (rotor, "tri")))
-    out.append(sexp_text(f"ROTOR {rotor}", (CENTER[0], CENTER[1] + 14.0), 0, "F.SilkS", 2.0, 0.25, (rotor, "name")))
+    # No rotor name on the pad side: the centre (r <= 17.5) is the seat of the 26-tooth index disc
+    # (hardware/gear/layout.md). The name is printed on the back (below).
     back = [f"ROTOR {rotor}  (BACK - NO CONTACTS)",
             f"WIRING {wiring_str}", f"TURNOVER {turnover}",
             "PADS ON FRONT. A=INDEX, LETTERS CW SEEN FROM PAD SIDE",

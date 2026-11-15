@@ -115,3 +115,10 @@ Last result (KiCad 10.0.4): rotors I–VIII all pass all four.
 6. Optional identification pads on the back (concept 6) are not generated yet.
 7. Rim margin (3.2 mm outside ring 4) and body diameter/skirt; PCB flatness (back side has no copper,
    consider a stiffener or 2.0 mm board).
+
+## 기구 설계 반영 (2026-11-15, `hardware/gear/layout.md`)
+
+- 중심 구멍 Ø8.0 → **Ø8.6** (축 파일럿 Ø8 h6에 대한 여유 구멍; 중심 맞춤은 드럼 몸체 부싱이 한다).
+- 패드 면 중심 r ≤ 17.5는 26이빨 인덱스 원판(Ø34)의 자리다. 로터 이름 실크는 패드 면에서 지우고(뒷면 표기만 남김), 기준 삼각형은 r 17.8–19.9로 옮겼다.
+- **미결: 이 영역의 비아.** 배선 B벌의 일부 레인이 r 11.4–22.8에 있어 덮개 비아가 영역 안에 남는다 — 로터 I 0개, II 2개, III 8개, IV 8개, V 0개. 해결안: (a) B벌 레인을 r > 17.5로 옮기는 배선 재설계(레인 수 부족 가능), (b) 인덱스 원판 안쪽에 얕은 홈(비아 덮개 높이 수십 µm 수준이라 접촉면만 피하면 됨). G.1에서 결정.
+- 평탄도: r = 7.5 고정만으로는 가장자리 휨(통상 0.72 mm / 96 mm)이 허용치(r = 43에서 ±0.3 mm)를 넘을 수 있다. 뒷면 구리 채움, r = 46.3의 Ø2.2 구멍 4개(글자 사이, 노치와 겹치지 않게), 또는 몸체 접착 중 G.1에서 결정.

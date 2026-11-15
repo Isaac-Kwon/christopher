@@ -5812,7 +5812,7 @@
 	)
 	(gr_circle
 		(center 150 100)
-		(end 154 100)
+		(end 154.3 100)
 		(stroke
 			(width 0.1)
 			(type default)
@@ -6108,7 +6108,7 @@
 		)
 	)
 	(gr_poly
-		(pts (xy 149 83.6) (xy 151 83.6) (xy 150 80.6))
+		(pts (xy 149 82.2) (xy 151 82.2) (xy 150 80.1))
 		(stroke
 			(width 0)
 			(type solid)
@@ -6116,17 +6116,6 @@
 		(fill yes)
 		(layer "F.SilkS")
 		(uuid "e5830001-f379-5931-8334-2bfcfa324139")
-	)
-	(gr_text "ROTOR IV"
-		(at 150 114 0)
-		(layer "F.SilkS")
-		(uuid "55478ddf-9ead-5f68-8047-b47a5fbad568")
-		(effects
-			(font
-				(size 2 2)
-				(thickness 0.25)
-			)
-		)
 	)
 	(gr_text "ROTOR IV  (BACK - NO CONTACTS)"
 		(at 150 121 0)
