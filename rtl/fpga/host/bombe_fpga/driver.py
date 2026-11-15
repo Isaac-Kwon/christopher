@@ -7,12 +7,17 @@ from dataclasses import dataclass, field
 REG = dict(
     CTRL=0x000, STATUS=0x004, ORDER=0x008, OPTIONS=0x00C, EDGE_EN=0x010, POSITIONS=0x014,
     CYCLES=0x018, STOP_POS=0x01C, STOP_REG=0x020, PARAMS=0x024, EDGE=0x100,
+    # exhibit / demo mode (engine version >= 2)
+    PACE=0x028, DEMO=0x02C, DRUM=0x030, TESTREG=0x034, SNAP_POS=0x038, SNAP_ITERS=0x03C, SNAP=0x200,
 )
 ENGINE_STRIDE = 0x1000
 GLOBAL_ID, GLOBAL_INFO = 0xF000, 0xF004
 ID_MAGIC = 0x424F4D42
 
-ST_BUSY, ST_DONE, ST_STOP, ST_OVERFLOW = 1, 2, 4, 8
+ST_BUSY, ST_DONE, ST_STOP, ST_OVERFLOW, ST_HOLD = 1, 2, 4, 8, 16
+CTRL_START, CTRL_ABORT, CTRL_STEP = 1, 2, 4
+DEMO_SINGLE, DEMO_PAUSE_ON_STOP = 1, 2
+POSITION_CYCLES = 16        # typical natural cycles per position (12..17 measured), added to PACE
 
 ROTOR_IDS = {"I": 0, "II": 1, "III": 2, "IV": 3, "V": 4, "VI": 5, "VII": 6, "VIII": 7, "BETA": 8, "GAMMA": 9}
 REFLECTOR_IDS = {"B": 0, "C": 1, "B-THIN": 2, "C-THIN": 3}
@@ -62,6 +67,51 @@ def decode_stop(pos_word: int, reg_word: int):
     """(core position (greek, left, middle, right), 26-bit test register) of a FIFO head."""
     pos = ((pos_word >> 20) & 31, (pos_word >> 15) & 31, (pos_word >> 10) & 31, (pos_word >> 5) & 31)
     return pos, reg_word & 0x3FFFFFF
+
+
+def decode_drums(word: int) -> tuple:
+    """(greek, left, middle, right) core offsets of a DRUM / SNAP_POS / STOP_POS word."""
+    return ((word >> 20) & 31, (word >> 15) & 31, (word >> 10) & 31, (word >> 5) & 31)
+
+
+def pace_for_rate(positions_per_s: float, clock_mhz: int) -> int:
+    """PACE register value (idle clock cycles per position) for about ``positions_per_s``.
+
+    0 means full speed (rates above clock / POSITION_CYCLES).
+    """
+    if positions_per_s <= 0:
+        raise ValueError("rate must be positive")
+    return max(0, round(clock_mhz * 1e6 / positions_per_s) - POSITION_CYCLES)
+
+
+def rate_for_pace(pace: int, clock_mhz: int) -> float:
+    """Approximate positions per second for a PACE value (inverse of :func:`pace_for_rate`)."""
+    return clock_mhz * 1e6 / (pace + POSITION_CYCLES)
+
+
+def stecker_candidates(register: int) -> list:
+    """Candidate letters for the test letter's stecker partner, as ``christopher.Stop`` reads them:
+    the single live wire, else every dead wire."""
+    if register.bit_count() == 1:
+        return [chr(65 + i) for i in range(26) if register >> i & 1]
+    return [chr(65 + i) for i in range(26) if not register >> i & 1]
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    """The 676 wires after the last finished position (``cables[c]`` bit w = wire w of cable c live)."""
+
+    drums: tuple          # (greek, left, middle, right) core offsets the snapshot belongs to
+    positions: int        # POSITIONS counter when taken
+    iterations: int       # propagation steps until the fixed point
+    is_stop: bool         # False: test register filled up and the position was abandoned early
+    cables: tuple         # 26 ints of 26 bits
+
+    def live(self, cable: int, wire: int) -> bool:
+        return bool(self.cables[cable] >> wire & 1)
+
+    def matrix(self) -> list:
+        return [[self.live(c, w) for w in range(26)] for c in range(26)]
 
 
 @dataclass
@@ -124,6 +174,67 @@ class Engine:
             stops = self.pop_stops()
             st = self.status()           # re-read: done may have arrived while we drained
         return stops, self.finished(st)
+
+    # --- exhibit / demo mode -------------------------------------------------------------------
+    def set_pace(self, cycles: int) -> None:
+        """Wait ``cycles`` clock cycles after every position (0 = full speed)."""
+        self.wr(REG["PACE"], cycles)
+
+    def set_rate(self, positions_per_s: float, clock_mhz: int) -> int:
+        """Pace the sweep to about ``positions_per_s``; returns the PACE value written."""
+        pace = pace_for_rate(positions_per_s, clock_mhz)
+        self.set_pace(pace)
+        return pace
+
+    def set_demo(self, single_step: bool = False, pause_on_stop: bool = False) -> None:
+        self.wr(REG["DEMO"], (DEMO_SINGLE if single_step else 0) | (DEMO_PAUSE_ON_STOP if pause_on_stop else 0))
+
+    def demo_flags(self) -> tuple:
+        word = self.rd(REG["DEMO"])
+        return bool(word & DEMO_SINGLE), bool(word & DEMO_PAUSE_ON_STOP)
+
+    def held(self) -> bool:
+        """True while the engine waits for :meth:`step` (single step, or pause on a stop)."""
+        return bool(self.status() & ST_HOLD)
+
+    def step(self) -> None:
+        """Release a held engine by exactly one position (ignored when it is not held)."""
+        self.wr(REG["CTRL"], CTRL_STEP)
+
+    def drums(self) -> tuple:
+        """Live drum position (greek, left, middle, right)."""
+        return decode_drums(self.rd(REG["DRUM"]))
+
+    def test_register(self) -> int:
+        """Live test register (26-bit mask)."""
+        return self.rd(REG["TESTREG"]) & 0x3FFFFFF
+
+    def snapshot(self, retries: int = 4):
+        """Coherent :class:`Snapshot` of the last finished position, or None before the first one.
+
+        The cable window is only stable while the engine is held or idle; while it runs the read is
+        bracketed by POSITIONS and repeated when a position finished in between.
+        """
+        for _ in range(retries):
+            before = self.rd(REG["POSITIONS"])
+            word = self.rd(REG["SNAP_POS"])
+            if not word >> 31:
+                return None
+            cables = tuple(self.rd(REG["SNAP"], c) & 0x3FFFFFF for c in range(26))
+            iters = self.rd(REG["SNAP_ITERS"]) & 0xFFFF
+            if self.rd(REG["POSITIONS"]) == before:
+                return Snapshot(decode_drums(word), before, iters, bool(word >> 30 & 1), cables)
+        raise RuntimeError("snapshot kept changing: slow the sweep (PACE) or single-step")
+
+    def edges(self) -> list:
+        """Edges currently configured: [(plain, cipher, crib position)] letters 0..25."""
+        en = self.rd(REG["EDGE_EN"])
+        out = []
+        for i in range(self.max_edges):
+            if en >> i & 1:
+                w = self.rd(REG["EDGE"], i)
+                out.append((w & 31, w >> 8 & 31, w >> 16 & 0xFF))
+        return out
 
     def counters(self) -> dict:
         return {"positions": self.rd(REG["POSITIONS"]), "cycles": self.rd(REG["CYCLES"])}

@@ -36,7 +36,7 @@ module bombe_engine #(
 );
 
   localparam logic [25:0] FULL    = '1;
-  localparam logic [15:0] VERSION = 16'h0001;
+  localparam logic [15:0] VERSION = 16'h0002;  // 2: exhibit/demo registers (PACE, DEMO, snapshot)
 
   // ---------------------------------------------------------------------------------------------
   // Configuration registers (host must not change them while BUSY)
@@ -65,7 +65,7 @@ module bombe_engine #(
   assign turnover_en = options_q[17];
   assign turnover_at = options_q[31:24];
 
-  typedef enum logic [3:0] {S_IDLE, S_LOAD, S_INNER, S_SROWS, S_LATCH, S_SPREAD, S_PUSH, S_ADVANCE} state_t;
+  typedef enum logic [3:0] {S_IDLE, S_LOAD, S_INNER, S_SROWS, S_LATCH, S_SPREAD, S_PUSH, S_PACE, S_ADVANCE} state_t;
   state_t state;
 
   // ---------------------------------------------------------------------------------------------
@@ -304,12 +304,25 @@ module bombe_engine #(
   // ---------------------------------------------------------------------------------------------
   // Control
   // ---------------------------------------------------------------------------------------------
-  logic        start_pulse, abort_pulse;
+  logic        start_pulse, abort_pulse, step_pulse;
+  // Exhibit/demo controls (README "Exhibit mode"); all-zero = full speed, behaviour unchanged.
+  logic [31:0] pace_q;        // clock cycles to wait after every position (0 = no wait)
+  logic        single_q;      // DEMO[0]: hold after every position until a STEP write
+  logic        pause_stop_q;  // DEMO[1]: hold after a stop position until a STEP write
+  logic [31:0] pace_cnt;
+  logic        stop_cur;      // the position just decided was a stop (not a full test register)
+  logic        hold_now;      // PACE state is waiting for STEP rather than for the pace counter
+  logic [15:0] iters_q;       // propagation steps of the position in progress
+  logic [25:0] snap_q [26];   // cable state latched at the end of the last position
+  logic [19:0] snap_pos_q;    // {g, l, m, r} of the snapshot
+  logic [15:0] snap_iters_q;
+  logic        snap_valid_q, snap_stop_q;
   logic        done_q, overflow_q;
   logic [31:0] positions_q, cycles_q;
   logic [5:0]  wait_cnt;
   logic        last;
 
+  assign hold_now = single_q || (pause_stop_q && stop_cur);
   assign last = (r == 5'd25) && (m == 5'd25) && (l == 5'd25) && (!greek_en || g == 5'd25);
 
   always_comb begin
@@ -337,6 +350,13 @@ module bombe_engine #(
         cab_prev[c] <= '0;
       end
       wr_ptr      <= '0;
+      pace_cnt     <= '0;
+      stop_cur     <= 1'b0;
+      iters_q      <= '0;
+      snap_pos_q   <= '0;
+      snap_iters_q <= '0;
+      snap_valid_q <= 1'b0;
+      snap_stop_q  <= 1'b0;
     end else begin
       if (state != S_IDLE) cycles_q <= cycles_q + 32'd1;
       case (state)
@@ -350,6 +370,7 @@ module bombe_engine #(
             ld_t        <= '0;
             ld_c        <= '0;
             wr_ptr      <= rd_ptr;  // discard stops of an earlier sweep
+            snap_valid_q <= 1'b0;
             state       <= S_LOAD;
           end
         end
@@ -396,22 +417,45 @@ module bombe_engine #(
             cab_prev[c] <= '1;  // differs from any reachable state: no false "stable"
           end
           cab_q[test_letter][input_wire] <= 1'b1;
+          iters_q <= '0;
           state <= S_SPREAD;
         end
         S_SPREAD: begin
           // Decide on registered state: stable (fixed point) or test register full.
           if (stable || test_full) begin
             positions_q <= positions_q + 32'd1;
-            state <= test_full ? S_ADVANCE : S_PUSH;
+            // Snapshot for the exhibit display (plain registers, no logic on the way in).
+            snap_q       <= cab_q;
+            snap_pos_q   <= {g, l, m, r};
+            snap_iters_q <= iters_q;
+            snap_valid_q <= 1'b1;
+            snap_stop_q  <= !test_full;
+            stop_cur     <= !test_full;
+            pace_cnt     <= '0;
+            if (test_full)
+              state <= (pace_q != 32'd0 || single_q) ? S_PACE : S_ADVANCE;
+            else
+              state <= S_PUSH;
           end else begin
             cab_prev <= cab_q;
             cab_q    <= cab_n;
+            if (iters_q != 16'hFFFF) iters_q <= iters_q + 16'd1;
           end
         end
         S_PUSH: begin
           if (!fifo_full) begin
             wr_ptr <= wr_ptr + 1'b1;
-            state  <= S_ADVANCE;
+            state  <= (pace_q != 32'd0 || hold_now) ? S_PACE : S_ADVANCE;
+          end
+        end
+        S_PACE: begin
+          // Exhibit mode: slow the sweep to human speed or wait for a STEP write.
+          if (hold_now) begin
+            if (step_pulse) state <= S_ADVANCE;
+          end else if (pace_cnt >= pace_q) begin
+            state <= S_ADVANCE;
+          end else begin
+            pace_cnt <= pace_cnt + 32'd1;
           end
         end
         S_ADVANCE: begin
@@ -464,6 +508,8 @@ module bombe_engine #(
   logic [EIW-1:0] eidx;
   assign edge_sel = (bus_addr[11:8] == 4'h1) && ({1'b0, bus_addr[7:2]} < 7'(MAX_EDGES));
   assign eidx     = bus_addr[EIW+1:2];
+  logic snap_sel;                                  // 0x200 + 4*cable, cable 0..25
+  assign snap_sel = (bus_addr[11:7] == 5'b00100) && (bus_addr[6:2] < 5'd26);
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -471,6 +517,10 @@ module bombe_engine #(
       bus_rdata   <= '0;
       start_pulse <= 1'b0;
       abort_pulse <= 1'b0;
+      step_pulse  <= 1'b0;
+      pace_q       <= '0;
+      single_q     <= 1'b0;
+      pause_stop_q <= 1'b0;
       order_q     <= '0;
       options_q   <= '0;
       edge_en_q   <= '0;
@@ -480,11 +530,18 @@ module bombe_engine #(
       bus_ack     <= bus_req;
       start_pulse <= 1'b0;
       abort_pulse <= 1'b0;
+      step_pulse  <= 1'b0;
       if (bus_req && bus_we) begin
         case (bus_addr)
           12'h000: begin
             start_pulse <= bus_wdata[0];
             abort_pulse <= bus_wdata[1];
+            step_pulse  <= bus_wdata[2];
+          end
+          12'h028: pace_q <= bus_wdata;
+          12'h02C: begin
+            single_q     <= bus_wdata[0];
+            pause_stop_q <= bus_wdata[1];
           end
           12'h008: order_q   <= bus_wdata[19:0];
           12'h00C: options_q <= bus_wdata;
@@ -496,7 +553,7 @@ module bombe_engine #(
       end
       if (bus_req && !bus_we) begin
         case (bus_addr)
-          12'h004: bus_rdata <= {28'd0, overflow_q, !fifo_empty, done_q, busy};
+          12'h004: bus_rdata <= {27'd0, (state == S_PACE) && hold_now, overflow_q, !fifo_empty, done_q, busy};
           12'h008: bus_rdata <= {12'd0, order_q};
           12'h00C: bus_rdata <= options_q;
           12'h010: bus_rdata <= edge_en_q;
@@ -509,9 +566,17 @@ module bombe_engine #(
             if (!fifo_empty) rd_ptr <= rd_ptr + 1'b1;
           end
           12'h024: bus_rdata <= {VERSION, 8'(FIFO_LOG2), 8'(MAX_EDGES)};
+          12'h028: bus_rdata <= pace_q;
+          12'h02C: bus_rdata <= {30'd0, pause_stop_q, single_q};
+          12'h030: bus_rdata <= {7'd0, g, l, m, r, 5'd0};
+          12'h034: bus_rdata <= {6'd0, test_q};
+          12'h038: bus_rdata <= {snap_valid_q, snap_stop_q, 5'd0, snap_pos_q, 5'd0};
+          12'h03C: bus_rdata <= {16'd0, snap_iters_q};
           default: begin
             if (edge_sel)
               bus_rdata <= {8'd0, edge_q[eidx]};
+            else if (snap_sel)
+              bus_rdata <= {6'd0, snap_q[bus_addr[6:2]]};   // bus-side read mux only
             else
               bus_rdata <= 32'd0;
           end

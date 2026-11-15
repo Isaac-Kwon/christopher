@@ -43,8 +43,8 @@ output logic [31:0] bus_rdata    // valid with bus_ack (reads)
 
 | Offset | Name | Access | Fields |
 |---|---|---|---|
-| 0x000 | CTRL | W | bit0 START (begins a sweep with the current configuration), bit1 ABORT |
-| 0x004 | STATUS | R | bit0 BUSY, bit1 DONE (sticky until next START), bit2 STOP_AVAILABLE, bit3 STOP_OVERFLOW (sticky) |
+| 0x000 | CTRL | W | bit0 START (begins a sweep with the current configuration), bit1 ABORT, bit2 STEP (exhibit mode: release a held engine by one position; ignored unless STATUS.HOLD) |
+| 0x004 | STATUS | R | bit0 BUSY, bit1 DONE (sticky until next START), bit2 STOP_AVAILABLE, bit3 STOP_OVERFLOW (sticky), bit4 HOLD (waiting for STEP) |
 | 0x008 | ORDER | RW | [1:0] reflector id, [2] greek_en, [7:4] greek id, [11:8] left id, [15:12] middle id, [19:16] right id |
 | 0x00C | OPTIONS | RW | [4:0] test letter, [12:8] input wire, [16] diagonal_en, [17] turnover_en, [31:24] turnover_at |
 | 0x010 | EDGE_EN | RW | bit i enables edge i (MAX_EDGES ≤ 32) |
@@ -52,14 +52,47 @@ output logic [31:0] bus_rdata    // valid with bus_ack (reads)
 | 0x018 | CYCLES | R | clock cycles of the current/last sweep (wraps) |
 | 0x01C | STOP_POS | R | head of the stop FIFO: [31] valid, [24:20] greek, [19:15] left, [14:10] middle, [9:5] right |
 | 0x020 | STOP_REG | R | head of the stop FIFO: [25:0] test register; **reading STOP_REG pops the entry** |
-| 0x024 | PARAMS | R | [7:0] MAX_EDGES, [15:8] stop FIFO depth (log2), [31:16] engine version |
+| 0x024 | PARAMS | R | [7:0] MAX_EDGES, [15:8] stop FIFO depth (log2), [31:16] engine version (2 = exhibit registers present) |
+| 0x028 | PACE | RW | exhibit: idle clock cycles after every position (0 = full speed, the default) |
+| 0x02C | DEMO | RW | exhibit: bit0 SINGLE_STEP (hold after every position until STEP), bit1 PAUSE_ON_STOP (hold after a stop until STEP) |
+| 0x030 | DRUM | R | live drum position, same layout as STOP_POS bits [24:5], bit31 = 0 |
+| 0x034 | TESTREG | R | live test register [25:0] (cable `test_letter`, current propagation step) |
+| 0x038 | SNAP_POS | R | position of the snapshot: [31] valid, [30] it was a stop, [24:5] g/l/m/r as STOP_POS |
+| 0x03C | SNAP_ITERS | R | [15:0] propagation steps the snapshot position needed |
 | 0x100 + 4*i | EDGE[i] | RW | [4:0] plain letter a, [12:8] cipher letter b, [23:16] crib position |
+
+| 0x200 + 4*c | SNAP[c] | R | 26-bit snapshot of cable c (c = 0..25, bit w = wire w live), latched when the last position finished |
 
 Ids and letters follow `rtl/README.md` (rotor 0=I … 7=VIII, 8=BETA, 9=GAMMA; reflector 0=B 1=C
 2=B-THIN 3=C-THIN; letters 0..25). Positions are core offsets at the first crib letter — identical
 to the Rust `Position` and to `rtl/src/bombe_sweep.sv`; the engine sweeps in the same order
 (greek outermost, right innermost), so its stop list must equal `bombe_sweep`'s and
 `christopher_core::bombe::run_slice`'s element by element.
+
+### Exhibit mode (slow, visible sweeps)
+
+All defaults (`PACE = 0`, `DEMO = 0`) leave the engine exactly as before (same cycles per position).
+* **PACE** counts clock cycles (50 MHz system clock, 20 ns each; no prescaler): after each position the
+  engine waits PACE cycles before moving the drums on, so one position takes about `16 + PACE` cycles
+  (natural time is 12..17). 2 positions/s = `PACE = 24_999_984`; the host computes it
+  (`bombe_fpga.driver.pace_for_rate`). Changes take effect on the next position.
+* **SINGLE_STEP** (DEMO bit0): START computes position 0 and holds (STATUS.HOLD = 1); every write of
+  CTRL.STEP advances exactly one position and holds again. Clearing the bit releases the hold. STEP while
+  not holding is ignored. After a STEP, STATUS.HOLD of the old position may be visible for a couple of
+  cycles: wait for POSITIONS to change.
+* **PAUSE_ON_STOP** (DEMO bit1): runs at the paced speed but holds on every stop (STOP_POS/STOP_REG still
+  receive it) until STEP or until the bit is cleared.
+* **Snapshot**: when a position finishes (fixed point, or test register full) the 26 cable words are copied
+  into a read-only register bank together with SNAP_POS/SNAP_ITERS, so the window is stable while the engine
+  computes the next position... except at the instant the next position finishes. For stops the snapshot is
+  the full fixed point (equal to `Bombe.trace`); for non-stops the engine abandons the position as soon as the
+  test register is full, so the snapshot is a partial state. To read coherently while running, bracket the
+  26 reads with two POSITIONS reads (`Engine.snapshot()` does) or hold with SINGLE_STEP/PAUSE_ON_STOP.
+* Synthesis: the snapshot is 676 + ~40 plain flip-flops loaded from `cab_q`; the 26:1 readout mux sits on the
+  bus side, not on the propagation path.
+
+Host visualizer: `python -m bombe_fpga demo` (fake board, no hardware) or `--uart COM5 demo` (see
+`host/bombe_fpga/visual.py`).
 
 When the stop FIFO is full the engine stalls (no stops are lost); STOP_OVERFLOW is reserved for
 diagnostics and should never be set.
