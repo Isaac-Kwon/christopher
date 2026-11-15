@@ -17,6 +17,7 @@ Stdlib only.  Library symbols are copied from the installed KiCad standard libra
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -548,7 +549,14 @@ PRO = """{
 
 
 def write_project(outdir: Path, project: str, root: Sheet, sheets):
-    (outdir / f"{project}.kicad_pro").write_text(PRO % project, encoding="utf8", newline="\n")
+    pro_path = outdir / f"{project}.kicad_pro"
+    text = PRO % project
+    if pro_path.exists():   # keep the board design rules / netclasses written by gen_counter_pcb.py
+        old = json.loads(pro_path.read_text(encoding="utf8"))
+        keep = {k: v for k, v in old.items() if k in ("board", "net_settings")}
+        if keep:
+            text = json.dumps({**json.loads(text), **keep}, indent=2) + "\n"
+    pro_path.write_text(text, encoding="utf8", newline="\n")
     (outdir / f"{project}.kicad_sch").write_text(root.render(), encoding="utf8", newline="\n")
     for sh, fname in sheets:
         (outdir / fname).write_text(sh.render(), encoding="utf8", newline="\n")
