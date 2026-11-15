@@ -13,6 +13,7 @@ cd hardware/gear/cad
 python check.py            # builds the machine (6 s), runs ~70 checks incl. the boolean interference scan (20 s), exit 1 on failure
 python check.py --quick    # without the boolean scan
 python assemble.py         # STEP (machine + subassemblies) and SVG views; --no-step / --no-svg / --png
+python render_png.py       # shaded PNG views for the report: report/figures/generated/cad_{iso,front,section,station}.png (VTK, about 15 s)
 ```
 
 Build products go **outside** the repo: `%LOCALAPPDATA%/christopher/cad` (`$XDG_CACHE_HOME/christopher/cad` elsewhere):
