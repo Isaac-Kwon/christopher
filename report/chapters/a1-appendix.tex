@@ -26,16 +26,36 @@
 
 \chapter{배선표}\label{app:wirings}
 
-\begin{todobox}{배선표}
-로터 I--VIII, 그리스 로터 Beta와 Gamma, 반사판 네 종의 배선과 노치 위치. 손으로 옮겨 적다 생기는 오류를
-막기 위해 \code{data/wirings/enigma.txt}에서 표를 자동으로 생성해 넣는다.
-\end{todobox}
+에니그마 로터 I--VIII, 그리스 로터 Beta와 Gamma, 반사판 네 종의 배선이다. 이 표는 손으로 옮겨 적지 않았다.
+저장소의 배선 원본 \code{data/wirings/enigma.txt} 하나를 Rust 코어, RTL 패키지(\code{rtl/gen/gen\_wirings.py}),
+드럼 PCB 생성기(\code{hardware/gear/drum-pcb/gen\_drum.py})가 모두 읽고, 이 부록의 표도 같은 파일에서
+\code{report/figures/make\_appendix\_tables.py}가 만든다. 생성 스크립트는 표를 쓰기 전에 각 배선이 순열인지,
+반사판이 고정점 없는 대합인지 다시 검사한다. 배선이 맞다는 근거는 실제 전문의 해독(부록~\ref{app:vectors})과
+\code{AAAAA}$\to$\code{BDZGO} 같은 알려진 결과다.
+
+배선은 코어 오프셋 0에서 \emph{입구 쪽 글자 $\to$ 반사판 쪽 글자}다. 코어가 $s$만큼 돌아 있으면 글자 $c$는
+$W[c+s]-s$로 나간다(식~\ref{eq:through}). 같은 배선이 기어식 드럼 PCB의 두 배선 벌(가는 길, 오는 길)과 릴레이식의
+로터 배선 카드에 그대로 쓰인다. 오는 길에는 역배선이 쓰인다.
+
+\input{figures/generated/wirings}
 
 \chapter{검증 벡터와 조작 절차}\label{app:vectors}
 
-\begin{todobox}{검증 벡터}
-실제 전문 벡터와 회로 검증용 벡터의 형식, 각 벡터의 출처.
-\end{todobox}
+\section{검증 벡터}\label{sec:app-vectors}
+
+검증 벡터는 두 종류다. \emph{실제 전문 벡터}는 에니그마 구현이 역사적 기계와 같은지를 확인한다(표~\ref{tab:app-historical}).
+\emph{회로 검증 벡터}는 RTL과 FPGA 엔진이 소프트웨어 봄베와 같은 답을 내는지를 확인한다(표~\ref{tab:app-rtl}).
+두 표 모두 저장소의 파일에서 \code{report/figures/make\_appendix\_tables.py}가 생성했다.
+
+회로 검증 벡터는 모두 Rust 코어가 낸 값이고, 회로는 이것을 그대로 재현해야 한다. 한 위치 벡터는 그 위치에서 676선이
+도달한 고정점 전체(\code{live}: 케이블마다 26비트)와 정지 여부를 담는다. 그래서 전파 회로의 사소한 차이도 정지 여부가
+같은 경우까지 포함해 잡힌다. 전체 구동 벡터는 로터 순서 하나를 끝까지 돈 정지 목록이고, 회로는 정지의 \emph{순서}까지
+같아야 한다(드럼 순회 순서가 같으므로). 조건이 다른 경우(대각선 보드 없음, 가운데 로터 넘김 가설, M4)를 일부러 섞었다.
+벡터의 형식과 다시 만드는 방법은 \code{data/vectors/rtl/README.md}에 있다.
+
+\input{figures/generated/vectors}
+
+\section{조작 절차}\label{sec:app-procedure}
 
 \begin{todobox}{조작 절차}
 Python 인터페이스, FPGA 호스트 프로그램, 실물의 조작 순서.
