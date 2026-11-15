@@ -3,7 +3,8 @@
 
 Run with the Python that ships with KiCad (needs the `pcbnew` module):
 
-    "C:/Program Files/KiCad/10.0/bin/python.exe" gen_pcb.py
+    "C:/Program Files/KiCad/10.0/bin/python.exe" gen_pcb.py            # write unit_tester.kicad_pcb
+    "C:/Program Files/KiCad/10.0/bin/python.exe" gen_pcb.py --check    # verify the placed board (see check())
 
 Steps: export the netlist of unit_tester.kicad_sch with kicad-cli, load every footprint from the installed
 KiCad footprint libraries (env KICAD_SHARE overrides), place them, assign pad nets, write the board, then
@@ -18,6 +19,7 @@ Floor plan (mm, origin top-left, y down):
 """
 from __future__ import annotations
 
+import collections
 import json
 import math
 import os
@@ -134,6 +136,8 @@ class Placer:
             fp.SetPath(pcbnew.KIID_PATH(p))
         for pad in fp.Pads():
             net = self.nl.net(ref, pad.GetNumber())
+            if pad.GetNumber() == "SH" and ref in ("J1", "J2", "J3"):
+                net = "CHASSIS_F"          # D-sub shells (pads SH have no schematic pin) = CHASSIS_F (0003 T7)
             if net:
                 pad.SetNet(self.netitem(net))
         # small reference text
@@ -226,7 +230,7 @@ def build_board() -> pcbnew.BOARD:
         pl.put_oriented(f"U{50 + p}", slot_cx(3 + p), YB, "1", +1)   # TLP: pins 1-8 = LED (field, down)
 
     # ---- per-channel parts at the opto ---------------------------------------------------------
-    for b in range(74):
+    for b in range(75):       # 74 = STOP_LATCH (0003 T4)
         p, u = divmod(b, 4)
         xc = slot_cx(3 + p) + (u - 1.5) * CH
         pl.put(f"R{201 + b}", xc, YB - 6.3, 90)
@@ -239,7 +243,7 @@ def build_board() -> pcbnew.BOARD:
         ids = list(range(8 * g, min(8 * g + 8, N_NODES)))
         refs1k = [f"R{n + 1}" for n in ids]
         if g == 6:
-            refs1k += ["R53", "R54"]
+            refs1k += ["F3", "F4"]          # RUN / HOME output fuses (0003 T2)
         for i, ref in enumerate(refs1k):
             col, row = divmod(i, 4)
             pl.put(ref, x0 + PITCH + (col - 0.5) * 8.1, YB + 15.8 + 4.25 * row, 0)
@@ -256,6 +260,11 @@ def build_board() -> pcbnew.BOARD:
     # ---- aux slots: ESTOP / ILOCK source resistors ---------------------------------------------
     pl.put("R404", slot_cx(18), YB + 16, 0)
     pl.put("R405", slot_cx(19), YB + 16, 0)
+    # ESTOP / ILOCK loop jumpers (0003 T3): return jumpers JP2 / JP3 (closed), optional feed jumpers JP4 / JP5 (open)
+    pl.put("JP2", slot_cx(20), YB + 16, 0)
+    pl.put("JP3", slot_cx(21), YB + 16, 0)
+    pl.put("JP4", slot_cx(20), YB + 21, 0)
+    pl.put("JP5", slot_cx(21), YB + 21, 0)
 
     # ---- isolator support parts --------------------------------------------------------------------
     pl.put("C231", slot_cx(0), YB - 9.5, 0)
@@ -264,7 +273,7 @@ def build_board() -> pcbnew.BOARD:
     pl.put("C234", slot_cx(1), YB + 9.5, 0)
     pl.put("R401", slot_cx(0) + 3.5, YB + 12.5, 90)
     pl.put("R402", slot_cx(2) - 3.0, YB + 9.5, 90)
-    pl.put("D175", slot_cx(2) + 3.0, YB + 9.5, 90)
+    pl.put("D180", slot_cx(2) + 3.0, YB + 9.5, 90)
     pl.put("R403", slot_cx(2) - 3.0, YB - 9.5, 90)
     pl.put("C235", slot_cx(2) + 3.0, YB - 9.5, 90)
     pl.put("R409", slot_cx(0) - 3.0, YB - 13.0, 90)
@@ -300,7 +309,8 @@ def build_board() -> pcbnew.BOARD:
 
     # ---- power block (field side, left) ------------------------------------------------------------------
     sh = Shelf(pl, 4.0, YB + 17.0, 47.0, H - 14.5)
-    for ref in ("J4", "C1", "U80", "F2", "F1", "D1", "C2", "C3", "C4", "JP1", "DL1", "DL2", "R406", "R407"):
+    for ref in ("J4", "C1", "U80", "F2", "F1", "D1", "Q1", "C2", "C3", "C4", "JP1", "DL1", "DL2", "R406", "R407",
+                "DZ1", "R412", "R408", "C237"):
         sh.add(ref, 0)
 
     # ---- mounting holes ------------------------------------------------------------------------------------
@@ -392,7 +402,114 @@ def write_project(nl, dom):
         encoding="utf8", newline="\n")
 
 
+def signature(board) -> list:
+    """Placement + pad nets of every footprint (the board file itself is not byte-stable: pcbnew assigns random item ids)."""
+    sig = []
+    for fp in sorted(board.GetFootprints(), key=lambda f: f.GetReference()):
+        pos = fp.GetPosition()
+        sig.append((fp.GetReference(), fp.GetFPIDAsString(), pos.x, pos.y, round(fp.GetOrientationDegrees(), 3), int(fp.GetLayer()),
+                    tuple(sorted((p.GetNumber(), p.GetNetname()) for p in fp.Pads()))))
+    return sig
+
+
+def check() -> int:
+    """Checks of the placed board: footprints and pad nets == schematic netlist (the D-sub shell pads SH, which have no
+    symbol pin, must be on CHASSIS_F); no copper; ratsnest == sum(pads - 1); placement deterministic (two builds give the
+    same footprint positions and pad nets); kicad-cli DRC 0 violations (incl. the 4.5 mm FIELD/MCU rule) and schematic
+    parity (only the SH pads may differ); negative tests."""
+    nl, _ = load_netlist()
+    out = HERE / f"{PROJECT}.kicad_pcb"
+    cli = os.environ.get("KICAD_CLI", "C:/Program Files/KiCad/10.0/bin/kicad-cli.exe")
+    errs: list[str] = []
+
+    def compare(board) -> list[str]:
+        e = []
+        have = {f.GetReference(): f for f in board.GetFootprints()}
+        want = {r for r in nl.comp if not r.startswith("#")}
+        if set(have) != want:
+            e.append(f"footprints differ: missing {sorted(want - set(have))[:5]} extra {sorted(set(have) - want)[:5]}")
+        for ref, fp in have.items():
+            if ref not in nl.comp:
+                continue
+            if fp.GetFPIDAsString() != nl.comp[ref]["fp"]:
+                e.append(f"{ref}: footprint {fp.GetFPIDAsString()} != {nl.comp[ref]['fp']}")
+            for pad in fp.Pads():
+                num = pad.GetNumber()
+                exp = nl.net(ref, num)
+                if num == "SH" and ref in ("J1", "J2", "J3"):
+                    exp = "CHASSIS_F"
+                if (exp or "") != pad.GetNetname():
+                    e.append(f"{ref}.{num}: board net {pad.GetNetname()!r} != netlist {exp!r}")
+        if len(list(board.GetTracks())) or len(list(board.Zones())):
+            e.append("board has copper (placement only expected)")
+        return e
+
+    board = pcbnew.LoadBoard(str(out))
+    e = compare(board)
+    errs += e
+    print(f"footprints {len(list(board.GetFootprints()))}, pad-net comparison with the schematic netlist:",
+          "OK" if not e else f"{len(e)} problems {e[:4]}")
+    dups = 0
+    for fp in board.GetFootprints():
+        seen = set()
+        for pad in fp.Pads():
+            if pad.GetNetname() and pad.GetNumber() in seen:
+                dups += 1
+            seen.add(pad.GetNumber())
+    nets = collections.defaultdict(set)
+    for ref in nl.comp:
+        pass
+    for (ref, pin), net in nl.pin_net.items():
+        nets[net].add((ref, pin))
+    nets["CHASSIS_F"] |= {(r, "SH") for r in ("J1", "J2", "J3")}
+    expect = sum(len(v) - 1 for v in nets.values()) + dups
+    got = board.GetConnectivity().GetUnconnectedCount(False)
+    print(f"ratsnest: {got} edges, expected {expect} = sum(pads-1) over schematic nets (+ shell pads) + {dups} duplicate-numbered pads")
+    if got != expect:
+        errs.append("ratsnest edge count mismatch")
+    b1, _, _ = build_board()
+    b2, _, _ = build_board()
+    same = signature(b1) == signature(b2) == signature(board)
+    print("determinism (two builds and the saved board have identical footprint positions and pad nets):", "OK" if same else "DIFFERENT")
+    if not same:
+        errs.append("placement not deterministic / board file stale")
+    r = subprocess.run([cli, "pcb", "drc", "--severity-all", "--schematic-parity", "--format", "json", "-o",
+                        str(HERE / "_drc.json"), str(out)], capture_output=True, text=True)
+    dr = json.loads((HERE / "_drc.json").read_text(encoding="utf8"))
+    (HERE / "_drc.json").unlink()
+    par = [x for x in dr.get("schematic_parity", []) if not (x["type"] == "net_conflict" and all(
+        "pad SH " in i.get("description", "") for i in x.get("items", [])))]
+    print(f"DRC: {len(dr['violations'])} violations; {len(dr['unconnected_items'])} unconnected items listed (capped at about 500); "
+          f"schematic parity: {len(dr.get('schematic_parity', []))} items, {len(par)} real (SH shell pads have no symbol pin)")
+    if dr["violations"]:
+        errs.append("DRC violations")
+        for v in dr["violations"][:6]:
+            print("  ", v["type"], v["description"])
+    if par:
+        errs.append("schematic parity problems")
+    # negative tests: two pad nets swapped; a shell pad off CHASSIS_F
+    bad = pcbnew.LoadBoard(str(out))
+    pads = [pd for pd in bad.FindFootprintByReference("U20").Pads()][:2]
+    n0, n1 = pads[0].GetNet(), pads[1].GetNet()
+    pads[0].SetNet(n1)
+    pads[1].SetNet(n0)
+    ok1 = bool(compare(bad))
+    print("negative test (nets of two driver pads swapped):", "detected" if ok1 else "NOT DETECTED")
+    bad = pcbnew.LoadBoard(str(out))
+    for pd in bad.FindFootprintByReference("J2").Pads():
+        if pd.GetNumber() == "SH":
+            pd.SetNet(bad.FindNet("GND_F"))
+    ok2 = bool(compare(bad))
+    print("negative test (a D-sub shell pad on GND_F instead of CHASSIS_F):", "detected" if ok2 else "NOT DETECTED")
+    if not (ok1 and ok2):
+        errs.append("negative test failed")
+    print("RESULT:", "PASS" if not errs else "FAIL")
+    return 1 if errs else 0
+
+
 def main():
+    if "--check" in sys.argv:
+        sys.exit(check())
     board, nl, pl = build_board()
     rep, dom = chk.run(nl)
     if rep.fail:

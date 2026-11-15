@@ -8936,7 +8936,7 @@
 			)
 		)
 	)
-	(text "Group 0: drivers U20; sense optocouplers U50, U50, U50, U50, U51, U51, U51, U51\nRUN_OUT / HOME_OUT are 24 V high-side outputs (group 6 only)."
+	(text "Group 0: drivers U20; sense optocouplers U50, U50, U50, U50, U51, U51, U51, U51\nRUN_OUT / HOME_OUT are 24 V high-side outputs through resettable fuses F3 / F4 (group 6 only)."
 		(exclude_from_sim no)
 		(at 40 560 0)
 		(effects

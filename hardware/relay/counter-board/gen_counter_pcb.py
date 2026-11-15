@@ -16,9 +16,12 @@ Placement scheme (see README.md section 9): both boards are 250 x 228 mm, the sa
 board.  Every base-26 digit is one repeated 98 x 84 mm block: five bit columns (16 mm pitch), each with
 the slave relay KS on top, the master relay KM below it, the column's diodes in two sub-columns and the
 indicator resistor + LED at the bottom; a sixth column holds the wrap relay KW with its diodes.  The
-common board has three digit blocks plus the four inter-digit rule diodes (connectors on the left
-edge); the unit board has two digit blocks plus the 10 buffer relays (bus + dial on the left edge,
-the four CTRL connectors on the right edge).
+common board has four digit blocks (pL, pM, a3, pR; decision 0003 K3) with the POS connector on the
+right edge and the bus + clock connectors on the left edge; the unit board has two digit blocks plus
+the 10 buffer relays (bus + dial on the left edge, the four CTRL connectors on the right edge).
+Both boards carry, in a strip along the bottom edge, the power input chain (terminal, PTC, series
+P-MOSFET with gate zener + resistor, TVS, bulk capacitor; 0003 K1) and the CHASSIS pair R + C (K4);
+the four plated mounting holes H1-H4 and the D-sub shells (pads SH) are on net CHASSIS.
 """
 from __future__ import annotations
 
@@ -53,13 +56,11 @@ Y_KS, Y_KM = 8.0, 30.0                 # relay rows (pin 1 row) from the block t
 Y_DIODE0, DIODE_P = 48.0, 3.8          # first diode row, row pitch
 Y_IND = 78.0                           # indicator resistor / LED row
 
-FP_HOLE = "MountingHole:MountingHole_3.2mm_M3"
-
 # ----------------------------------------------------------------------------- design rules (fab rules)
 TRACK, CLEAR, VIA_D, VIA_DRILL = 0.15, 0.15, 0.5, 0.25     # absolute minima (standard 4-layer class)
 SIG_TRACK = 0.2                                            # netclass Default
 RAIL_TRACK = 0.6                                           # netclass Rail
-RAIL_NETS = ["/+24V", "/GND", "/CK", "/NCK", "/LOAD", "/A?B", "/Z?B", "/LC", "/ZL", "/NL", "/Z3I",
+RAIL_NETS = ["/+24V", "/GND", "/VIN", "/VF", "/M?", "/R?", "/CK", "/NCK", "/LOAD", "/A?B", "/Z?B", "/LC", "/ZL", "/NL", "/Z3I",
              "/L?", "/T?", "/C?_?", "/DIGIT_*/Q?", "/DIGIT_*/A?", "/DIGIT_*/Z?", "/DIGIT_*/AOUT",
              "/DIGIT_*/ZOUT", "/DIGIT_*/NOUT", "/DIGIT_*/Y?"]
 
@@ -218,6 +219,17 @@ def digit_block(P: dict, d: int, bx: float, by: float):
             P[ref] = (x + (1.0 if k % 2 == 0 else 7.6), by + Y_DIODE0 + (k // 2) * DIODE_P, 0, True)
 
 
+def power_strip(P: dict, term: str, x0: float, y: float = 217.0):
+    """Power input chain + CHASSIS pair in a strip along the bottom edge (0003 K1, K4)."""
+    P[term] = (x0, y, 0, False)
+    xs = {"F1": 20.0, "Q1": 33.0, "DZ1": 46.0, "RG1": 54.0, "TVS1": 66.0, "CB1": 84.0, "RCH1": 100.0, "CCH1": 108.0}
+    for ref, dx in xs.items():
+        P[ref] = (x0 + dx, y, 0, ref in ("DZ1", "RG1", "RCH1", "CCH1"))
+    for k, (x, yy) in enumerate(HOLES, 1):
+        P[f"H{k}"] = (x, yy, 0, True)
+
+
+
 def conn_pos(libid: str, side: str, top: float):
     """Footprint origin and rotation for a D-sub on the left/right edge whose courtyard starts at 'top'."""
     xmin, xmax = courtyard_x(libid)
@@ -232,14 +244,15 @@ def placements(project: str, nl: "vc.Netlist"):
     frames = []     # (x, y, w, h, label)
     if project == "counter_common":
         for d, (bx, by), lab in ((1, (26.0, 14.0), "pL (a4 = l)"), (2, (130.0, 14.0), "pM"),
-                                 (3, (26.0, 122.0), "a3 = l - m")):
+                                 (3, (26.0, 122.0), "a3 = l - m"), (4, (130.0, 122.0), "pR (r), preset 0")):
             digit_block(P, d, bx, by)
             frames.append((bx, by, BLOCK_W, BLOCK_H, lab))
-        bx, by = 130.0, 122.0
+        bx, by = 26.0, 208.0
         for k, ref in enumerate(("D801", "D802", "D803", "D804")):
-            P[ref] = (bx + 6.0, by + 10.0 + k * 5.0, 0, True)
-        frames.append((bx, by, BLOCK_W, 36.0, "INTER-DIGIT RULE DIODES"))
-        conns = [("J1", "L", 14.0), ("J2", "L", 60.0)]
+            P[ref] = (bx + 6.0 + k * 8.0, by + 2.0, 0, True)
+        frames.append((bx, by, 44.0, 6.0, "RULE DIODES"))
+        power_strip(P, "J3", 76.0)
+        conns = [("J1", "L", 14.0), ("J2", "L", 60.0), ("J4", "R", 14.0)]
     else:
         digit_block(P, 1, 26.0, 14.0)
         frames.append((26.0, 14.0, BLOCK_W, BLOCK_H, "a2 = m - (r + k)"))
@@ -252,6 +265,7 @@ def placements(project: str, nl: "vc.Netlist"):
             P[f"K9{n:02d}"] = (x, y, 0, False)
             P[f"D9{n + 1:02d}"] = (x + 2.5, y + 19.0, 0, True)
         frames.append((bx, by, 110.0, 80.0, "BUFFER RELAYS: a4 (K900-K904), a3 (K905-K909)"))
+        power_strip(P, "J7", 30.0, 212.0)
         conns = [("J1", "L", 14.0), ("J2", "L", 76.0)]
         top = 14.0
         for ref in ("J3", "J4", "J5", "J6"):
@@ -277,7 +291,7 @@ def build(project: str, nl: "vc.Netlist") -> tuple[str, dict]:
     missing = set(nl.parts) - set(P)
     assert not missing, f"unplaced parts: {sorted(missing)}"
     assert not set(P) - set(nl.parts), f"placed but not in schematic: {sorted(set(P) - set(nl.parts))}"
-    title = {"counter_common": "Relay counter board - COMMON (pL = a4, pM, a3)",
+    title = {"counter_common": "Relay counter board - COMMON (pL = a4, pM, pR, a3, POS)",
              "counter_unit": "Relay counter board - PER UNIT (a2, a1, a3/a4 buffers)"}[project]
 
     o = ['(kicad_pcb\n\t(version 20241229)\n\t(generator "gen_counter_pcb.py")\n\t(generator_version "1.0")\n'
@@ -295,8 +309,6 @@ def build(project: str, nl: "vc.Netlist") -> tuple[str, dict]:
         part = nl.parts[ref]
         o.append(place(project, part["footprint"], ref, part["value"], x, y, rot,
                        {p: node_net[(r, p)] for (r, p) in node_net if r == ref}, hide_ref=hide))
-    for k, (x, y) in enumerate(HOLES, 1):
-        o.append(place(project, FP_HOLE, f"H{k}", "MountingHole_3.2mm_M3", x, y, 0, {}, hide_ref=True))
     corners = [(0, 0), (BOARD_W, 0), (BOARD_W, BOARD_H), (0, BOARD_H)]
     for k in range(4):
         a, b = corners[k], corners[(k + 1) % 4]
@@ -397,7 +409,7 @@ def generate(outdir: Path):
         text, P = build(project, nl)
         (outdir / f"{project}.kicad_pcb").write_text(text, encoding="utf8", newline="\n")
         merge_project(outdir / f"{project}.kicad_pro")
-        print(f"wrote {project}.kicad_pcb ({len(P)} parts + {len(HOLES)} holes, {BOARD_W:g} x {BOARD_H:g} mm) "
+        print(f"wrote {project}.kicad_pcb ({len(P)} parts incl. {len(HOLES)} plated mounting holes, {BOARD_W:g} x {BOARD_H:g} mm) "
               f"and board rules in {project}.kicad_pro")
 
 

@@ -152,6 +152,27 @@ def check(nl: Netlist, quiet=False) -> list[str]:
         if net_of(d, "1") != net_of("J5", str(b + 1)) or net_of(d, "2") != gnd:
             errs.append(f"{d}: flyback diode is not across its coil net")
 
+    # --- 0003 S1/S2: pins 27-29 of J1-J4 float, CHASSIS is separate from 0 V and joined only by R6 || C1
+    for ref in ("J1", "J2", "J3", "J4"):
+        for p in ("27", "28", "29"):
+            n = net_of(ref, p)
+            if n is not None and len(nl.nets[n]) > 1:
+                errs.append(f"{ref} pin {p} (0 V reference) is connected to net {n}; must be unconnected (0003 S1)")
+    chassis = net_of("H1", "1")
+    if chassis is None:
+        errs.append("H1 is not on a CHASSIS net")
+    else:
+        if chassis == gnd:
+            errs.append("CHASSIS is the 0 V net (0003 7.1: must be separate)")
+        want_ch = {(f"H{k}", "1") for k in range(1, 5)} | {("R6", "1"), ("C1", "1")}
+        if set(nl.nets[chassis]) != want_ch:
+            errs.append(f"CHASSIS net members {sorted(set(nl.nets[chassis]) ^ want_ch)} differ from H1-H4, R6.1, C1.1")
+        want_gnd = {("R6", "2"), ("C1", "2")}
+        if not want_gnd <= set(nl.nets.get(gnd, [])):
+            errs.append("R6/C1 are not between CHASSIS and 0 V")
+        if nl.parts.get("R6", {}).get("value") != "1M" or not nl.parts.get("C1", {}).get("value", "").startswith("10nF"):
+            errs.append("CHASSIS-0 V pair is not 1M || 10nF")
+
     # --- connector pin lists
     def cpin(ref, i):
         return (ref, str(i + 1))
@@ -197,6 +218,10 @@ def check(nl: Netlist, quiet=False) -> list[str]:
                     bad += 1
                     gs = sorted(f"{r}.{p}" for r, p in got) or ["(open)"]
                     errs.append(f"a={a:2d} {what} {src}.{i + 1} -> {gs}, expected {dst}.{want + 1}")
+        # CHASSIS must not touch any signal pin or the control pins in any control state
+        if chassis is not None and uf.find(nl.nets[chassis][0]) in ({uf.find(p) for p in all_sig} |
+                                                                     {uf.find(("J5", str(b + 1))) for b in range(BITS)}):
+            errs.append(f"a={a}: CHASSIS is connected to a signal or control pin")
         # control pins must stay isolated from the signal pins (checked once, a-independent)
         for b in range(BITS):
             if uf.find(("J5", str(b + 1))) in {uf.find(p) for p in all_sig}:
@@ -214,6 +239,30 @@ def swap_pins(text: str, ref: str, pa: str, pb: str) -> str:
     t, nb = pat(pb).subn(r'\1"@@B@@"', t)
     assert na == 1 and nb == 1, (ref, pa, pb, na, nb)
     return t.replace('"@@A@@"', f'"{pb}"').replace('"@@B@@"', f'"{pa}"')
+
+
+def add_node(nl: "Netlist", net: str, node) -> "Netlist":
+    """Return a copy of the netlist with one more node on `net` (a pin moved there; removed from its old net)."""
+    import copy
+    n2 = copy.deepcopy(nl)
+    for nodes in n2.nets.values():
+        if node in nodes:
+            nodes.remove(node)
+    n2.nets[net].append(node)
+    return n2
+
+
+def neg_semantic(nl: "Netlist"):
+    """0003 negative tests that need a node moved between nets."""
+    gnd = next(n for n, nodes in nl.nets.items() if ("J5", "6") in nodes)
+    chassis = next(n for n, nodes in nl.nets.items() if ("H1", "1") in nodes)
+    return [
+        ("J1 pin 27 tied to 0 V (reference pin not left open)", add_node(nl, gnd, ("J1", "27"))),
+        ("J4 pin 29 tied to 0 V", add_node(nl, gnd, ("J4", "29"))),
+        ("J5 shell-side: 0 V pin 6 shorted onto CHASSIS", add_node(nl, chassis, ("J5", "6"))),
+        ("mounting hole H3 left off CHASSIS (moved to 0 V)", add_node(nl, gnd, ("H3", "1"))),
+        ("R6 (1M) moved off 0 V onto CHASSIS", add_node(nl, chassis, ("R6", "2"))),
+    ]
 
 
 NEGATIVE = [
@@ -269,6 +318,10 @@ def main() -> int:
     print("negative tests (mutated netlist copies must fail):")
     for name, ref, pa, pb in NEGATIVE:
         bad = check(Netlist(swap_pins(text, ref, pa, pb)), quiet=True)
+        print(f"  {'detected' if bad else 'MISSED  '}: {name} ({len(bad)} discrepancies)")
+        ok &= bool(bad)
+    for name, mut in neg_semantic(nl):
+        bad = check(mut, quiet=True)
         print(f"  {'detected' if bad else 'MISSED  '}: {name} ({len(bad)} discrepancies)")
         ok &= bool(bad)
     if not ok:

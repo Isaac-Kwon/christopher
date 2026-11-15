@@ -7,13 +7,14 @@ For each board:
   1. exports the schematic netlist (kicad-cli) and reads the board's pads and nets with the KiCad
      Python (pcbnew): the IPC-D-356 net-name field is only 14 characters, too short for the
      hierarchical net names, so pcbnew is used;
-  2. every schematic part is on the board with the schematic's footprint, nothing else except the
-     mounting holes H1..H4, and all footprints are on the front side;
+  2. every schematic part is on the board with the schematic's footprint (the four plated mounting
+     holes H1..H4 are schematic parts, net CHASSIS), nothing else, and all footprints are on the front
+     side; the D-sub shell pads (SH, two per connector, no schematic pin) are on CHASSIS;
   3. the nets on the pads are exactly the schematic nets (pad by pad), no pad has a net of another
      board and no track/via/zone exists (placement only);
   4. kicad-cli DRC (courtyard, overlap, edge, clearance, hole, ...) reports 0 violations; the
      unconnected items are the ratsnest.  Schematic parity: no missing footprint and no net
-     conflict (field-text differences of the symbol are ignored, mounting holes are not in the schematic);
+     conflict (field-text differences of the symbol are ignored);
   5. ratsnest edge count (pcbnew connectivity) = sum(pads - 1) over the schematic nets;
   6. negative tests: swapping the nets of two pads / moving a footprint onto another is detected;
   7. determinism: generating twice gives identical files.
@@ -46,15 +47,21 @@ PY = os.environ.get("KICAD_PYTHON", str(Path(CLI).parent / "python.exe"))
 DUMP = r"""
 import json, sys, pcbnew
 b = pcbnew.LoadBoard(sys.argv[1])
-fps, pads = {}, {}
+fps, pads, dups = {}, {}, 0
 for f in b.GetFootprints():
     ref = f.GetReference()
     fps[ref] = {"fpid": f.GetFPIDAsString(), "front": f.GetLayer() == pcbnew.F_Cu,
                 "x": f.GetPosition().x / 1e6, "y": f.GetPosition().y / 1e6}
+    seen_nums = set()
     for p in f.Pads():
-        pads["%s|%s" % (ref, p.GetNumber())] = p.GetNetname()
+        if p.GetNetname() and p.GetNumber() in seen_nums:
+            dups += 1          # second pad with the same number and a net (D-sub SH, SOT-223 tab): extra ratsnest edge
+        seen_nums.add(p.GetNumber())
+        k = "%s|%s" % (ref, p.GetNumber())
+        n = p.GetNetname()
+        pads[k] = n if pads.get(k, n) == n else "CONFLICT"   # same pad name twice (SH) on different nets
 print(json.dumps({"fps": fps, "pads": pads, "tracks": len(list(b.GetTracks())), "zones": len(list(b.Zones())),
-                  "ratsnest": b.GetConnectivity().GetUnconnectedCount(False)}))
+                  "ratsnest": b.GetConnectivity().GetUnconnectedCount(False), "dups": dups}))
 """
 
 
@@ -86,7 +93,7 @@ def compare(nl: "vc.Netlist", d: dict) -> list[str]:
             errs.append(f"{ref}: footprint {f['fpid']} != schematic {part['footprint']}")
         elif not f["front"]:
             errs.append(f"{ref}: not on the front side")
-    extra = set(d["fps"]) - set(nl.parts) - {f"H{i}" for i in range(1, 5)}
+    extra = set(d["fps"]) - set(nl.parts)
     if extra:
         errs.append(f"unexpected footprints: {sorted(extra)}")
     if sum(1 for r in d["fps"] if re.fullmatch(r"H\d", r)) != 4:
@@ -103,7 +110,7 @@ def compare(nl: "vc.Netlist", d: dict) -> list[str]:
     if bad > 5:
         errs.append(f"... {bad} pads with a wrong net in total")
     for (ref, pin), name in d["pads"].items():
-        if (ref, pin) not in nl.node_net and not ref.startswith("H") and name:
+        if (ref, pin) not in nl.node_net and name:
             errs.append(f"pad {(ref, pin)} carries net {name!r} but is not in the schematic netlist")
     if d["tracks"] or d["zones"]:
         errs.append(f"board contains {d['tracks']} tracks/vias and {d['zones']} zones (placement only expected)")
@@ -142,7 +149,7 @@ def main():
         d = dump(pcb)
         e = compare(nl, d)
         errs += e
-        print(f"parts: {len(nl.parts)} schematic / {len(d['fps'])} on the board (incl. 4 holes), "
+        print(f"parts: {len(nl.parts)} schematic / {len(d['fps'])} on the board (incl. the 4 plated holes), "
               f"pads {len(nl.node_net)}, nets {len(nets)}")
         print("placement / pad-net comparison:", "OK" if not e else f"{len(e)} problems")
         for x in e[:10]:
@@ -152,8 +159,10 @@ def main():
         run("pcb", "drc", "--severity-all", "--format", "json", "--schematic-parity", "-o", str(work / f"{project}.drc.json"), str(pcb))
         dr = json.loads((work / f"{project}.drc.json").read_text(encoding="utf8"))
         viol, unc, par = dr.get("violations", []), dr.get("unconnected_items", []), dr.get("schematic_parity", [])
+        # the D-sub shell pads (SH) carry CHASSIS but have no symbol pin (the KiCad D-sub symbols have no shield
+        # pin): by design, and checked pad by pad in compare()
         bad_par = [p for p in par if p["type"] != "footprint_symbol_field_mismatch"
-                   and not (p["type"] == "extra_footprint" and re.search(r"\bH\d\b", json.dumps(p)))]
+                   and not (p["type"] == "net_conflict" and all("pad SH " in i.get("description", "") for i in p.get("items", [])))]
         print(f"DRC: {len(viol)} violations; {len(unc)} unconnected items listed (report capped at about 500); "
               f"schematic parity: {len(par)} items, of which {len(bad_par)} are real (missing / extra / net conflicts)")
         for v in viol[:10]:
@@ -167,8 +176,10 @@ def main():
         if {v["type"] for v in unc} - {"unconnected_items"}:
             errs.append("unexpected unconnected item type")
 
-        expect = sum(len(n) - 1 for n in nets.values())
-        print(f"ratsnest (pcbnew connectivity): {d['ratsnest']} unconnected edges, expected {expect} = sum(pads-1) over schematic nets")
+        n_dsub = d["dups"]    # duplicate-numbered pads: 2nd shell pad of each D-sub, the tab of the SOT-223 MOSFET
+        expect = sum(len(n) - 1 for n in nets.values()) + n_dsub
+        print(f"ratsnest (pcbnew connectivity): {d['ratsnest']} unconnected edges, expected {expect} = sum(pads-1) over schematic nets "
+              f"(incl. the shell pads) + {n_dsub} duplicate-numbered pads (second D-sub shell pads, MOSFET tab)")
         if d["ratsnest"] != expect:
             errs.append("ratsnest edge count mismatch")
 
@@ -190,7 +201,15 @@ def main():
         print("negative test 2 (a footprint flipped to the back side):", "detected" if ok2 else "NOT DETECTED")
         if neg.exists():
             neg.unlink()
-        if not (ok1 and ok2):
+        # negative test 3 (0003 K4): a D-sub shell pad moved from CHASSIS to 0 V
+        gid = re.search(r'\(net (\d+) "/GND"\)', t).group(1)
+        bad = re.sub(r'(\(pad "SH".*?\(net )\d+ "/CHASSIS"', lambda m: m.group(1) + f'{gid} "/GND"', t, count=1, flags=re.S)
+        neg.write_text(bad, encoding="utf8", newline="\n")
+        ok3 = bad != t and bool(compare(nl, dump(neg)))
+        print("negative test 3 (a D-sub shell pad on 0 V instead of CHASSIS):", "detected" if ok3 else "NOT DETECTED")
+        if neg.exists():
+            neg.unlink()
+        if not (ok1 and ok2 and ok3):
             errs.append("negative test failed")
         errs_all += [f"{project}: {x}" for x in errs]
 

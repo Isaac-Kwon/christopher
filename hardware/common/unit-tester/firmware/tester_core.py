@@ -25,8 +25,11 @@ A "mask" is 52 bits = 13 hex digits, bit n = node n sensed high.
                                 per STROBE), then OK <count> [end]  or  ERR timeout <count>
     OFF                      -> OK                             all drivers off
 
-Position bus: 15 bits, bits 0-4 left (fast) drum core offset, 5-9 middle, 10-14 right (0..25).
-Flags: bit0 STROBE, bit1 STOPPED, bit2 AT_HOME, bit3 END, bit4 ESTOP chain closed, bit5 ILOCK closed.
+Position bus (POS): 15 bits = the bank's CORE position (l, m, r), bits 0-4 left (fast) drum, 5-9 middle,
+10-14 right (0..25).  It does not contain the crib offset k (decision 0003 4.5): a unit's drum letters are
+l, m and r + k, which the host computes.
+Flags: bit0 STROBE, bit1 STOPPED, bit2 AT_HOME, bit3 END, bit4 ESTOP loop closed (and fed), bit5 ILOCK loop closed,
+bit6 JUDGE, bit7 CLEAR, bit8 STOP_LATCH (register: stop relay S is operated).
 """
 
 VERSION = "0.1"
@@ -40,6 +43,9 @@ F_AT_HOME = 4
 F_END = 8
 F_ESTOP_OK = 16
 F_ILOCK_OK = 32
+F_JUDGE = 64
+F_CLEAR = 128
+F_STOP_LATCH = 256
 
 # Front end constants, shared with the host's contact-resistance estimate (README section 4).
 V_DRIVE = 24.0            # V, test supply

@@ -46,7 +46,6 @@ CONN_DEPTH = 12.74           # D-sub footprint: board edge is 12.74 mm from the 
 HOLES = [(5.0, 5.0), (BOARD_W - 5.0, 5.0), (5.0, BOARD_H - 5.0), (BOARD_W - 5.0, BOARD_H - 5.0)]
 
 FP_RELAY = "Relay_THT:Relay_DPDT_Omron_G6S-2"
-FP_HOLE = "MountingHole:MountingHole_3.2mm_M3"
 
 # ----------------------------------------------------------------------------- design rules
 TRACK, CLEAR, VIA_D, VIA_DRILL = 0.15, 0.15, 0.5, 0.25
@@ -192,6 +191,11 @@ def placements(nl: "vs.Netlist"):
     P["J2"] = (CONN_DEPTH, top + span + gap + 10.28, 270, False)
     P["J3"] = (BOARD_W - CONN_DEPTH, top + 60.13, 90, False)
     P["J4"] = (BOARD_W - CONN_DEPTH, top + span + gap + 60.13, 90, False)
+    # mounting holes (plated, net CHASSIS) and the CHASSIS-0 V pair (0003 S2)
+    for k, (x, y) in enumerate(HOLES, 1):
+        P[f"H{k}"] = (x, y, 0, True)
+    P["R6"] = (BOARD_W - 35.0, BOARD_H - 7.0, 0, False)
+    P["C1"] = (BOARD_W - 25.0, BOARD_H - 7.0, 0, False)
     # control connector (D-sub 9, 31.7 mm long) below J2 on the left edge
     P["J5"] = (CONN_DEPTH, top + 2 * (span + gap) + 10.28, 270, False)
     return P
@@ -204,6 +208,10 @@ def build(nl: "vs.Netlist") -> tuple[str, dict]:
         netid[name] = len(netid) + 1
         for ref, pin in nl.nets[name]:
             node_net[(ref, pin)] = (netid[name], name)
+    # D-sub shells (footprint pads "SH", not a schematic pin) are CHASSIS (0003 7.1)
+    for ref in nl.parts:
+        if re.fullmatch(r"J\d", ref):
+            node_net[(ref, "SH")] = (netid["/CHASSIS"], "/CHASSIS")
     P = placements(nl)
     missing = set(nl.parts) - set(P)
     assert not missing, f"unplaced parts: {sorted(missing)}"
@@ -223,8 +231,6 @@ def build(nl: "vs.Netlist") -> tuple[str, dict]:
         part = nl.parts[ref]
         o.append(place(part["footprint"], ref, part["value"], x, y, rot,
                        {p: node_net[(ref, p)] for (r, p) in node_net if r == ref}, hide_ref=hide))
-    for k, (x, y) in enumerate(HOLES, 1):
-        o.append(place(FP_HOLE, f"H{k}", "MountingHole_3.2mm_M3", x, y, 0, {}, hide_ref=True))
     # outline
     corners = [(0, 0), (BOARD_W, 0), (BOARD_W, BOARD_H), (0, BOARD_H)]
     for k in range(4):
@@ -323,7 +329,7 @@ def main():
     text, P = build(nl)
     (HERE / f"{PROJECT}.kicad_pcb").write_text(text, encoding="utf8", newline="\n")
     merge_project(HERE / f"{PROJECT}.kicad_pro")
-    print(f"wrote {PROJECT}.kicad_pcb ({len(P)} parts + {len(HOLES)} holes, {BOARD_W} x {BOARD_H} mm) and board rules in the .kicad_pro")
+    print(f"wrote {PROJECT}.kicad_pcb ({len(P)} parts incl. {len(HOLES)} plated mounting holes, {BOARD_W} x {BOARD_H} mm) and board rules in the .kicad_pro")
 
 
 if __name__ == "__main__":

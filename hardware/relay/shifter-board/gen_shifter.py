@@ -37,6 +37,8 @@ FP_DSUB9 = ("Connector_Dsub:DSUB-9_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset9.9
 FP_DIODE = "Diode_SMD:D_SOD-123"
 FP_R = "Resistor_SMD:R_0603_1608Metric"
 FP_LED = "LED_SMD:LED_0603_1608Metric"
+FP_C = "Capacitor_SMD:C_0603_1608Metric"
+FP_HOLE = "MountingHole:MountingHole_3.2mm_M3_Pad"
 
 # G6S-2 pin functions (verified against the library symbol graphics: the armature of pole 1
 # rests on pin 3, of pole 2 on pin 10, when the coil is off).
@@ -117,6 +119,8 @@ S_RELAY = Sym("Relay", "G6S-2")
 S_DIODE = Sym("Device", "D")
 S_R = Sym("Device", "R_US")
 S_LED = Sym("Device", "LED")
+S_C = Sym("Device", "C")
+S_HOLE = Sym("Mechanical", "MountingHole_Pad")   # plated M3 mounting hole -> CHASSIS (0003 7.1)
 S_DB37 = Sym("Connector", "DC37_Pins")   # 37-pin D-sub, pins (male); "DC" = shell size C
 S_DB9 = Sym("Connector", "DE9_Pins")     # 9-pin D-sub, pins (male); "DE" = shell size E
 
@@ -170,7 +174,7 @@ class Sheet:
             f'\t\t\t\t(size {size} {size})\n\t\t\t)\n\t\t\t(justify left top)\n\t\t)\n\t\t(uuid "{self._u("t")}")\n\t)')
 
     # -- symbols
-    def symbol(self, sym: Sym, x, y, ref, value, footprint, datasheet="", desc="", inst_path="", show_value=True):
+    def symbol(self, sym: Sym, x, y, ref, value, footprint, datasheet="", desc="", inst_path="", show_value=True, in_bom=True):
         self.libs[sym.lib_id] = sym
         x, y = g(x), g(y)
         def prop(name, val, key=None, hide=False):
@@ -180,7 +184,7 @@ class Sheet:
             return (f'\t\t(property "{name}" "{val}"\n\t\t\t(at {pos} 0){h}\n\t\t\t(effects\n\t\t\t\t(font\n'
                     f'\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t\t(justify left)\n\t\t\t)\n\t\t)\n')
         s = (f'\t(symbol\n\t\t(lib_id "{sym.lib_id}")\n\t\t(at {f(x)} {f(y)} 0)\n\t\t(unit 1)\n'
-             f'\t\t(exclude_from_sim no)\n\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp no)\n'
+             f'\t\t(exclude_from_sim no)\n\t\t(in_bom {"yes" if in_bom else "no"})\n\t\t(on_board yes)\n\t\t(dnp no)\n'
              f'\t\t(uuid "{self._u("s")}")\n')
         s += prop("Reference", ref, "Reference")
         s += prop("Value", value, "Value", hide=not show_value)
@@ -337,12 +341,11 @@ def root_sheet() -> tuple[Sheet, list[tuple[Sheet, str]]]:
     for ref, val, half, k, x, y in conns:
         x, y = g(x), g(y)
         root.symbol(S_DB37, x, y, ref, val, FP_DSUB37, "",
-                    f"D-sub 37 pins: 1-26 = lines A-Z, 27-29 = 0 V, 30-37 reserved. {val}", path0)
+                    f"D-sub 37 pins: 1-26 = lines A-Z, 27-29 = 0 V reference (NOT connected on this board, 0003 S1), 30-37 reserved. {val}", path0)
         for i in range(N):
             root.pin_net(S_DB37, x, y, str(i + 1), chain_net(half, k, i), 5.08)
-        for p in ("27", "28", "29"):
-            root.pin_net(S_DB37, x, y, p, "GND", 5.08)
-        for p in range(30, 38):
+        # 0003 5.2 / S1: pins 27-29 (0 V reference) are NOT connected on the scrambler side.
+        for p in range(27, 38):
             px, py, _ = root.pin_xy(S_DB37, x, y, str(p))
             root.noconnect(px, py)
 
@@ -357,6 +360,27 @@ def root_sheet() -> tuple[Sheet, list[tuple[Sheet, str]]]:
     for p in ("8", "9"):
         px, py, _ = root.pin_xy(S_DB9, jx, jy, p)
         root.noconnect(px, py)
+
+    # CHASSIS (0003 7.1 / S2): D-sub shells (footprint pads "SH", not in the symbol) and the four
+    # plated mounting holes are net CHASSIS; one 1 Mohm || 10 nF (100 V) pair ties CHASSIS to 0 V.
+    for k in range(4):
+        hx, hy = g(300.0 + 40.0 * k), g(480.0)
+        root.symbol(S_HOLE, hx, hy, f"H{k + 1}", "MountingHole_Pad", FP_HOLE, "",
+                    "Plated M3 mounting hole, net CHASSIS (metal standoff to the frame / PE)", path0, show_value=False, in_bom=False)
+        root.pin_net(S_HOLE, hx, hy, "1", "CHASSIS", 5.08)
+    rx, ry = g(480.0), g(480.0)
+    root.symbol(S_R, rx, ry, "R6", "1M", FP_R, "", "CHASSIS to 0 V: static drain (DC open-ish)", path0)
+    root.pin_net(S_R, rx, ry, "1", "CHASSIS", 5.08)
+    root.pin_net(S_R, rx, ry, "2", "GND", 5.08)
+    cx, cy = g(540.0), g(480.0)
+    root.symbol(S_C, cx, cy, "C1", "10nF 100V", FP_C, "", "CHASSIS to 0 V: ESD / HF path", path0)
+    root.pin_net(S_C, cx, cy, "1", "CHASSIS", 5.08)
+    root.pin_net(S_C, cx, cy, "2", "GND", 5.08)
+    root.text("CHASSIS (decision 0003 7.1): D-sub shells J1-J5 (footprint pads SH) and mounting holes H1-H4 = CHASSIS, not 0 V.\n"
+              "R6 1 Mohm || C1 10 nF/100 V between CHASSIS and 0 V (electrostatic path, open for DC).\n"
+              "J1-J4 pins 27-29 are not connected here (0003 5.2: the 0 V reference is tied on the common side only).\n"
+              "0 V returns through J5 pins 6-7 only. No fuse on this board: it has no power input, CTRL lines are fused "
+              "on the counter unit board (0003 6, 7.3).", 300, 500)
 
     # stage sheets
     sheets = []
@@ -388,7 +412,7 @@ def root_sheet() -> tuple[Sheet, list[tuple[Sheet, str]]]:
         sheets.append((stage_sheet(root_uuid, sheet_uuid, b), fname))
     root.text("Relay shifter board - one shifter pair (outbound + return halves share the coils)\n"
               "Connectors: J1 outbound IN, J2 return IN (one board edge); J3 outbound OUT, J4 return OUT (opposite edge); "
-              "J5 control.\nD-sub 37: pins 1-26 = lines A-Z (as unit tester J_A/J_B), 27-29 = 0 V, 30-37 reserved.\n"
+              "J5 control.\nD-sub 37: pins 1-26 = lines A-Z (as unit tester J_A/J_B), 27-29 = 0 V reference, NOT connected here, 30-37 reserved.\n"
               "J5 D-sub 9: 1-5 = CTRL0-4 (24 V, weights 1,2,4,8,16), 6-7 = 0 V.\n"
               "Reverse mounting swaps IN/OUT on both halves: outbound -> i-a, return -> i+a.", 40, 30)
     return root, sheets

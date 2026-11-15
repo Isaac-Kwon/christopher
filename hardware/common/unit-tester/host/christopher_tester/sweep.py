@@ -4,7 +4,7 @@ from functools import lru_cache
 
 from .diagnose import Finding, Report, diagnose
 from . import reference as ref
-from .protocol import coded_sources, unpack_pos
+from .protocol import coded_sources, drum_letters, unpack_pos
 
 
 class SweepReport:
@@ -64,9 +64,11 @@ def _spec(order_key, l, m, r):
     return ref.unit_spec(order_key, l, m, r)
 
 
-def check_sweep(order, sweep, spec_for=None):
-    """``order``: wheel order of the unit; ``sweep``: protocol.Sweep. Uses the position the unit
+def check_sweep(order, sweep, spec_for=None, k=0):
+    """``order``: wheel order of the unit; ``sweep``: protocol.Sweep. Uses the position the bank
     itself reports (POS bus) to look up the reference, so a wrong POS shows as a mismatch.
+    POS is the core position (l, m, r) WITHOUT the crib offset k (decision 0003 4.5); the unit's drum
+    letters are (l, m, r + k), so the offset k of the unit under test is passed here (default 0).
     ``spec_for(pos)`` -> Spec overrides the scrambler reference (e.g. a single drum board whose
     left field of POS is its drum letter: ``lambda p: drum_spec("III", "A", p[0])``)."""
     from christopher import WheelOrder
@@ -87,7 +89,7 @@ def check_sweep(order, sweep, spec_for=None):
             widths.append(s.width_us)
             if s.scan_us > s.width_us:
                 late.append(s.seq)
-        spec = spec_for(pos) if spec_for else _spec(key, *pos)
+        spec = spec_for(pos) if spec_for else _spec(key, *drum_letters(pos, k))
         if s.planes:
             rep = _check_coded(spec, s.planes)
         else:

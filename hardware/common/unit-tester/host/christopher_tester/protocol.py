@@ -14,6 +14,7 @@ ADC_VREF = 3.3
 ADC_FULL = 4095
 
 F_STROBE, F_STOPPED, F_AT_HOME, F_END, F_ESTOP_OK, F_ILOCK_OK = 1, 2, 4, 8, 16, 32
+F_JUDGE, F_CLEAR, F_STOP_LATCH = 64, 128, 256          # 165 bits 72, 73, 74 (decision 0003 T4)
 
 Sample = namedtuple("Sample", "seq pos width_us scan_us masks planes")
 Sweep = namedtuple("Sweep", "samples ended_early timed_out")
@@ -45,8 +46,15 @@ def coded_sources(planes, side="A"):
 
 
 def unpack_pos(pos):
-    """(left, middle, right) core offsets from the 15-bit position bus."""
+    """(l, m, r) CORE positions of the bank from the 15-bit POS bus.  POS has no crib offset k (decision 0003 4.5);
+    the drum letters of a unit with offset k are ``drum_letters(pos, k)``."""
     return pos & 31, pos >> 5 & 31, pos >> 10 & 31
+
+
+def drum_letters(pos, k=0):
+    """Drum letters (left, middle, right) of a unit with crib offset k: (l, m, (r + k) mod 26)."""
+    l, m, r = pos
+    return l, m, (r + k) % N
 
 
 def pack_pos(left, middle, right):

@@ -40,7 +40,11 @@ FP_F2 = "Fuse:Fuse_2920_7451Metric"
 FP_CP = "Capacitor_THT:CP_Radial_D8.0mm_P3.50mm"
 FP_TB2 = "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"
 FP_TB4 = "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal"
-FP_HOLE = "MountingHole:MountingHole_3.2mm_M3"
+FP_HOLE = "MountingHole:MountingHole_3.2mm_M3_Pad"
+FP_TB8 = "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-8-5.08_1x08_P5.08mm_Horizontal"
+FP_SJ = "Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm"
+FP_C = "Capacitor_SMD:C_0603_1608Metric"
+FP_QP = "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
 DS_G6S = "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
 
 # G6S-2 pin functions (same as the shifter board): pole 1 = COM 4 / NC 3 / NO 5, pole 2 = COM 9 / NC 10 / NO 8,
@@ -132,7 +136,11 @@ S_ZENER = Sym("Device", "D_Zener")
 S_CP = Sym("Device", "C_Polarized")
 S_TB2 = Sym("Connector", "Screw_Terminal_01x02")
 S_TB4 = Sym("Connector", "Screw_Terminal_01x04")
-S_HOLE = Sym("Mechanical", "MountingHole")
+S_TB8 = Sym("Connector", "Screw_Terminal_01x08")
+S_HOLE = Sym("Mechanical", "MountingHole_Pad")   # plated M3 hole, net CHASSIS (0003 R5)
+S_SJ = Sym("Jumper", "SolderJumper_2_Bridged")   # closed by default (0003 R3)
+S_QP = Sym("Transistor_FET", "Q_PMOS_GDS")       # pins 1 = G, 2 = D, 3 = S (series reverse-polarity MOSFET, 0003 R6)
+S_C = Sym("Device", "C")
 
 OUT = {0: (-1, 0), 90: (0, -1), 180: (1, 0), 270: (0, 1)}
 LABEL_ANGLE = {(-1, 0): 180, (1, 0): 0, (0, 1): 90, (0, -1): 270}
@@ -193,7 +201,7 @@ class Sheet:
             return (f'\t\t(property "{name}" "{val}"\n\t\t\t(at {pos} 0){h}\n\t\t\t(effects\n\t\t\t\t(font\n'
                     f'\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t\t(justify left)\n\t\t\t)\n\t\t)\n')
         s = (f'\t(symbol\n\t\t(lib_id "{sym.lib_id}")\n\t\t(at {f(x)} {f(y)} 0)\n\t\t(unit 1)\n'
-             f'\t\t(exclude_from_sim no)\n\t\t(in_bom {"no" if sym is S_HOLE else "yes"})\n\t\t(on_board yes)\n\t\t(dnp no)\n'
+             f'\t\t(exclude_from_sim no)\n\t\t(in_bom {"no" if sym in (S_HOLE, S_SJ) else "yes"})\n\t\t(on_board yes)\n\t\t(dnp no)\n'
              f'\t\t(uuid "{self._u("s")}")\n')
         s += prop("Reference", ref, "Reference")
         s += prop("Value", value, "Value", hide=not show_value)
@@ -310,8 +318,11 @@ def sheet_block(sheet_uuid, root_uuid, name, fname, x, y, w, h, page) -> str:
             f'\t\t\t\t)\n\t\t\t)\n\t\t)\n\t)')
 
 
-# J2 (BANK) pin map; same as the unit tester's J_C where it overlaps (README 3.4), plus the proposed pin 36
-J2_MAP = {1: "STROBE", 2: "RUN", 3: "STOPPED", 34: "JUDGE", 35: "CLEAR", 36: "STOP_LATCH"}
+# J2 (BANK) pin map = the control connector of decision 0003 5.2.  1 STROBE, 2 RUN, 3 STOPPED, 4 HOME (panel Home button,
+# 0003 4.3), 22/23 ESTOP_A/B and 24/25 ILOCK_A/B (safety loops, closed here by solder jumpers, 0003 4.6), 34 JUDGE,
+# 35 CLEAR, 36 STOP_LATCH (confirmed).  Not used by the register: 5 AT_HOME, 6 END, 7-21 POS, 26-27 +24V_AUX, 37 reserved.
+J2_MAP = {1: "STROBE", 2: "RUN", 3: "STOPPED", 4: "HOME", 22: "ESTOP_A", 23: "ESTOP_B", 24: "ILOCK_A", 25: "ILOCK_B",
+          34: "JUDGE", 35: "CLEAR", 36: "STOP_LATCH"}
 J2_GND = list(range(28, 34))
 
 
@@ -335,7 +346,8 @@ def root_sheet(root_uuid: str, lanes_uuid: str) -> Sheet:
     dsub("J1", "TEST_REG_IN", 70, 80, {i + 1: f"L_{letter(i)}" for i in range(N)}, [27, 28, 29],
          "D-sub 37 pins: 1-26 = lines A-Z from the menu panel (test register cable), 27-29 = 0 V, 30-37 reserved")
     dsub("J2", "BANK", 70, 190, J2_MAP, J2_GND,
-         "D-sub 37 pins (unit tester J_C map): 1 STROBE, 2 RUN, 3 STOPPED, 34 JUDGE, 35 CLEAR, 36 STOP_LATCH (proposed), 28-33 0 V")
+         "D-sub 37 pins (decision 0003 control connector): 1 STROBE, 2 RUN, 3 STOPPED, 4 HOME, 22-23 ESTOP loop, 24-25 ILOCK loop, "
+         "34 JUDGE, 35 CLEAR, 36 STOP_LATCH, 28-33 0 V; 5-21, 26-27, 37 not connected")
     dsub("J3", "DISPLAY", 70, 300, {**{i + 1: f"LAMP_{letter(i)}" for i in range(N)}, 27: "LAMP_STOP",
                                     28: "+24VD", 29: "+24VD", 30: "+24VD"}, [31, 32, 33, 34, 35, 36, 37],
          "D-sub 37 pins: 1-26 = LAMP_A..Z (low = display slave relay energised), 27 = LAMP_STOP, 28-30 = +24 V (fused), 31-37 = 0 V")
@@ -343,27 +355,48 @@ def root_sheet(root_uuid: str, lanes_uuid: str) -> Sheet:
             length=5.08)
     sh.part(S_TB2, 70, 420, "J5", "TEST_OUT", FP_TB2, {"1": "TEST", "2": "GND"}, "",
             "Test voltage lead to the menu panel searching plug: 1 = TEST (+24 V while STROBE), 2 = 0 V", length=5.08)
-    sh.part(S_TB4, 70, 445, "J6", "PANEL", FP_TB4, {"1": "+24V", "2": "START_SW", "3": "RELEASE_SW", "4": "GND"}, "",
-            "Front panel: 1 = +24 V (switch common), 2 = START switch return (normally open, maintained), "
-            "3 = RELEASE push-button return (normally open), 4 = 0 V", length=5.08)
+    sh.part(S_TB8, 70, 445, "J6", "PANEL", FP_TB8,
+            {"1": "+24V", "2": "START_SW", "3": "RELEASE_SW", "4": "GND", "5": "HOME", "6": "ESTOP_A", "7": "ESTOP_B"}, "",
+            "Front panel (0003 5.2): 1 = +24 V (switch common), 2 = START switch return (normally open, maintained), "
+            "3 = RELEASE push-button return (normally open, 50 ms or longer), 4 = 0 V, 5 = HOME button return -> J2 pin 4, "
+            "6-7 = emergency-stop button b-contact between ESTOP_A and ESTOP_B (cut SJ1 when fitted), 8 reserved", length=5.08)
+    # 0003 R3: the bank-owned safety loops come back through the common part; closed by solder jumpers (cut to fit a panel button)
+    sh.part(S_SJ, 150, 330, "SJ1", "ESTOP loop (bridged)", FP_SJ, {"1": "ESTOP_A", "2": "ESTOP_B"}, "",
+            "Solder jumper, closed by default: returns ESTOP_A (J2 pin 22) to ESTOP_B (J2 pin 23). Cut it when an emergency-stop button is wired to J6 pins 6-7",
+            show_value=False)
+    sh.part(S_SJ, 150, 350, "SJ2", "ILOCK loop (bridged)", FP_SJ, {"1": "ILOCK_A", "2": "ILOCK_B"}, "",
+            "Solder jumper, closed by default: returns ILOCK_A (J2 pin 24) to ILOCK_B (J2 pin 25)", show_value=False)
 
     # ---- power
-    sh.part(S_FUSE, 190, 400, "F1", "PTC 1.1A hold", FP_F1, {"1": "VIN", "2": "+24V"}, "", "Logic supply PTC fuse")
-    sh.part(S_FUSE, 220, 400, "F2", "PTC 2A hold", FP_F2, {"1": "VIN", "2": "+24VD"}, "", "Display supply PTC fuse")
+    # 0003 R6 / 7.3: series P-channel MOSFET (drain on the supply side, so a reversed supply keeps it off; gate 12 V
+    # zener + resistor), common ahead of F1 and F2; the TVS sits behind it.
+    sh.part(S_QP, 125, 400, "QP1", "P-MOSFET (reverse polarity)", FP_QP, {"1": "GATEP", "2": "VIN", "3": "VMOS"}, "",
+            "Series reverse-polarity P-MOSFET: D = J4 supply side (VIN), S = VMOS (to F1/F2), Vgs limited by DZP1", show_value=False)
+    sh.part(S_ZENER, 125, 372, "DZP1", "12V", FP_DIODE, {"1": "VMOS", "2": "GATEP"}, "",
+            "Gate-source zener 12 V (anode on the gate)", show_value=False)
+    sh.part(S_R, 160, 372, "RGP1", "100k", FP_R, {"1": "GATEP", "2": "GND"}, desc="P-MOSFET gate pull-down to 0 V", show_value=False)
+    sh.part(S_FUSE, 190, 400, "F1", "PTC 1.1A hold", FP_F1, {"1": "VMOS", "2": "+24V"}, "", "Logic supply PTC fuse")
+    sh.part(S_FUSE, 220, 400, "F2", "PTC 2A hold", FP_F2, {"1": "VMOS", "2": "+24VD"}, "", "Display supply PTC fuse")
     sh.part(S_CP, 250, 400, "C1", "100u/35V", FP_CP, {"1": "+24V", "2": "GND"}, "", "Bulk capacitor, logic rail")
     sh.part(S_CP, 280, 400, "C2", "100u/35V", FP_CP, {"1": "+24VD", "2": "GND"}, "", "Bulk capacitor, display rail")
-    sh.part(S_TVS, 310, 400, "DV1", "SMAJ33A", FP_TVS, {"1": "VIN", "2": "GND"}, "", "Transient suppressor (cathode on +24 V)",
-            show_value=False)
+    sh.part(S_TVS, 310, 400, "DV1", "SMAJ33A", FP_TVS, {"1": "VMOS", "2": "GND"}, "",
+            "Transient suppressor (cathode on +24 V), behind the series MOSFET", show_value=False)
+    # 0003 R5 / 7.1: D-sub shells (footprint pads SH, no schematic pin) and the four plated mounting holes are CHASSIS;
+    # one 1 Mohm || 10 nF/100 V between CHASSIS and 0 V.
     for k, (hx, hy) in enumerate([(340, 400), (360, 400), (380, 400), (400, 400)], 1):
-        sh.part(S_HOLE, hx, hy, f"H{k}", "M3", FP_HOLE, {}, "", "Mounting hole", show_value=False)
+        sh.part(S_HOLE, hx, hy, f"H{k}", "MountingHole_Pad", FP_HOLE, {"1": "CHASSIS"}, "",
+                "Plated M3 mounting hole, net CHASSIS (metal standoff to the frame / PE)", show_value=False)
+    sh.part(S_R, 430, 400, "RCH1", "1M", FP_R, {"1": "CHASSIS", "2": "GND"}, desc="CHASSIS to 0 V: static drain", show_value=False)
+    sh.part(S_C, 460, 400, "CCH1", "10nF 100V", FP_C, {"1": "CHASSIS", "2": "GND"}, desc="CHASSIS to 0 V: ESD / HF path",
+            show_value=False)
 
     # ---- timing relays: STROBE (KT), JUDGE (KJ), CLEAR (KC)
     x0, y0, dx = 190, 90, 80
-    relay(sh, x0, y0, "K27", rel_nets("STROBE", "GND", ("TESTSRC", None, "TEST"), ("TESTSRC", None, "TEST")),
+    relay(sh, x0, y0, "K27", rel_nets("STROBE_C", "GND", ("TESTSRC", None, "TEST"), ("TESTSRC", None, "TEST")),
           "STROBE relay: contact 'STROBE' (both poles in parallel) puts the test voltage on TEST")
-    relay(sh, x0 + dx, y0, "K28", rel_nets("JUDGE", "GND", ("+24V", None, "JNODE"), ("+24V", None, "JNODE")),
+    relay(sh, x0 + dx, y0, "K28", rel_nets("JUDGE_C", "GND", ("+24V", None, "JNODE"), ("+24V", None, "JNODE")),
           "JUDGE relay: contact j (both poles in parallel) feeds the stop-relay path")
-    relay(sh, x0 + 2 * dx, y0, "K29", rel_nets("CLEAR", "GND", ("HSUP", "H", None), ("HSUP", "H", None)),
+    relay(sh, x0 + 2 * dx, y0, "K29", rel_nets("CLEAR_C", "GND", ("HSUP", "H", None), ("HSUP", "H", None)),
           "CLEAR relay: contact r, normally closed (both poles in parallel), feeds the hold bus H from HSUP; opens during CLEAR")
     # ---- pass relay P
     relay(sh, x0 + 3 * dx, y0, "K30", rel_nets("PN", "GND", ("H", None, "PH"), ("JNODE", "SN", None)),
@@ -386,8 +419,12 @@ def root_sheet(root_uuid: str, lanes_uuid: str) -> Sheet:
         xx = x0 + k * dx
         sh.part(S_DIODE, xx, y0 + 34, ref, "1N4148W", FP_DIODE, {"1": f"X{k + 1}", "2": "GND"},
                 desc=f"Coil clamp diode ({net}), in series with a zener", show_value=False)
-        sh.part(S_ZENER, xx, y0 + 46, f"DZ{27 + k}", "BZT52C30", FP_DIODE, {"1": f"X{k + 1}", "2": net},
+        sh.part(S_ZENER, xx, y0 + 46, f"DZ{27 + k}", "BZT52C30", FP_DIODE, {"1": f"X{k + 1}", "2": f"{net}_C"},
                 desc=f"Coil clamp zener 30 V ({net}): releases faster than a plain flyback diode", show_value=False)
+        # 0003 R1: series diode pin -> coil.  The clamp (diode + zener) is on the coil side, so the connector pin never
+        # goes negative; the indicator resistor / LED (pull-down) stays on the pin side.
+        sh.part(S_DIODE, xx + 20, y0 + 34, f"D{34 + k}", "1N4148W", FP_DIODE, {"1": f"{net}_C", "2": net},
+                desc=f"Series diode ({net}): J2 pin -> coil; blocks the coil kick-back from the bank output", show_value=False)
     for k, (ref, net) in ((3, ("D30", "PN")), (4, ("D31", "SN")), (7, ("D32", "RELEASE_SW"))):
         sh.part(S_DIODE, x0 + k * dx, y0 + 34, ref, "1N4148W", FP_DIODE, {"1": net, "2": "GND"},
                 desc=f"Coil flyback diode ({net})", show_value=False)
@@ -402,6 +439,7 @@ def root_sheet(root_uuid: str, lanes_uuid: str) -> Sheet:
     sh.part(S_R, 190, 220, "RR1", "10k", FP_R, {"1": "RUN", "2": "GND"}, desc="RUN pull-down", show_value=False)
     sh.part(S_R, 230, 220, "RR2", "100k", FP_R, {"1": "START_SW", "2": "GND"}, desc="START pull-down", show_value=False)
     sh.part(S_R, 270, 220, "RR3", "100k", FP_R, {"1": "RELEASE_SW", "2": "GND"}, desc="RELEASE pull-down", show_value=False)
+    sh.part(S_R, 310, 220, "RR4", "100k", FP_R, {"1": "HOME", "2": "GND"}, desc="HOME (J2 pin 4) pull-down", show_value=False)
 
     # ---- stop-bus MOSFET (LAMPGND) and stop lamp driver
     sh.part(S_R, 190, 270, "RS1", "33k", FP_R, {"1": "SN", "2": "SG"}, desc="Stop gate divider top", show_value=False)
@@ -416,7 +454,7 @@ def root_sheet(root_uuid: str, lanes_uuid: str) -> Sheet:
             show_value=False)
 
     sh.items.append(sheet_block(lanes_uuid, root_uuid, "SENSE_LANES", "sense_lanes.kicad_sch", 450, 200, 60, 20, 2))
-    sh.text("TEST REGISTER (decision 0001, option c)\n"
+    sh.text("TEST REGISTER (decision 0001, option c; interface decision 0003)\n"
             "K1..K26 sense relays (lanes sheet), K27 STROBE relay, K28 JUDGE relay, K29 CLEAR relay (contact r, NC),\n"
             "K30 pass relay P, K31..K33 stop relay S (three relays, coils in parallel), K34 RELEASE relay.  All G6S-2 DPDT signal relays.\n"
             "J1 = 26-wire test register cable (from the menu panel), J2 = bank control, J3 = display (lamp panel),\n"

@@ -8936,7 +8936,7 @@
 			)
 		)
 	)
-	(text "Group 1: drivers U21; sense optocouplers U52, U52, U52, U52, U53, U53, U53, U53\nRUN_OUT / HOME_OUT are 24 V high-side outputs (group 6 only)."
+	(text "Group 1: drivers U21; sense optocouplers U52, U52, U52, U52, U53, U53, U53, U53\nRUN_OUT / HOME_OUT are 24 V high-side outputs through resettable fuses F3 / F4 (group 6 only)."
 		(exclude_from_sim no)
 		(at 40 560 0)
 		(effects

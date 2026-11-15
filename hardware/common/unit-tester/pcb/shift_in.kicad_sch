@@ -10,7 +10,7 @@
 		(rev "A")
 		(comment 1 "Chain: DS of U30 (bits 0-7) = GND; Q7 of chip c -> DS of chip c+1; Q7 of U39 (bits 72-79) -> MISO_165")
 		(comment 2 "First bit shifted out = bit 79 (HAL: first byte = most significant)")
-		(comment 3 "Bit n: chip U30+n//8, input D(n%8); bits 0-51 nodes, 52-66 POS, 67-71 flags, 72 JUDGE, 73 CLEAR, 74-79 tied low")
+		(comment 3 "Bit n: chip U30+n//8, input D(n%8); bits 0-51 nodes, 52-66 POS, 67-71 flags, 72 JUDGE, 73 CLEAR, 74 STOP_LATCH, 75-79 tied low")
 	)
 	(lib_symbols
 		(symbol "74xx:74HC165"
@@ -7133,7 +7133,7 @@
 		)
 		(uuid "52999530-b2b4-5593-810a-6b92e1ee5c1e")
 	)
-	(global_label "GND_M"
+	(global_label "SENSE_74"
 		(shape passive)
 		(at 673.1 332.74 180)
 		(effects

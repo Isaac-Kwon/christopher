@@ -11,9 +11,13 @@ generator code:
   3. connector pinout J_A / J_B / J_C against the table in README.md 3.4;
   4. the isolation domains: no net may touch both the FIELD and the MCU domain (only the isolators and
      optocouplers may straddle), passives never bridge domains;
-  5. spare / aux bits (POS, flags, JUDGE, CLEAR) reach the HAL bit positions.
+  5. spare / aux bits (POS, flags, JUDGE, CLEAR, STOP_LATCH) reach the HAL bit positions;
+  6. decision 0003 items T1-T4, T7, T8: pin connectors, resettable fuses on RUN/HOME, ESTOP/ILOCK loops
+     returned by jumpers, STOP_LATCH on 165 bit 74, CHASSIS_F pair, series P-MOSFET at the power input.
 
-    python check_netlist.py [--netlist nl.xml] [--bom]
+    python check_netlist.py [--netlist nl.xml] [--bom] [--selftest]
+
+--selftest runs mutated copies of the netlist through the checks (they must fail).
 
 Exit status 0 = all checks pass (documented HAL deviations are reported as NOTE, not as failures).
 """
@@ -206,7 +210,7 @@ def check_aux(nl: Netlist, rep: Report):
     for k in range(15):
         expect[52 + k] = (f"POS{k}_IN", 7 + k)
     expect.update({67: ("STOPPED_IN", 3), 68: ("AT_HOME_IN", 5), 69: ("END_IN", 6), 70: ("ESTOP_RET", 23),
-                   71: ("ILOCK_RET", 25), 72: ("JUDGE_IN", 34), 73: ("CLEAR_IN", 35)})
+                   71: ("ILOCK_RET", 25), 72: ("JUDGE_IN", 34), 73: ("CLEAR_IN", 35), 74: ("STOP_LATCH_IN", 36)})
     for bit, (net, jpin) in expect.items():
         rep.check(("J3", str(jpin)) in nl.pins_on(net), "aux", f"bit {bit}: {net} on J_C pin {jpin}")
         s = [(r, p) for r, p in nl.pins_on(net) if r.startswith("R") and nl.comp[r]["value"] == "2.2k"]
@@ -223,28 +227,63 @@ def check_aux(nl: Netlist, rep: Report):
         r165, p165 = ic[0]
         got = 8 * (9 - ch165.index(r165)) + D_PINS.index(p165)
         rep.check(got == bit, "aux", f"{net}: 165 bit {got} != {bit}")
-    for bit in range(74, 80):
+    for bit in range(75, 80):
         c = ch165[9 - bit // 8]
         rep.check(nl.net(c, D_PINS[bit % 8]) == "GND_M", "aux", f"spare bit {bit} tied to GND_M")
-    # HAL: flags at FLAG_SHIFT=67 (STOPPED, AT_HOME, END, ESTOP_OK, ILOCK_OK), POS at 52
+    # HAL: flags at FLAG_SHIFT=67 (STOPPED, AT_HOME, END, ESTOP_OK, ILOCK_OK, JUDGE, CLEAR, STOP_LATCH), POS at 52
     hal = (TESTER / "firmware" / "hal_pico.py").read_text(encoding="utf8")
     rep.check(re.search(r"POS_SHIFT = 52", hal) is not None and re.search(r"FLAG_SHIFT = 67", hal) is not None,
               "aux", "hal_pico.py POS_SHIFT=52 / FLAG_SHIFT=67 as assumed")
-    # ESTOP / ILOCK sources
-    for src, ret, jp in (("ESTOP_SRC", "ESTOP_RET", 22), ("ILOCK_SRC", "ILOCK_RET", 24)):
-        rep.check(("J3", str(jp)) in nl.pins_on(src), "aux", f"{src} on J_C pin {jp}")
-        rs = [(r, p) for r, p in nl.pins_on(src) if r.startswith("R")]
-        rep.check(len(rs) == 1 and nl.other_pin(*rs[0]) == "+24V_F", "aux", f"{src} fed from +24V_F through one resistor")
-    # RUN/HOME 24 V outputs
+    rep.check(re.search(r"v >> FLAG_SHIFT & 0xFF", hal) is not None, "aux", "hal_pico.py reads 8 flag bits (67..74, incl. STOP_LATCH on bit 74)")
+    # RUN/HOME 24 V outputs (0003 T2: resettable fuse instead of the 1k series resistor)
     for nm, hnet, jp in (("RUN", "RUN_F", 2), ("HOME", "HOME_F", 4)):
         drv = [(r, p) for r, p in nl.pins_on(hnet) if nl.comp[r]["value"].startswith("TBD")]
         rep.check(len(drv) == 1, "aux", f"{nm}: isolator output {hnet} feeds one TBD62783A input")
         iso = [(r, p) for r, p in nl.pins_on(hnet) if r == "U3"]
         rep.check(bool(iso), "aux", f"{nm}: {hnet} driven by the fail-safe-low isolator U3")
         o = nl.net(drv[0][0], str(19 - int(drv[0][1])))
-        rs = [(r, p) for r, p in nl.pins_on(o) if r.startswith("R")]
-        rep.check(nl.other_pin(*rs[0]) == f"{nm}_OUT" and ("J3", str(jp)) in nl.pins_on(f"{nm}_OUT"), "aux",
-                  f"{nm}: driver -> 1k -> {nm}_OUT -> J_C pin {jp}")
+        rs = [(r, p) for r, p in nl.pins_on(o) if r.startswith("F")]
+        rep.check(len(rs) == 1 and nl.other_pin(*rs[0]) == f"{nm}_OUT" and ("J3", str(jp)) in nl.pins_on(f"{nm}_OUT"), "aux",
+                  f"{nm}: driver -> resettable fuse -> {nm}_OUT -> J_C pin {jp}")
+        rep.check(len(rs) == 1 and nl.comp[rs[0][0]]["value"].startswith("PTC 30mA")
+                  and "Fuse" in nl.comp[rs[0][0]]["fp"], "aux", f"{nm}: output element is a 30 mA PTC, not a resistor")
+
+
+# ----------------------------------------------------------------------------- 6. decision 0003
+def check_0003(nl: Netlist, rep: Report):
+    sec = "0003"
+    # T1: board connectors are pins (male)
+    for ref in ("J1", "J2", "J3"):
+        rep.check("DSUB-37_Pins_Horizontal" in nl.comp[ref]["fp"], sec, f"T1: {ref} footprint is a D-sub PIN connector ({nl.comp[ref]['fp']})")
+    # T3: ESTOP / ILOCK loops: bank feeds 22 / 24, jumper returns them to 23 / 25, sensed there; optional feed jumpers
+    for a, ret, jp, feed, fr, pa, pr in (("ESTOP_A", "ESTOP_RET", "JP2", "JP4", "R404", 22, 23),
+                                         ("ILOCK_A", "ILOCK_RET", "JP3", "JP5", "R405", 24, 25)):
+        rep.check(nl.net("J3", str(pa)) == a and nl.net("J3", str(pr)) == ret, sec, f"T3: J_C {pa}/{pr} are {a}/{ret}")
+        rep.check({nl.net(jp, "1"), nl.net(jp, "2")} == {a, ret} and "Bridged" in nl.comp[jp]["fp"], sec,
+                  f"T3: {jp} is a bridged (default closed) jumper between {a} and {ret}")
+        rep.check(nl.net(feed, "2") == a and "Open" in nl.comp[feed]["fp"] and nl.net(feed, "1") == nl.net(fr, "2")
+                  and nl.net(fr, "1") == "+24V_F" and nl.comp[fr]["value"] == "2.2k", sec,
+                  f"T3: {feed} (default open) feeds {a} from +24V_F through {fr} 2.2k")
+        rep.check(not any(r.startswith("R") and nl.comp[r]["value"] == "2.2k" and nl.other_pin(r, p) == "+24V_F"
+                          for r, p in nl.pins_on(a)), sec, f"T3: {a} is not fed from +24V_F without the (open) jumper")
+    # T4: STOP_LATCH on J_C 36 -> 2.2k -> optocoupler -> 165 bit 74; pin 37 reserved
+    rep.check(nl.net("J3", "36") == "STOP_LATCH_IN" and nl.net("J3", "37").startswith("unconnected"), sec,
+              "T4: J_C 36 = STOP_LATCH_IN, 37 reserved")
+    # T7: CHASSIS_F pair (the shells are footprint pads SH and have no schematic pin; gen_pcb.py puts them on this net)
+    members = sorted(nl.pins_on("CHASSIS_F"))
+    rep.check(members == [("C237", "1"), ("R408", "1")] and nl.net("R408", "2") == "GND_F" and nl.net("C237", "2") == "GND_F"
+              and nl.comp["R408"]["value"] == "1M" and nl.comp["C237"]["value"].startswith("10n"), sec,
+              f"T7: CHASSIS_F joined to GND_F by R408 1M || C237 10n only (members {members})")
+    # T8: series P-MOSFET: J4 + -> drain; source -> +24V_IN (F1, F2, TVS D1); gate zener + pull-down
+    j4 = nl.net("J4", "1")
+    plus = nl.net("Q1", "3")
+    ok = (nl.net("Q1", "2") == j4 and plus == "+24V_IN" and j4 != plus and nl.net("F1", "1") == plus
+          and nl.net("F2", "1") == plus and nl.net("D1", "1") == plus
+          and nl.net("DZ1", "1") == plus and nl.net("DZ1", "2") == nl.net("Q1", "1") == nl.net("R412", "1")
+          and nl.net("R412", "2") == "GND_F" and "SOT-223" in nl.comp["Q1"]["fp"])
+    rep.check(ok, sec, "T8: J4 -> Q1 drain, Q1 source = +24V_IN feeds F1/F2/TVS, gate zener DZ1 + R412 pull-down "
+                       f"(J4.1 on {j4}, Q1.3 on {plus})")
+    rep.check(all(nl.net(r, p) != "+24V_IN" for r, p in (("J4", "1"),)), sec, "T8: the screw terminal is not on +24V_IN directly")
 
 
 # ----------------------------------------------------------------------------- 2. Pico vs HAL
@@ -332,16 +371,15 @@ def check_connectors(nl: Netlist, rep: Report):
         for p in range(30, 38):
             rep.check(nl.net(ref, str(p)).startswith("unconnected"), "conn", f"{ref} pin {p} reserved (unconnected)")
     jc = {1: "STROBE_IN", 2: "RUN_OUT", 3: "STOPPED_IN", 4: "HOME_OUT", 5: "AT_HOME_IN", 6: "END_IN",
-          22: "ESTOP_SRC", 23: "ESTOP_RET", 24: "ILOCK_SRC", 25: "ILOCK_RET", 26: "+24V_BANK", 27: "+24V_BANK",
-          34: "JUDGE_IN", 35: "CLEAR_IN"}
+          22: "ESTOP_A", 23: "ESTOP_RET", 24: "ILOCK_A", 25: "ILOCK_RET", 26: "+24V_BANK", 27: "+24V_BANK",
+          34: "JUDGE_IN", 35: "CLEAR_IN", 36: "STOP_LATCH_IN"}
     for k in range(15):
         jc[7 + k] = f"POS{k}_IN"
     for p in range(28, 34):
         jc[p] = "GND_F"
     for p, net in jc.items():
         rep.check(nl.net("J3", str(p)) == net, "conn", f"J_C pin {p} -> {net} (got {nl.net('J3', str(p))})")
-    for p in (36, 37):
-        rep.check(nl.net("J3", str(p)).startswith("unconnected"), "conn", f"J_C pin {p} reserved")
+    rep.check(nl.net("J3", "37").startswith("unconnected"), "conn", "J_C pin 37 reserved")
     # STROBE path
     rs = [(r, p) for r, p in nl.pins_on("STROBE_IN") if r.startswith("R")]
     rep.check(len(rs) == 1 and ("J3", "1") in nl.pins_on("STROBE_IN"), "conn", "STROBE_IN: J_C 1 -> one resistor -> 6N137")
@@ -349,7 +387,7 @@ def check_connectors(nl: Netlist, rep: Report):
 
 
 # ----------------------------------------------------------------------------- 4. domains
-FIELD_SEEDS = {"U10", "U11", "U12", "U13", "U14", "U15", "U16", "U20", "U21", "U22", "U23", "U24", "U25", "U26",
+FIELD_SEEDS = {"Q1", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U20", "U21", "U22", "U23", "U24", "U25", "U26",
                "U80", "J1", "J2", "J3", "J4", "J6", "F1", "F2", "D1"}
 MCU_SEEDS = {"U1", "U5", "SW1", "J5"} | {f"U{30 + i}" for i in range(10)}
 
@@ -420,14 +458,77 @@ def run(nl: Netlist) -> tuple[Report, dict[str, str]]:
     check_aux(nl, rep)
     check_pico(nl, rep)
     check_connectors(nl, rep)
+    check_0003(nl, rep)
     dom = check_domains(nl, rep)
     return rep, dom
+
+
+def swap_nets(nl: Netlist, a: tuple[str, str], b: tuple[str, str]) -> Netlist:
+    """Copy of the netlist with the nets of two pins exchanged."""
+    import copy
+    n2 = copy.deepcopy(nl)
+    na, nb = n2.pin_net[a], n2.pin_net[b]
+    fa, fb = n2.pin_func.get(a, ""), n2.pin_func.get(b, "")
+    n2.nets[na] = [x for x in n2.nets[na] if (x[0], x[1]) != a] + [(b[0], b[1], fb)]
+    n2.nets[nb] = [x for x in n2.nets[nb] if (x[0], x[1]) != b] + [(a[0], a[1], fa)]
+    n2.pin_net[a], n2.pin_net[b] = nb, na
+    return n2
+
+
+def move_pin(nl: Netlist, pin: tuple[str, str], net: str) -> Netlist:
+    import copy
+    n2 = copy.deepcopy(nl)
+    old = n2.pin_net[pin]
+    fn = n2.pin_func.get(pin, "")
+    n2.nets[old] = [x for x in n2.nets[old] if (x[0], x[1]) != pin]
+    n2.nets.setdefault(net, []).append((pin[0], pin[1], fn))
+    n2.pin_net[pin] = net
+    return n2
+
+
+def set_comp(nl: Netlist, ref: str, **kw) -> Netlist:
+    import copy
+    n2 = copy.deepcopy(nl)
+    n2.comp[ref].update(kw)
+    return n2
+
+
+def selftest(nl: Netlist) -> bool:
+    cases = [
+        ("swap the 165 inputs of SENSE_5 <-> SENSE_6 (bits 5, 6)",
+         swap_nets(nl, *[next(x for x in nl.pins_on(f"SENSE_{b}") if nl.comp[x[0]]["value"] == "74HC165") for b in (5, 6)])),
+        ("swap node nets NODE_30 <-> NODE_31 at the connector", swap_nets(nl, ("J2", "5"), ("J2", "6"))),
+        ("T1: J_A fitted as a SOCKET footprint", set_comp(nl, "J1", fp="Connector_Dsub:DSUB-37_Socket_Horizontal_P2.77x2.84mm_EdgePinOffset9.90mm_Housed_MountingHolesOffset11.32mm")),
+        ("T2: RUN output element is a 1k resistor again (F3 value/footprint)", set_comp(nl, "F3", value="1k 1W", fp="Resistor_SMD:R_2512_6332Metric")),
+        ("T3: ESTOP return jumper JP2 fitted open", set_comp(nl, "JP2", fp="Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm")),
+        ("T3: ILOCK loop fed from +24V_F by default (JP5 bridged)", set_comp(nl, "JP5", fp="Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm")),
+        ("T3: J_C 22/23 swapped (loop direction reversed)", swap_nets(nl, ("J3", "22"), ("J3", "23"))),
+        ("T4: STOP_LATCH (J_C 36) and JUDGE (J_C 34) swapped", swap_nets(nl, ("J3", "36"), ("J3", "34"))),
+        ("T7: CHASSIS_F resistor R408 returned to 0 V of the MCU side", move_pin(nl, ("R408", "2"), "GND_M")),
+        ("T7: CHASSIS_F capacitor missing (C237 pin 1 on GND_F)", move_pin(nl, ("C237", "1"), "GND_F")),
+        ("T8: reversed series P-MOSFET (Q1 pins 2 <-> 3)", swap_nets(nl, ("Q1", "2"), ("Q1", "3"))),
+        ("T8: terminal J4 straight on +24V_IN (MOSFET bypassed)", move_pin(nl, ("J4", "1"), "+24V_IN")),
+        ("T8: gate zener DZ1 reversed (pins 1 <-> 2)", swap_nets(nl, ("DZ1", "1"), ("DZ1", "2"))),
+    ]
+    ok = True
+    print("selftest (mutated netlist copies must fail the checks):")
+    for name, m in cases:
+        try:
+            r, _ = run(m)
+            bad = len(r.fail)
+        except Exception as ex:      # a mutation that breaks a trace counts as detected
+            bad = 1
+            name += f" [{type(ex).__name__}]"
+        print(f"  {'detected' if bad else 'MISSED  '}: {name} ({bad} failures)")
+        ok &= bad > 0
+    return ok
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--netlist")
     ap.add_argument("--bom", action="store_true")
+    ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args()
     if a.netlist:
         path = Path(a.netlist)
@@ -447,7 +548,11 @@ def main():
     if a.bom:
         for v, fp, n in bom(nl):
             print(f"{n:4d}  {v:20s} {fp}")
-    sys.exit(1 if rep.fail else 0)
+    st = True
+    if a.selftest:
+        st = selftest(nl)
+        print("selftest:", "ALL DETECTED" if st else "A MUTATION WAS NOT DETECTED")
+    sys.exit(1 if rep.fail or not st else 0)
 
 
 if __name__ == "__main__":

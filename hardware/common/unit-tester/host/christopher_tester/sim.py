@@ -101,12 +101,13 @@ def high_resistance(i, ohm):
     return f
 
 
-def unit_sequence(order, positions, faults_at=None):
-    """STROBE sequence (pos15, SimNetwork) of a good unit through ``positions`` [(l,m,r) ...];
+def unit_sequence(order, positions, faults_at=None, k=0):
+    """STROBE sequence (pos15, SimNetwork) of a good unit through the core positions ``positions`` [(l,m,r) ...];
+    the POS bus carries the core position, the unit's drums show (l, m, r + k) (crib offset ``k``);
     ``faults_at`` {index: [fault callables]} injects faults at some positions."""
-    from .protocol import pack_pos
+    from .protocol import drum_letters, pack_pos
 
     faults_at = faults_at or {}
-    for k, (l, m, r) in enumerate(positions):
-        spec = ref.unit_spec(order, l, m, r)
-        yield pack_pos(l, m, r), network_for(spec, faults_at.get(k, ()))
+    for i, (l, m, r) in enumerate(positions):
+        spec = ref.unit_spec(order, *drum_letters((l, m, r), k))
+        yield pack_pos(l, m, r), network_for(spec, faults_at.get(i, ()))

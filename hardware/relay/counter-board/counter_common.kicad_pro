@@ -144,6 +144,22 @@
       },
       {
         "netclass": "Rail",
+        "pattern": "/VIN"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/VF"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/M?"
+      },
+      {
+        "netclass": "Rail",
+        "pattern": "/R?"
+      },
+      {
+        "netclass": "Rail",
         "pattern": "/CK"
       },
       {

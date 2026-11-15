@@ -352,6 +352,14 @@
       },
       {
         "netclass": "FIELD",
+        "pattern": "/AUX_SENSE/ESTOP_FEED"
+      },
+      {
+        "netclass": "FIELD",
+        "pattern": "/AUX_SENSE/ILOCK_FEED"
+      },
+      {
+        "netclass": "FIELD",
         "pattern": "/AUX_SENSE/SNS_52"
       },
       {
@@ -437,6 +445,10 @@
       {
         "netclass": "FIELD",
         "pattern": "/AUX_SENSE/SNS_73"
+      },
+      {
+        "netclass": "FIELD",
+        "pattern": "/AUX_SENSE/SNS_74"
       },
       {
         "netclass": "FIELD",
@@ -880,11 +892,19 @@
       },
       {
         "netclass": "FIELD",
+        "pattern": "/POWER/GATEP"
+      },
+      {
+        "netclass": "FIELD",
         "pattern": "/POWER/LED24"
       },
       {
         "netclass": "FIELD",
         "pattern": "/POWER/LED5"
+      },
+      {
+        "netclass": "FIELD",
+        "pattern": "/POWER/VIN_J"
       },
       {
         "netclass": "MCU",
@@ -953,6 +973,10 @@
       {
         "netclass": "FIELD",
         "pattern": "AT_HOME_IN"
+      },
+      {
+        "netclass": "FIELD",
+        "pattern": "CHASSIS_F"
       },
       {
         "netclass": "FIELD",
@@ -1180,11 +1204,11 @@
       },
       {
         "netclass": "FIELD",
-        "pattern": "ESTOP_RET"
+        "pattern": "ESTOP_A"
       },
       {
         "netclass": "FIELD",
-        "pattern": "ESTOP_SRC"
+        "pattern": "ESTOP_RET"
       },
       {
         "netclass": "FIELD",
@@ -1208,11 +1232,11 @@
       },
       {
         "netclass": "FIELD",
-        "pattern": "ILOCK_RET"
+        "pattern": "ILOCK_A"
       },
       {
         "netclass": "FIELD",
-        "pattern": "ILOCK_SRC"
+        "pattern": "ILOCK_RET"
       },
       {
         "netclass": "FIELD",
@@ -1864,6 +1888,10 @@
       },
       {
         "netclass": "MCU",
+        "pattern": "SENSE_74"
+      },
+      {
+        "netclass": "MCU",
         "pattern": "SENSE_8"
       },
       {
@@ -1873,6 +1901,10 @@
       {
         "netclass": "FIELD",
         "pattern": "STOPPED_IN"
+      },
+      {
+        "netclass": "FIELD",
+        "pattern": "STOP_LATCH_IN"
       },
       {
         "netclass": "FIELD",

@@ -4802,7 +4802,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "32ff42b5-5116-5a48-bcef-8df366ae22e3")
-		(property "Reference" "D175"
+		(property "Reference" "D180"
 			(at 419.1 127 0)
 			(effects
 				(font
@@ -4859,7 +4859,7 @@
 		(instances
 			(project "unit_tester"
 				(path "/81cf829a-b67d-5424-b23f-752e2a4fe473/54e2acd7-1411-5785-962b-a7a2b3597b89"
-					(reference "D175")
+					(reference "D180")
 					(unit 1)
 				)
 			)

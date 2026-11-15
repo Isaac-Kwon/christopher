@@ -17,9 +17,12 @@ Model (netlist only, no knowledge of the generator):
 Reference model = a direct Python port of crates/christopher-core/src/relay.rs Counters / Controls::from_cores
 (self-checked against each other here the same way the Rust test counters_track_controls_over_full_run does).
 
-Tests: structure; digit-level (unit board alone: every value 0..25 x advance/hold, carry, preset);
-system-level (common board + three unit boards with offsets k = 0, 7, 25 over a full run of 17,576 clocks;
-preset at HOME for all 26 offsets from random initial relay states); negative tests (mutated netlists must fail).
+Tests: structure (incl. the decision-0003 items: power input chain with the series P-MOSFET, no power on the
+signal connectors, CHASSIS separate from 0 V); digit-level (unit board alone: every value 0..25 x advance/hold,
+carry, preset); system-level (common board + three unit boards with offsets k = 0, 7, 25 over a full run of
+17,576 clocks; at every clock the CTRL lines of every unit AND the POS connector of the common board, i.e. the
+core position (l, m, r) without the crib offset k, are compared with the reference; preset at HOME for all 26
+offsets from random initial relay states); negative tests (mutated netlists must fail).
 """
 from __future__ import annotations
 
@@ -134,6 +137,13 @@ class Netlist:
             name = find1(n, "name")[1]
             for x in find_all(n, "node"):
                 self.node_net[(find1(x, "ref")[1], find1(x, "pin")[1])] = name
+        # D-sub shells are footprint pads "SH" with no schematic pin: they belong to net CHASSIS (0003 7.1),
+        # the net of the plated mounting holes.  Adding them here keeps netlist, simulation and PCB in step.
+        ch = self.node_net.get(("H1", "1"))
+        if ch is not None:
+            for ref, part in self.parts.items():
+                if re.fullmatch(r"J\d", ref) and "DSUB" in part["footprint"]:
+                    self.node_net[(ref, "SH")] = ch
 
 
 class Fault(Exception):
@@ -145,7 +155,8 @@ class System:
     """Several boards joined by fixed wires; relay states live in self.state."""
 
     def __init__(self, boards: dict[str, Netlist], wires: list, plus24, gnd, drives: dict[str, tuple]):
-        """boards: tag -> Netlist; wires: [((tag, ref, pin), (tag, ref, pin))]; plus24/gnd: (tag, ref, pin);
+        """boards: tag -> Netlist; wires: [((tag, ref, pin), (tag, ref, pin))]; plus24: list of (tag, ref, pin), one
+        per board (the node behind the reverse-polarity MOSFET); gnd: (tag, ref, pin);
         drives: name -> (tag, ref, pin) of externally driven nets."""
         self.boards = boards
         parent: dict = {}
@@ -188,7 +199,7 @@ class System:
         self.nn = len(ids)
         self.coilp, self.coiln = coilp, coiln
         self.gnd = nid(*gnd)
-        self.plus = nid(*plus24)
+        self.plus = [nid(*p) for p in plus24]
         self.drive = {name: nid(*p) for name, p in drives.items()}
         # adjacency: (neighbour, relay or -1, required state)
         self.adj = [[] for _ in range(self.nn)]
@@ -203,7 +214,7 @@ class System:
     def reach(self, drive_nets):
         seen = bytearray(self.nn)
         stack = []
-        for s in [self.plus] + drive_nets:
+        for s in self.plus + drive_nets:
             if not seen[s]:
                 seen[s] = 1
                 stack.append(s)
@@ -272,7 +283,8 @@ def build_system(common: Netlist, unit: Netlist, ks: list[int]) -> System:
             if ((N - k) % N) >> b & 1:
                 wires.append(((t, "J2", "1"), (t, "J2", str(7 + b))))          # a2 = -k
     drives = {"CK": ("C", "J1", "1"), "NCK": ("C", "J1", "2"), "LOAD": ("C", "J1", "3")}
-    s = System(boards, wires, ("C", "J1", "4"), ("C", "J1", "6"), drives)
+    plus = [("C", "Q1", "3")] + [(f"U{u}", "Q1", "3") for u in range(len(ks))]   # board +24V behind the MOSFET (0003 K1)
+    s = System(boards, wires, plus, ("C", "J1", "6"), drives)
     s.ks = ks
     return s
 
@@ -294,6 +306,78 @@ def structure_errors(nl: Netlist, nrelays: int, ndiodes: int, tag: str) -> list[
     return errs
 
 
+def decision_0003_errors(nl: Netlist, tag: str) -> list[str]:
+    """Structure checks for the decision-0003 items (K1 power input, K2 no power on signal connectors, K3 POS
+    connector, K4 CHASSIS).  Pure netlist topology."""
+    errs = []
+    net = nl.node_net.get
+    term = "J3" if tag == "common" else "J7"
+    vin, gnd = net((term, "1")), net((term, "2"))
+    plus = net(("TVS1", "2"))
+    vf = net(("F1", "2"))
+    want_hold = "1A" if tag == "common" else "4A"
+    chain = [
+        (net(("F1", "1")) == vin, "PTC F1 pin 1 is not on the supply input"),
+        (net(("Q1", "2")) == vf and vf not in (None, vin, plus), "MOSFET Q1 drain (pin 2) is not on the PTC output (reverse-polarity orientation)"),
+        (net(("Q1", "3")) == plus and plus not in (None, vin, vf), "MOSFET Q1 source (pin 3) is not on the board +24V"),
+        (net(("Q1", "1")) is not None and net(("Q1", "1")) == net(("DZ1", "2")) == net(("RG1", "1")), "Q1 gate is not on DZ1 anode + RG1"),
+        (net(("DZ1", "1")) == plus, "gate zener DZ1 cathode is not on the board +24V"),
+        (net(("RG1", "2")) == gnd, "gate resistor RG1 is not on 0 V"),
+        (net(("TVS1", "1")) == gnd, "TVS1 is not between +24V and 0 V"),
+        (net(("CB1", "1")) == plus and net(("CB1", "2")) == gnd, "bulk capacitor CB1 is not between +24V and 0 V"),
+        (want_hold in nl.parts.get("F1", {}).get("value", ""), f"PTC F1 value is not {want_hold}"),
+        ("SOT-223" in nl.parts.get("Q1", {}).get("footprint", ""), "Q1 is not a SOT-223 P-MOSFET"),
+    ]
+    errs += [f"{tag}: {m}" for ok, m in chain if not ok]
+    # board +24V comes only from the power input: no connector pin other than the terminal's pin 1 is on it
+    for (ref, pin), n in nl.node_net.items():
+        if n == plus and re.fullmatch(r"J\d", ref) and ref != term:
+            errs.append(f"{tag}: {ref} pin {pin} is on +24V (no power on signal connectors, 0003 K2)")
+        if n == vin and ref != term and ref != "F1":
+            errs.append(f"{tag}: {ref}.{pin} is on the unfused supply input net")
+    # 0 V: the bus / clock reference pins and the power terminal are the same net
+    ref_pin = ("J1", "6") if tag == "common" else ("J1", "19")
+    if net(ref_pin) != gnd:
+        errs.append(f"{tag}: connector 0 V pin {ref_pin} is not on the power-terminal 0 V")
+    # reserved pins left open: the old +24 V pins (clock 4-5, bus 16-18) must be alone on their net
+    reserved = ([("J1", "4"), ("J1", "5"), ("J2", "16"), ("J2", "17"), ("J2", "18")] if tag == "common"
+                else [("J1", "16"), ("J1", "17"), ("J1", "18")])
+    for nd in reserved:
+        n = net(nd)
+        if n is None or sum(1 for x, m in nl.node_net.items() if m == n) != 1:
+            errs.append(f"{tag}: reserved pin {nd} is connected (net {n})")
+    # CHASSIS (K4)
+    ch = net(("H1", "1"))
+    if ch is None:
+        errs.append(f"{tag}: mounting hole H1 is not on a CHASSIS net")
+    else:
+        members = {nd for nd, n in nl.node_net.items() if n == ch}
+        want = {(f"H{k}", "1") for k in range(1, 5)} | {("RCH1", "1"), ("CCH1", "1")} | \
+               {(r, "SH") for r in nl.parts if re.fullmatch(r"J\d", r) and "DSUB" in nl.parts[r]["footprint"]}
+        if members != want:
+            errs.append(f"{tag}: CHASSIS members differ from H1-H4, RCH1, CCH1, D-sub shells: {sorted(members ^ want)[:6]}")
+        if ch == gnd:
+            errs.append(f"{tag}: CHASSIS is the 0 V net")
+        if net(("RCH1", "2")) != gnd or net(("CCH1", "2")) != gnd:
+            errs.append(f"{tag}: RCH1/CCH1 are not between CHASSIS and 0 V")
+        if nl.parts["RCH1"]["value"] != "1M" or not nl.parts["CCH1"]["value"].startswith("10nF"):
+            errs.append(f"{tag}: CHASSIS-0 V pair is not 1M || 10nF")
+    if tag == "common":   # K3: POS connector pins
+        want_pos = {**{1 + b: f"/L{b}" for b in range(BITS)}, **{6 + b: f"/M{b}" for b in range(BITS)},
+                    **{11 + b: f"/R{b}" for b in range(BITS)}}
+        for p, n in want_pos.items():
+            if net(("J4", str(p))) != n:
+                errs.append(f"common: POS J4 pin {p} on {net(('J4', str(p)))}, expected {n}")
+        for p in (19, 20, 21):
+            if net(("J4", str(p))) != gnd:
+                errs.append(f"common: POS J4 pin {p} is not 0 V")
+        for p in (16, 17, 18, 22, 23, 24, 25):
+            n = net(("J4", str(p)))
+            if n is None or sum(1 for x, m in nl.node_net.items() if m == n) != 1:
+                errs.append(f"common: POS J4 reserved pin {p} is connected")
+    return errs
+
+
 # ----------------------------------------------------------------------------- system run
 class Mismatch(Exception):
     pass
@@ -311,6 +395,21 @@ def observe(s: System, seen, u: int):
     return (out["a1"], out["a2"], out["a3"], out["a4"])
 
 
+POS_PINS = {"l": 1, "m": 6, "r": 11}
+
+
+def observe_pos(s: System, seen) -> tuple[int, int, int]:
+    """Core position (l, m, r) on the POS connector J4 of the common board (24 V level, bit 0 first)."""
+    out = []
+    for name in ("l", "m", "r"):
+        v = 0
+        for b in range(BITS):
+            if seen[s.nid("C", "J4", str(POS_PINS[name] + b))]:
+                v |= 1 << b
+        out.append(v)
+    return tuple(out)
+
+
 def master_of(v: int) -> int:
     """Master relays mirror NOT slave; at value 25 the wrap relay forces them all to 0 (the wrap marker)."""
     return 0 if v == 25 else ~v & 31
@@ -321,11 +420,14 @@ def check_state(s: System, seen, refs: list[Counters], where: str, internal: boo
         got = observe(s, seen, u)
         if got != c.controls():
             raise Mismatch(f"{where}: unit {u} (k={c.k}) CTRL (a1,a2,a3,a4) = {got}, expected {c.controls()} (l={c.l} m={c.m} r={c.r})")
+    c0 = refs[0]
+    pos = observe_pos(s, seen)
+    if pos != (c0.l, c0.m, c0.r):       # POS = (l, m, r), no crib offset k (0003 4.5)
+        raise Mismatch(f"{where}: POS (l, m, r) = {pos}, expected {(c0.l, c0.m, c0.r)}")
     if not internal:
         return
-    c0 = refs[0]
     # internal digit values: common pL = l, pM = m, a3; unit a2, a1; masters = NOT slaves everywhere
-    exp_common = {1: c0.l, 2: c0.m, 3: c0.c[2]}
+    exp_common = {1: c0.l, 2: c0.m, 3: c0.c[2], 4: c0.r}
     for d, v in exp_common.items():
         sv, mv = digit_value(s, "C", d, 0), digit_value(s, "C", d, 1)
         if sv != v or mv != master_of(v):
@@ -429,7 +531,7 @@ def unit_only_system(unit: Netlist, v1: int, v2: int) -> System:
             wires.append((("U", "J2", "1"), ("U", "J2", str(7 + b))))
     drives = {"A2B": ("U", "J1", "1"), "Z2B": ("U", "J1", "2"), "A1B": ("U", "J1", "3"), "Z1B": ("U", "J1", "4"),
               "LOAD": ("U", "J1", "15")}
-    return System({"U": unit}, wires, ("U", "J1", "16"), ("U", "J1", "19"), drives)
+    return System({"U": unit}, wires, [("U", "Q1", "3")], ("U", "J1", "19"), drives)
 
 
 def digit_test(unit: Netlist, seed: int) -> int:
@@ -497,6 +599,41 @@ NEGATIVE = [
     ("unit buffer a4 bit 3: coil reversed (K903 pins 1<->12)", "unit", "K903", "1", "12"),
     ("unit CTRL a2 connector: swap CTRL0/CTRL1 (J4 pins 1<->2)", "unit", "J4", "1", "2"),
     ("unit a2 slave bit 3: self-hold diode reversed (D122 pins 1<->2)", "unit", "D122", "1", "2"),
+    ("common POS: swap m bits 0/1 on J4 (pins 6<->7)", "common", "J4", "6", "7"),
+    ("common pR slave bit 1: swap NC/NO of Q pole (K401 pins 3<->5)", "common", "K401", "3", "5"),
+    ("common pR master bit 0: swap NC/NO of carry pole (K410 pins 3<->5), seen when r first advances", "common", "K410", "3", "5"),
+]
+
+
+def move_node(nl: Netlist, node, to_node) -> Netlist:
+    """Copy of the netlist with pin `node` placed on the net of pin `to_node` (e.g. a bridged / mis-wired pin)."""
+    import copy
+    n2 = copy.deepcopy(nl)
+    n2.node_net[node] = n2.node_net[to_node]
+    return n2
+
+
+def swap_node(nl: Netlist, ref: str, pa: str, pb: str) -> Netlist:
+    """Copy of the netlist with the nets of two pins of `ref` exchanged."""
+    import copy
+    n2 = copy.deepcopy(nl)
+    n2.node_net[(ref, pa)], n2.node_net[(ref, pb)] = nl.node_net[(ref, pb)], nl.node_net[(ref, pa)]
+    return n2
+
+
+# structure-level mutations of the decision-0003 items: (description, board, mutation(netlist) -> netlist)
+NEGATIVE_0003 = [
+    ("common power input: reversed P-MOSFET (Q1 pins 2<->3)", "common", lambda nl: swap_node(nl, "Q1", "2", "3")),
+    ("unit power input: reversed P-MOSFET (Q1 pins 2<->3)", "unit", lambda nl: swap_node(nl, "Q1", "2", "3")),
+    ("common power input: PTC bypassed (F1 pin 2 on the supply input)", "common", lambda nl: move_node(nl, ("F1", "2"), ("J3", "1"))),
+    ("unit power input: gate zener reversed (DZ1 pins 1<->2)", "unit", lambda nl: swap_node(nl, "DZ1", "1", "2")),
+    ("unit power input: TVS missing from the board +24V (TVS1 pin 2 moved to 0 V)", "unit", lambda nl: move_node(nl, ("TVS1", "2"), ("J7", "2"))),
+    ("common: +24 V on the old clock pin J1.4 (power on a signal connector)", "common", lambda nl: move_node(nl, ("J1", "4"), ("Q1", "3"))),
+    ("unit: +24 V on the old bus pin J1.16", "unit", lambda nl: move_node(nl, ("J1", "16"), ("Q1", "3"))),
+    ("common: mounting hole H3 on 0 V instead of CHASSIS", "common", lambda nl: move_node(nl, ("H3", "1"), ("J3", "2"))),
+    ("unit: RCH1 moved onto CHASSIS (pair shorted out)", "unit", lambda nl: move_node(nl, ("RCH1", "2"), ("H1", "1"))),
+    ("common: 0 V connector pin J2.19 shorted to CHASSIS", "common", lambda nl: move_node(nl, ("J2", "19"), ("H1", "1"))),
+    ("common POS: l bit 0 / r bit 0 swapped on J4 (pins 1<->11)", "common", lambda nl: swap_node(nl, "J4", "1", "11")),
 ]
 
 
@@ -508,6 +645,22 @@ def negative_test(name, board, ref, pa, pb, ctext, utext) -> tuple[bool, str]:
             common, unit = Netlist(ctext), Netlist(swap_pins(utext, ref, pa, pb))
     except AssertionError as e:
         return False, f"mutation could not be applied: {e}"
+    return _negative_run(common, unit)
+
+
+def negative_test_0003(board, mut, ctext, utext) -> tuple[bool, str]:
+    common, unit = Netlist(ctext), Netlist(utext)
+    if board == "common":
+        common = mut(common)
+    else:
+        unit = mut(unit)
+    errs = decision_0003_errors(common, "common") + decision_0003_errors(unit, "unit")
+    if errs:
+        return True, f"caught by the structure check: {errs[0][:100]}"
+    return _negative_run(common, unit)
+
+
+def _negative_run(common, unit) -> tuple[bool, str]:
     stages = []
     try:
         stages.append("preset"); preset_test(common, unit, 5, ks_all=[0, 7, 25, 13, 1, 12])
@@ -563,7 +716,8 @@ def main() -> int:
     print("reference: Python port of relay.rs Counters == Controls::from_cores for all 26 k over 17,577 steps; "
           "a full run returns to HOME")
 
-    errs = structure_errors(common, 33, 3 * 64 + 4 + 0, "common") + structure_errors(unit, 32, 2 * 64 + 10, "unit")
+    errs = (structure_errors(common, 44, 4 * 64 + 4, "common") + structure_errors(unit, 32, 2 * 64 + 10, "unit")
+            + decision_0003_errors(common, "common") + decision_0003_errors(unit, "unit"))
     n_rel = lambda nl: sum(1 for r in nl.parts if re.fullmatch(r"K\d+", r))
     n_dio = lambda nl: sum(1 for r in nl.parts if re.fullmatch(r"D\d+", r))
     print(f"structure: common {n_rel(common)} relays / {n_dio(common)} diodes, unit {n_rel(unit)} relays / {n_dio(unit)} diodes")
@@ -592,7 +746,7 @@ def main() -> int:
             total += run_system(common, unit, ks, FULL_RUN, None, None, f"full k={ks}")
         print(f"full runs, synchronous settle: common + 3 units per batch, offsets k = {sorted({k for b in batches for k in b})}: "
               f"{len(batches)} runs x {FULL_RUN} clocks x 3 units; CTRL a1..a4 of every unit == Counters at every clock "
-              f"(commit and release), internal digits == l, m, a3, a2, a1 ({time.time() - t0:.0f} s)")
+              f"(commit and release), POS (l, m, r) of the common board == core position, internal digits == l, m, r, a3, a2, a1 ({time.time() - t0:.0f} s)")
         # asynchronous (random order) settle: races must not change the result
         t0 = time.time()
         rng = random.Random(7)
@@ -623,6 +777,10 @@ def main() -> int:
 
     print("negative tests (mutated netlists must fail):")
     ok = True
+    for name, board, mut in NEGATIVE_0003:
+        det, msg = negative_test_0003(board, mut, ctext, utext)
+        print(f"  {'detected' if det else 'MISSED  '}: {name} -> {msg}")
+        ok &= det
     for name, board, ref, pa, pb in NEGATIVE:
         det, msg = negative_test(name, board, ref, pa, pb, ctext, utext)
         print(f"  {'detected' if det else 'MISSED  '}: {name} -> {msg}")

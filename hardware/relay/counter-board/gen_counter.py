@@ -37,6 +37,13 @@ FP_DSUB = "Connector_Dsub:DSUB-%d_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset9.90
 FP_DIODE = "Diode_SMD:D_SOD-123"
 FP_R = "Resistor_SMD:R_0603_1608Metric"
 FP_LED = "LED_SMD:LED_0603_1608Metric"
+FP_C = "Capacitor_SMD:C_0603_1608Metric"
+FP_HOLE = "MountingHole:MountingHole_3.2mm_M3_Pad"
+FP_TERM = "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"
+FP_CP = "Capacitor_THT:CP_Radial_D8.0mm_P3.50mm"
+FP_TVS = "Diode_SMD:D_SMA"
+FP_PMOS = "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
+FP_PTC = {"1A": "Fuse:Fuse_1812_4532Metric", "4A": "Fuse:Fuse_2920_7451Metric"}
 DS_RELAY = "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
 
 # G6S-2 pin functions (see shifter-board/gen_shifter.py: armature of pole 1 rests on pin 3,
@@ -119,6 +126,14 @@ S_LED = Sym("Device", "LED")
 S_DB9 = Sym("Connector", "DE9_Pins")
 S_DA15 = Sym("Connector", "DA15_Pins")
 S_DB25 = Sym("Connector", "DB25_Pins")
+S_TERM = Sym("Connector", "Screw_Terminal_01x02")
+S_PTC = Sym("Device", "Polyfuse")
+S_PMOS = Sym("Transistor_FET", "Q_PMOS_GDS")
+S_ZENER = Sym("Device", "D_Zener")
+S_TVS = Sym("Device", "D_TVS")
+S_CP = Sym("Device", "C_Polarized")
+S_C = Sym("Device", "C")
+S_HOLE = Sym("Mechanical", "MountingHole_Pad")   # plated M3 mounting hole -> CHASSIS (0003 7.1)
 
 OUT = {0: (-1, 0), 90: (0, -1), 180: (1, 0), 270: (0, 1)}  # pin angle -> outward unit (x right, y up)
 LABEL_ANGLE = {(-1, 0): 180, (1, 0): 0, (0, 1): 90, (0, -1): 270}
@@ -166,7 +181,7 @@ class Sheet:
             f'\t(text "{s}"\n\t\t(exclude_from_sim no)\n\t\t(at {f(x)} {f(y)} 0)\n\t\t(effects\n\t\t\t(font\n'
             f'\t\t\t\t(size {size} {size})\n\t\t\t)\n\t\t\t(justify left top)\n\t\t)\n\t\t(uuid "{self._u("t")}")\n\t)')
 
-    def symbol(self, sym: Sym, x, y, ref, value, footprint, datasheet="", desc="", inst_path="", show_value=True):
+    def symbol(self, sym: Sym, x, y, ref, value, footprint, datasheet="", desc="", inst_path="", show_value=True, in_bom=True):
         self.libs[sym.lib_id] = sym
 
         def prop(name, val, key=None, hide=False):
@@ -176,7 +191,7 @@ class Sheet:
             return (f'\t\t(property "{name}" "{val}"\n\t\t\t(at {pos} 0){h}\n\t\t\t(effects\n\t\t\t\t(font\n'
                     f'\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t\t(justify left)\n\t\t\t)\n\t\t)\n')
         s = (f'\t(symbol\n\t\t(lib_id "{sym.lib_id}")\n\t\t(at {f(x)} {f(y)} 0)\n\t\t(unit 1)\n'
-             f'\t\t(exclude_from_sim no)\n\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp no)\n'
+             f'\t\t(exclude_from_sim no)\n\t\t(in_bom {"yes" if in_bom else "no"})\n\t\t(on_board yes)\n\t\t(dnp no)\n'
              f'\t\t(uuid "{self._u("s")}")\n')
         s += prop("Reference", ref, "Reference")
         s += prop("Value", value, "Value", hide=not show_value)
@@ -437,18 +452,76 @@ def connector(root: Sheet, path: str, sym: Sym, ref: str, value: str, nsize: int
             root.pin_net(sym, x, y, str(p), net, 5.08)
 
 
+def power_input(root: Sheet, path: str, ref: str, x: float, y: float, ptc: str, board: str):
+    """0003 K1 / 7.3: 5.08 mm 2-pole terminal (1 = +24 V, 2 = 0 V) -> PTC -> series P-MOSFET (reverse polarity,
+    drain on the supply side, gate 12 V zener + resistor) -> board +24V; TVS 33 V and 100 uF/35 V behind it."""
+    x, y = g(x), g(y)
+    root.symbol(S_TERM, x, y, ref, "24V_IN", FP_TERM, "", f"Power input (5.08 mm): 1 = +24 V, 2 = 0 V; {board}", path)
+    root.pin_net(S_TERM, x, y, "1", "VIN", 5.08)
+    root.pin_net(S_TERM, x, y, "2", "GND", 5.08)
+    fx = g(x + 40.0)
+    root.symbol(S_PTC, fx, y, "F1", f"PTC {ptc} hold", FP_PTC[ptc], "", f"Resettable fuse, hold current {ptc} (part number not confirmed)", path)
+    root.pin_net(S_PTC, fx, y, "1", "VIN")
+    root.pin_net(S_PTC, fx, y, "2", "VF")
+    qx = g(x + 80.0)
+    root.symbol(S_PMOS, qx, y, "Q1", "P-MOSFET (reverse polarity)", FP_PMOS, "", "Series P-channel MOSFET: D = supply side, S = board +24V; Vgs limited by DZ1", path)
+    root.pin_net(S_PMOS, qx, y, "1", "GATE")
+    root.pin_net(S_PMOS, qx, y, "2", "VF")
+    root.pin_net(S_PMOS, qx, y, "3", "+24V")
+    zx = g(x + 120.0)
+    root.symbol(S_ZENER, zx, y, "DZ1", "12V", FP_DIODE, "", "Gate-source zener 12 V (anode on the gate)", path)
+    root.pin_net(S_ZENER, zx, y, "1", "+24V")     # K
+    root.pin_net(S_ZENER, zx, y, "2", "GATE")     # A
+    gx = g(x + 160.0)
+    root.symbol(S_R, gx, y, "RG1", "100k", FP_R, "", "Gate pull-down to 0 V", path)
+    root.pin_net(S_R, gx, y, "1", "GATE")
+    root.pin_net(S_R, gx, y, "2", "GND")
+    tx = g(x + 200.0)
+    root.symbol(S_TVS, tx, y, "TVS1", "SMAJ33A", FP_TVS, "", "TVS 33 V across the board supply (behind the MOSFET)", path)
+    root.pin_net(S_TVS, tx, y, "1", "GND")
+    root.pin_net(S_TVS, tx, y, "2", "+24V")
+    cx = g(x + 240.0)
+    root.symbol(S_CP, cx, y, "CB1", "100uF 35V", FP_CP, "", "Bulk capacitor", path)
+    root.pin_net(S_CP, cx, y, "1", "+24V")
+    root.pin_net(S_CP, cx, y, "2", "GND")
+    root.text(f"Power input (decision 0003 6, 7.3): {ref} 1 = +24 V, 2 = 0 V. PTC F1 ({ptc} hold, part number not confirmed) -> "
+              "series P-channel MOSFET Q1 (drain on the supply side: a reversed supply keeps it off) with gate zener DZ1 12 V + RG1 -> "
+              "TVS1 33 V and CB1 100 uF/35 V. The board +24V is taken only from here; no power on the signal connectors.",
+              x, y + 14.0, 1.6)
+
+
+def chassis_group(root: Sheet, path: str, x: float, y: float):
+    """0003 K4 / 7.1: four plated mounting holes + the D-sub shells (footprint pads SH) are CHASSIS;
+    one 1 Mohm || 10 nF/100 V between CHASSIS and 0 V."""
+    for k in range(4):
+        hx, hy = g(x + 40.0 * k), g(y)
+        root.symbol(S_HOLE, hx, hy, f"H{k + 1}", "MountingHole_Pad", FP_HOLE, "",
+                    "Plated M3 mounting hole, net CHASSIS (metal standoff to the frame / PE)", path, show_value=False, in_bom=False)
+        root.pin_net(S_HOLE, hx, hy, "1", "CHASSIS", 5.08)
+    rx, ry = g(x + 180.0), g(y)
+    root.symbol(S_R, rx, ry, "RCH1", "1M", FP_R, "", "CHASSIS to 0 V: static drain", path)
+    root.pin_net(S_R, rx, ry, "1", "CHASSIS", 5.08)
+    root.pin_net(S_R, rx, ry, "2", "GND", 5.08)
+    cx, cy = g(x + 220.0), g(y)
+    root.symbol(S_C, cx, cy, "CCH1", "10nF 100V", FP_C, "", "CHASSIS to 0 V: ESD / HF path", path)
+    root.pin_net(S_C, cx, cy, "1", "CHASSIS", 5.08)
+    root.pin_net(S_C, cx, cy, "2", "GND", 5.08)
+    root.text("CHASSIS (decision 0003 7.1): D-sub shells (footprint pads SH, not in the symbols) and mounting holes H1-H4 = CHASSIS, "
+              "not 0 V. RCH1 1 Mohm || CCH1 10 nF/100 V between CHASSIS and 0 V.", x, y + 14.0, 1.6)
+
+
 # bus connector (identical pinout on both boards)
 BUS_PINS = {1: "A2B", 2: "Z2B", 3: "A1B", 4: "Z1B",
             **{5 + b: f"L{b}" for b in range(BITS)}, **{10 + b: f"T{b}" for b in range(BITS)},
-            15: "LOAD", 16: "+24V", 17: "+24V", 18: "+24V", 19: "GND", 20: "GND", 21: "GND"}
+            15: "LOAD", 19: "GND", 20: "GND", 21: "GND"}   # 16-18 reserved (were +24 V; 0003 K2)
 BUS_DESC = ("D-sub 25 pins: 1 A2B (a2 advance rail), 2 Z2B (a2 hold rail), 3 A1B, 4 Z1B (a1 rails), 5-9 L0..L4 (a4 = l code), "
-            "10-14 T0..T4 (a3 code), 15 LOAD (HOME preset level), 16-18 +24 V, 19-21 0 V, 22-25 reserved")
+            "10-14 T0..T4 (a3 code), 15 LOAD (HOME preset level), 16-18 reserved (no power on signal connectors), 19-21 0 V, 22-25 reserved")
 
 
 def common_board(outdir: Path):
     project = "counter_common"
     root_uuid = uid(project, "root")
-    root = Sheet(project, root_uuid, "A2", "Relay counter board - COMMON (pL = a4, pM, a3)",
+    root = Sheet(project, root_uuid, "A2", "Relay counter board - COMMON (pL = a4, pM, pR, a3, POS)",
                  ["Project Christopher - relay bombe track, counter board (common part)",
                   "Generated by gen_counter.py - do not edit by hand",
                   "Rules (relay.rs Counters): a4=l every clock; a3 every clock except l wraps; m advances when l wraps; "
@@ -456,17 +529,28 @@ def common_board(outdir: Path):
     path0 = f"/{root_uuid}"
     sheets = []
     connector(root, path0, S_DB9, "J1", "CLOCK", 9, 40.0, 60.0,
-              {1: "CK", 2: "NCK", 3: "LOAD", 4: "+24V", 5: "+24V", 6: "GND", 7: "GND"},
+              {1: "CK", 2: "NCK", 3: "LOAD", 6: "GND", 7: "GND"},
               "D-sub 9 pins: 1 CK (+24 V during the commit phase), 2 NCK (+24 V otherwise; both 0 V = LOAD/clear state), "
-              "3 LOAD, 4-5 +24 V, 6-7 0 V, 8-9 reserved")
+              "3 LOAD, 4-5 reserved (no power on signal connectors), 6-7 0 V, 8-9 reserved")
     connector(root, path0, S_DB25, "J2", "UNIT_BUS", 25, 40.0, 180.0, BUS_PINS, BUS_DESC)
+    # 0003 K3: POS connector = the core position (l, m, r) as three 5-bit binary digits (no k), 24 V level
+    pos = {**{1 + b: f"L{b}" for b in range(BITS)}, **{6 + b: f"M{b}" for b in range(BITS)},
+           **{11 + b: f"R{b}" for b in range(BITS)}, 19: "GND", 20: "GND", 21: "GND"}
+    connector(root, path0, S_DB25, "J4", "POS", 25, 40.0, 340.0, pos,
+              "D-sub 25 pins: 1-5 POS0-4 = l (pL code), 6-10 POS5-9 = m (pM code), 11-15 POS10-14 = r (pR code), "
+              "16-18 and 22-25 reserved, 19-21 0 V. 24 V level, 1 = high, bit 0 first. No k (0003 4.5)")
+    power_input(root, path0, "J3", 40.0, 440.0, "1A", "counter COMMON board (hold 1 A)")
+    chassis_group(root, path0, 40.0, 500.0)
 
     specs = [("PL", "pL (a4 = l)", "common_pl.kicad_sch", 1,
               dict(AIN="CK", ZIN="NCK", AOUT="LC", ZOUT="ZL", NOUT="NL", **{f"Q{i}": f"L{i}" for i in range(BITS)})),
              ("PM", "pM", "common_pm.kicad_sch", 2,
-              dict(AIN="LC", ZIN="ZL", AOUT="A1B", ZOUT="Z1B", NOUT="A2B", **{f"Q{i}": None for i in range(BITS)})),
+              dict(AIN="LC", ZIN="ZL", AOUT="A1B", ZOUT="Z1B", NOUT="A2B", **{f"Q{i}": f"M{i}" for i in range(BITS)})),
              ("A3", "a3 = l - m", "common_a3.kicad_sch", 3,
-              dict(AIN="NL", ZIN="Z3I", AOUT=None, ZOUT=None, NOUT=None, **{f"Q{i}": f"T{i}" for i in range(BITS)}))]
+              dict(AIN="NL", ZIN="Z3I", AOUT=None, ZOUT=None, NOUT=None, **{f"Q{i}": f"T{i}" for i in range(BITS)})),
+             # 0003 K3: bank-level r digit, preset 0, fed by the m-wrap rail pair (the same rails as the unit a1 digits)
+             ("PR", "pR (r)", "common_pr.kicad_sch", 4,
+              dict(AIN="A1B", ZIN="Z1B", AOUT=None, ZOUT=None, NOUT=None, **{f"Q{i}": f"R{i}" for i in range(BITS)}))]
     for idx, (key, label, fname, d, nets) in enumerate(specs):
         netmap = dict(nets, **{f"P{i}": "GND" for i in range(BITS)})
         x = 150.0 + idx * 95.0
@@ -484,8 +568,9 @@ def common_board(outdir: Path):
               "  pL: AIN = CK, ZIN = NCK (advances every clock).  LC / ZL = pL carry rail pair (CK and l = 25 / its complement).\n"
               "  pM: AIN = LC (advances when l wraps).  A1B / Z1B = pM carry rails = m wraps -> a1 advance / hold.\n"
               "  pM NOUT = A2B = CK and l wraps and m <> 25 -> a2 advance.  Z2B = ZL OR A1B = its complement -> a2 hold.\n"
-              "  a3: AIN = NL = CK and l <> 25 (NOUT of pL); ZIN = Z3I = NCK OR LC.  a3/pL/pM presets tie P0..P4 to 0 V = clear.\n"
-              "Bus J2 (to every unit board J1): A2B Z2B A1B Z1B, L0-L4 (a4), T0-T4 (a3), LOAD, +24 V, 0 V.", 150, 130, 1.6)
+              "  a3: AIN = NL = CK and l <> 25 (NOUT of pL); ZIN = Z3I = NCK OR LC.  a3/pL/pM/pR presets tie P0..P4 to 0 V = clear.\n"
+              "  pR (0003 K3): AIN = A1B, ZIN = Z1B, preset 0 = bank-level r digit. POS connector J4 = l (L0-4), m (M0-4), r (R0-4).\n"
+              "Bus J2 (to every unit board J1): A2B Z2B A1B Z1B, L0-L4 (a4), T0-T4 (a3), LOAD, 0 V (16-18 reserved; power only at J3).", 150, 130, 1.6)
     return project, root, sheets
 
 
@@ -499,6 +584,8 @@ def unit_board(outdir: Path):
     path0 = f"/{root_uuid}"
     sheets = []
     connector(root, path0, S_DB25, "J1", "BUS", 25, 40.0, 70.0, BUS_PINS, BUS_DESC)
+    power_input(root, path0, "J7", 40.0, 440.0, "4A", "counter UNIT board (hold 4 A)")
+    chassis_group(root, path0, 40.0, 500.0)
     dial = {1: "LOAD", 12: "GND", 13: "GND"}
     dial.update({2 + b: f"PA1_{b}" for b in range(BITS)})
     dial.update({7 + b: f"PA2_{b}" for b in range(BITS)})

@@ -4,8 +4,8 @@
     python verify_shifter_pcb.py [--build-dir DIR]
 
   1. exports the schematic netlist (kicad-cli) and the board's IPC-D-356 netlist;
-  2. every schematic part is on the board with the schematic's footprint, nothing else except the
-     mounting holes H1..H4;
+  2. every schematic part is on the board with the schematic's footprint, nothing else (the mounting holes H1..H4 are schematic parts, net CHASSIS; D-sub shell pads SH
+     are checked against CHASSIS);
   3. the nets on the pads are exactly the schematic nets (same pad partition; single-pad nets
      carry no net or their own 'unconnected' net);
   4. kicad-cli DRC: 0 violations; the unconnected items are exactly the ratsnest edges of the
@@ -45,7 +45,8 @@ def pcb_nets(pcb: Path, work: Path) -> dict[tuple[str, str], str]:
     for ln in out.read_text(encoding="utf8", errors="replace").splitlines():
         m = re.match(r"^3[12]7(\S+)\s+(\S+)\s+-(\S+)\s+[DA]\d", ln)
         if m:
-            res[(m[2], m[3])] = m[1]
+            k = (m[2], m[3])
+            res[k] = m[1] if res.get(k, m[1]) == m[1] else "CONFLICT"   # same pad name twice (SH) on different nets
     return res
 
 
@@ -60,17 +61,19 @@ def compare(nl: "vs.Netlist", pads: dict, pcb: Path) -> list[str]:
             errs.append(f"{ref}: missing on the board")
         elif by_ref[ref] != part["footprint"]:
             errs.append(f"{ref}: footprint {by_ref[ref]} != schematic {part['footprint']}")
-    extra = set(by_ref) - set(nl.parts) - {f"H{i}" for i in range(1, 5)}
+    extra = set(by_ref) - set(nl.parts)
     if extra:
         errs.append(f"unexpected footprints: {sorted(extra)}")
     # pad partition
     groups = defaultdict(set)
     for (ref, pin), net in pads.items():
-        if ref.startswith("H") or net == "N/C" or ("(" in net):
+        if net == "N/C" or ("(" in net):
             continue
         groups[net].add((ref, pin))
+    # D-sub shell pads ("SH", not schematic pins) must be on CHASSIS (0003 7.1)
+    shells = {(r, "SH") for r in nl.parts if re.fullmatch(r"J\d", r)}
     for name, nodes in nl.nets.items():
-        nodes = set(nodes)
+        nodes = set(nodes) | (shells if name.endswith("CHASSIS") else set())
         if len(nodes) == 1:
             continue
         got = groups.get(name)
@@ -105,7 +108,8 @@ def main():
     run("pcb", "drc", "--severity-all", "--format", "json", "-o", str(work / "drc.json"), str(PCB))
     d = json.loads((work / "drc.json").read_text(encoding="utf8"))
     viol, unc = d.get("violations", []), d.get("unconnected_items", [])
-    expect = sum(len(n) - 1 for n in nl.nets.values())
+    n_shell = 2 * sum(1 for r in nl.parts if re.fullmatch(r"J\d", r))   # SH pads: 2 per D-sub, on CHASSIS
+    expect = sum(len(n) - 1 for n in nl.nets.values()) + n_shell
     print(f"DRC: {len(viol)} violations, {len(d.get('schematic_parity', []))} parity items; "
           f"{len(unc)} unconnected items listed (the report is capped at about 500)")
     for v in viol[:10]:
@@ -118,7 +122,7 @@ def main():
                             "print(b.GetConnectivity().GetUnconnectedCount(False))", str(PCB)],
                            capture_output=True, text=True)
         n = int(r.stdout.split()[-1])
-        print(f"ratsnest (pcbnew connectivity): {n} unconnected edges, expected {expect} = sum(pads-1) over schematic nets")
+        print(f"ratsnest (pcbnew connectivity): {n} unconnected edges, expected {expect} = sum(pads-1) over schematic nets + {n_shell} D-sub shell pads on CHASSIS")
         if n != expect:
             errs.append("ratsnest edge count mismatch")
     else:
@@ -139,6 +143,16 @@ def main():
     print("negative test (two pad nets swapped):", "detected" if nerr and bad != t else "NOT DETECTED")
     if not nerr or bad == t:
         errs.append("negative test failed")
+    neg.unlink()
+
+    # negative test 2 (0003 S2): a D-sub shell pad moved from CHASSIS to 0 V must be detected
+    gid = re.search(r'\(net (\d+) "/GND"\)', t).group(1)
+    bad2 = re.sub(r'(\(pad "SH".*?\(net )\d+ "/CHASSIS"', lambda m: m.group(1) + f'{gid} "/GND"', t, count=1, flags=re.S)
+    neg.write_text(bad2, encoding="utf8", newline="\n")
+    nerr = compare(nl, pcb_nets(neg, work), neg)
+    print("negative test (D-sub shell pad on 0 V instead of CHASSIS):", "detected" if nerr and bad2 != t else "NOT DETECTED")
+    if not nerr or bad2 == t:
+        errs.append("negative test 2 failed")
     neg.unlink()
     print("RESULT:", "PASS" if not errs else "FAIL")
     return 1 if errs else 0

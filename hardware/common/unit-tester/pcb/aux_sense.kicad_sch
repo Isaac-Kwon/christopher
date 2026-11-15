@@ -5,12 +5,12 @@
 	(uuid "6364296b-c09a-59ff-8b28-25a84533a59c")
 	(paper "A1")
 	(title_block
-		(title "Auxiliary sense inputs (J_C): POS, flags, ESTOP/ILOCK, JUDGE, CLEAR")
+		(title "Auxiliary sense inputs (J_C): POS, flags, ESTOP/ILOCK, JUDGE, CLEAR, STOP_LATCH")
 		(date "2026-11-15")
 		(rev "A")
-		(comment 1 "Bits 52-66 POS0-14, 67 STOPPED, 68 AT_HOME, 69 END, 70 ESTOP_OK, 71 ILOCK_OK (HAL flag bits), 72 JUDGE, 73 CLEAR (new)")
-		(comment 2 "ESTOP / ILOCK: +24V_F -> 2.2k -> J_C 22 / 24 ... external chain ... J_C 23 / 25 -> sense; closed chain reads 1")
-		(comment 3 "Opto units 74/75 of U68 are spare (no connection); 165 inputs 74-79 are tied low on the shift_in sheet")
+		(comment 1 "Bits 52-66 POS0-14, 67 STOPPED, 68 AT_HOME, 69 END, 70 ESTOP_OK, 71 ILOCK_OK (HAL flag bits), 72 JUDGE, 73 CLEAR, 74 STOP_LATCH")
+		(comment 2 "ESTOP / ILOCK (0003 4.6): the BANK feeds J_C 22 / 24; the tester returns the loop (JP2 / JP3, bridged) to 23 / 25 and senses 23 / 25 through 2.2k; closed and fed reads 1")
+		(comment 3 "JP4 / JP5 (default open) feed the loops from +24V_F through 2.2k for a bench target without power. Opto unit 76 of U68 (bit 75) is spare")
 	)
 	(lib_symbols
 		(symbol "Device:R_US"
@@ -921,6 +921,373 @@
 						)
 					)
 					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "Jumper:SolderJumper_2_Open"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom no)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "JP"
+				(at 0 2.032 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "SolderJumper_2_Open"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 -7.62 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Solder Jumper, 2-pole, open"
+				(at 0 -5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "solder jumper SPST"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "SolderJumper*Open*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "SolderJumper_2_Open_0_1"
+				(polyline
+					(pts
+						(xy -0.254 1.016) (xy -0.254 -1.016)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -0.254 -1.016)
+					(mid -1.2656 0)
+					(end -0.254 1.016)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(arc
+					(start 0.254 1.016)
+					(mid 1.2656 0)
+					(end 0.254 -1.016)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.254 1.016) (xy 0.254 -1.016)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "SolderJumper_2_Open_1_1"
+				(pin passive line
+					(at -5.08 0 0)
+					(length 3.81)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 0 180)
+					(length 3.81)
+					(name "B"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "Jumper:SolderJumper_2_Bridged"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom no)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "JP"
+				(at 0 2.032 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "SolderJumper_2_Bridged"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 -6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Solder Jumper, 2-pole, closed/bridged"
+				(at 0 -5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "solder jumper SPST"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "SolderJumper*Bridged*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "SolderJumper_2_Bridged_0_1"
+				(rectangle
+					(start -0.508 0.508)
+					(end 0.508 -0.508)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy -0.254 1.016) (xy -0.254 -1.016)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -0.254 -1.016)
+					(mid -1.2656 0)
+					(end -0.254 1.016)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(arc
+					(start 0.254 1.016)
+					(mid 1.2656 0)
+					(end 0.254 -1.016)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.254 1.016) (xy 0.254 -1.016)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "SolderJumper_2_Bridged_1_1"
+				(pin passive line
+					(at -5.08 0 0)
+					(length 3.81)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 0 180)
+					(length 3.81)
+					(name "B"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -13379,6 +13746,251 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R_US")
+		(at 129.54 543.56 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "d424940d-d184-53f1-80d8-c48f5870ca3e")
+		(property "Reference" "R175"
+			(at 132.08 543.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "2.2k"
+			(at 127 543.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 129.54 543.56 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 129.54 543.56 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "STOP_LATCH_IN sense resistor (J_C pin 36)"
+			(at 129.54 543.56 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "65e3391d-073d-54d3-88f8-b57331853ba7")
+		)
+		(pin "2"
+			(uuid "b02d478d-4fb8-5da9-a745-5b69b07e2b3e")
+		)
+		(instances
+			(project "unit_tester"
+				(path "/81cf829a-b67d-5424-b23f-752e2a4fe473/1d4c5e6b-90e0-588e-8f81-1334289d1eaa"
+					(reference "R175")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 125.73 543.56) (xy 120.65 543.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3970d0e8-39a0-5b30-8a1c-76c3de77678d")
+	)
+	(global_label "STOP_LATCH_IN"
+		(shape passive)
+		(at 120.65 543.56 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "4f32ddad-fa99-53ae-9f9a-eb8910e8f6eb")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 120.65 543.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 133.35 543.56) (xy 138.43 543.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f1cef0b9-e176-5e3d-81f6-26734ae57e82")
+	)
+	(label "SNS_74"
+		(at 138.43 543.56 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "aeea4805-06b3-5663-8559-37230ea12548")
+	)
+	(symbol
+		(lib_id "Device:D")
+		(at 200.66 543.56 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f8ac13da-e914-5187-ad8d-d85fda6baba7")
+		(property "Reference" "D175"
+			(at 200.66 541.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1N4148W"
+			(at 200.66 546.1 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 200.66 543.56 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 200.66 543.56 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Optocoupler LED reverse protection"
+			(at 200.66 543.56 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "bce6118d-865c-5c4b-9743-50553d014971")
+		)
+		(pin "2"
+			(uuid "c13ee1c7-23c5-54f9-abb2-e1d868b1e1ff")
+		)
+		(instances
+			(project "unit_tester"
+				(path "/81cf829a-b67d-5424-b23f-752e2a4fe473/1d4c5e6b-90e0-588e-8f81-1334289d1eaa"
+					(reference "D175")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 196.85 543.56) (xy 191.77 543.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a46520f6-cb5e-5292-a2ce-24869a1351ce")
+	)
+	(label "SNS_74"
+		(at 191.77 543.56 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a02f87db-ebc5-52e4-9c12-ecdda3cae106")
+	)
+	(wire
+		(pts
+			(xy 204.47 543.56) (xy 209.55 543.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "159e9c6b-34a1-547f-b3aa-1091538a4096")
+	)
+	(global_label "GND_F"
+		(shape passive)
+		(at 209.55 543.56 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "cd04f663-9d4d-5952-9d82-02594d4dc264")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 209.55 543.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Isolator:TLP291-4")
 		(at 299.72 543.56 0)
 		(unit 3)
@@ -13386,7 +13998,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "d424940d-d184-53f1-80d8-c48f5870ca3e")
+		(uuid "4a975efc-cae0-5019-90bc-9775efc2274a")
 		(property "Reference" "U68"
 			(at 294.64 538.48 0)
 			(effects
@@ -13426,7 +14038,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "spare unit"
+		(property "Description" "4-channel optocoupler"
 			(at 299.72 543.56 0)
 			(hide yes)
 			(effects
@@ -13437,16 +14049,16 @@
 			)
 		)
 		(pin "5"
-			(uuid "65e3391d-073d-54d3-88f8-b57331853ba7")
+			(uuid "83530078-4356-5421-b08a-eee071415d59")
 		)
 		(pin "6"
-			(uuid "b02d478d-4fb8-5da9-a745-5b69b07e2b3e")
+			(uuid "bec0f4fa-f63c-5c9b-9343-7c0a2ed35a8a")
 		)
 		(pin "11"
-			(uuid "592b34bf-b457-524b-bd92-173bf253602f")
+			(uuid "582fe95e-3941-55fc-abd7-ce863da9d0aa")
 		)
 		(pin "12"
-			(uuid "af5b25d0-5735-57f3-a643-6ebb4a50f8f0")
+			(uuid "0c289abb-7c66-56b1-86f5-2a038a9eadbd")
 		)
 		(instances
 			(project "unit_tester"
@@ -13457,21 +14069,247 @@
 			)
 		)
 	)
-	(no_connect
-		(at 292.1 541.02)
-		(uuid "68dbfd3e-710d-524b-a60f-cd14a39aeb1b")
+	(wire
+		(pts
+			(xy 292.1 541.02) (xy 287.02 541.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "21565f42-eddf-595a-b084-03734411f5d5")
 	)
-	(no_connect
-		(at 292.1 546.1)
-		(uuid "06b2107a-72e2-52ff-88b8-9e99feeedd60")
+	(label "SNS_74"
+		(at 287.02 541.02 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "e6d6c77b-8154-5847-bd75-7b27d94032c5")
 	)
-	(no_connect
-		(at 307.34 546.1)
-		(uuid "a9198c5f-42ef-5509-810e-6c6281b3e42f")
+	(wire
+		(pts
+			(xy 292.1 546.1) (xy 287.02 546.1)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ce785aef-1810-5236-881f-1ac3a2d245ac")
 	)
-	(no_connect
-		(at 307.34 541.02)
-		(uuid "1adec855-57bc-5a4e-9d83-a84733816088")
+	(global_label "GND_F"
+		(shape passive)
+		(at 287.02 546.1 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c09894d4-e18a-5d2d-bb9a-56ed72e51796")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 287.02 546.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 307.34 546.1) (xy 312.42 546.1)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d71fef47-ac4a-5981-965e-ebe43c86d69b")
+	)
+	(global_label "SENSE_74"
+		(shape passive)
+		(at 312.42 546.1 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "4399ad91-380e-5db5-94ae-04416cdacf23")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 312.42 546.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 307.34 541.02) (xy 312.42 541.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "52596281-0619-5492-ab39-ea0231f430b2")
+	)
+	(global_label "+3V3"
+		(shape passive)
+		(at 312.42 541.02 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "c0dfd1ce-5cf5-5415-9b8e-d404f64bb18b")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 312.42 541.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R_US")
+		(at 398.78 543.56 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5bf19fa3-c64a-5601-8387-3de25e4f0aa4")
+		(property "Reference" "R275"
+			(at 401.32 543.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10k"
+			(at 396.24 543.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 398.78 543.56 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 398.78 543.56 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Sense bit 74 emitter pull-down"
+			(at 398.78 543.56 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "37c6bd2d-97b7-5379-ba6d-1cf60e20ca4f")
+		)
+		(pin "2"
+			(uuid "1ae174af-85aa-5750-9bd3-8294472d9cb0")
+		)
+		(instances
+			(project "unit_tester"
+				(path "/81cf829a-b67d-5424-b23f-752e2a4fe473/1d4c5e6b-90e0-588e-8f81-1334289d1eaa"
+					(reference "R275")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 394.97 543.56) (xy 389.89 543.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9962d9e4-800b-56dc-abc7-122ac82f8e97")
+	)
+	(global_label "SENSE_74"
+		(shape passive)
+		(at 389.89 543.56 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "a1fe3d08-4acc-516e-b9f0-c48b2563e4de")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 389.89 543.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 402.59 543.56) (xy 407.67 543.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1c82b8cc-d7e1-529c-a6e3-c7116a303f32")
+	)
+	(global_label "GND_M"
+		(shape passive)
+		(at 407.67 543.56 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "9eec7c52-4c6d-5c06-95f2-a0998a57661d")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 407.67 543.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 	)
 	(symbol
 		(lib_id "Isolator:TLP291-4")
@@ -13481,7 +14319,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "968918d1-401e-5616-ab81-d98fab4b0f4c")
+		(uuid "1a3198fa-bc04-5265-8b1a-c156e1921635")
 		(property "Reference" "U68"
 			(at 294.64 561.34 0)
 			(effects
@@ -13532,16 +14370,16 @@
 			)
 		)
 		(pin "7"
-			(uuid "05b3e40d-0ef4-5dbe-87a5-99805aafedea")
+			(uuid "e42ac2e0-f55c-52c5-bc9a-5ebb3f856a9e")
 		)
 		(pin "8"
-			(uuid "b95c01f1-d98a-5b00-a694-2ef89bac1af3")
+			(uuid "d8096f86-fc05-5b84-beeb-1538feea48ca")
 		)
 		(pin "9"
-			(uuid "91ed01f4-dd2f-5d43-a875-d8efc5e315a1")
+			(uuid "5587c75e-2f0a-5707-8805-1573813e4eaa")
 		)
 		(pin "10"
-			(uuid "ad0c1a6e-0853-5609-8158-d97827e1514a")
+			(uuid "2cb2c816-73e6-55f5-8a23-74c267d93ea1")
 		)
 		(instances
 			(project "unit_tester"
@@ -13554,19 +14392,19 @@
 	)
 	(no_connect
 		(at 292.1 563.88)
-		(uuid "b0f8e219-870a-57bc-a131-e9bdc81e6614")
+		(uuid "95fe620a-de42-5825-bad1-1ea3a4da4d3f")
 	)
 	(no_connect
 		(at 292.1 568.96)
-		(uuid "be2b3212-06cc-5507-afcc-c5345d41a94e")
+		(uuid "b61bc7a2-470e-5bc3-b215-0e9ff3a3c6ff")
 	)
 	(no_connect
 		(at 307.34 568.96)
-		(uuid "4a1bc8c5-5bfe-5ec6-bef4-685776fd92e4")
+		(uuid "e5074df0-f9b2-5334-bb32-6d22844195dc")
 	)
 	(no_connect
 		(at 307.34 563.88)
-		(uuid "50931fbe-8149-5d5f-9a9b-189380bf96c7")
+		(uuid "5f9f469e-d19c-51af-ab71-89911a743a24")
 	)
 	(symbol
 		(lib_id "Device:R_US")
@@ -13576,7 +14414,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "3be6930d-6fe8-5309-8891-199fdf1c3578")
+		(uuid "401f1ead-3a09-52f6-baee-8a1b870b7ed2")
 		(property "Reference" "R404"
 			(at 561.34 99.06 0)
 			(effects
@@ -13615,7 +14453,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "ESTOP chain source resistor (J_C pin 22)"
+		(property "Description" "Optional ESTOP loop feed resistor (JP4)"
 			(at 558.8 99.06 0)
 			(hide yes)
 			(effects
@@ -13626,10 +14464,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "82f95ae9-a89d-57cd-bc9c-06b2fc7f48a3")
+			(uuid "9bdbabc5-887b-5637-9a62-9a33ae1803fc")
 		)
 		(pin "2"
-			(uuid "224b94e8-64ef-566a-9c5b-070f6315674e")
+			(uuid "f4c6a8d3-44b1-5625-ba67-24c35ca5b27c")
 		)
 		(instances
 			(project "unit_tester"
@@ -13648,7 +14486,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "ce785aef-1810-5236-881f-1ac3a2d245ac")
+		(uuid "d36cd25b-f84a-5274-ae6b-1ba84196d40c")
 	)
 	(global_label "+24V_F"
 		(shape passive)
@@ -13659,7 +14497,7 @@
 			)
 			(justify right)
 		)
-		(uuid "c09894d4-e18a-5d2d-bb9a-56ed72e51796")
+		(uuid "2a115028-dfc7-590b-8026-10dadfba9c47")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 549.91 99.06 0)
 			(effects
@@ -13678,27 +14516,17 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "d71fef47-ac4a-5981-965e-ebe43c86d69b")
+		(uuid "7f467832-c4e8-5725-83cd-94c3f5b3bc1c")
 	)
-	(global_label "ESTOP_SRC"
-		(shape passive)
+	(label "ESTOP_FEED"
 		(at 567.69 99.06 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left)
+			(justify left bottom)
 		)
-		(uuid "4399ad91-380e-5db5-94ae-04416cdacf23")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 567.69 99.06 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
+		(uuid "d0c8b7f2-99eb-596a-91a8-0cbb466d3b0c")
 	)
 	(symbol
 		(lib_id "Device:R_US")
@@ -13708,7 +14536,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "1443cbd4-77ce-5045-beb5-e954c8f0fb34")
+		(uuid "6a7f35bd-5a3f-5d8e-aaa6-60b7499409b4")
 		(property "Reference" "R405"
 			(at 561.34 139.7 0)
 			(effects
@@ -13747,7 +14575,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "ILOCK chain source resistor (J_C pin 24)"
+		(property "Description" "Optional ILOCK loop feed resistor (JP5)"
 			(at 558.8 139.7 0)
 			(hide yes)
 			(effects
@@ -13758,10 +14586,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "e8984fe3-ffb0-5620-8ba4-05b6df7590fc")
+			(uuid "b935ec6b-3827-51f5-9ecc-963450dcfa63")
 		)
 		(pin "2"
-			(uuid "7d4330d2-df5e-5e53-b7a0-66a2cc91cf51")
+			(uuid "19462c84-d92c-56f5-bb85-425b4eeb90ef")
 		)
 		(instances
 			(project "unit_tester"
@@ -13780,7 +14608,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "8898168b-7b63-5e3c-8077-78200b6a11e0")
+		(uuid "e82468b4-53bc-509d-a243-479b48c4c993")
 	)
 	(global_label "+24V_F"
 		(shape passive)
@@ -13791,7 +14619,7 @@
 			)
 			(justify right)
 		)
-		(uuid "7a80be69-21b5-5144-844b-e1096edabc08")
+		(uuid "100fd1bb-3be2-5dcc-b250-9cdce3077556")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 549.91 139.7 0)
 			(effects
@@ -13810,20 +14638,133 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "9962d9e4-800b-56dc-abc7-122ac82f8e97")
+		(uuid "7f95bc3d-9659-564d-bdfe-fbd5a4a66ef5")
 	)
-	(global_label "ILOCK_SRC"
-		(shape passive)
+	(label "ILOCK_FEED"
 		(at 567.69 139.7 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "01b93dd2-d6c8-530c-a596-1f8faedd5913")
+	)
+	(symbol
+		(lib_id "Jumper:SolderJumper_2_Open")
+		(at 640.08 99.06 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "eef806ff-2b3b-5229-982e-a6d49c9341e1")
+		(property "Reference" "JP4"
+			(at 640.08 97.028 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "feed (open)"
+			(at 640.08 101.6 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm"
+			(at 640.08 99.06 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 640.08 99.06 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Solder jumper (default OPEN): the tester feeds the ESTOP loop from +24V_F (target without its own supply)"
+			(at 640.08 99.06 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "2097894a-14ef-5265-ab99-501df2cfeee4")
+		)
+		(pin "2"
+			(uuid "44ae609a-7f9b-578d-9c3b-c41fb21e00fe")
+		)
+		(instances
+			(project "unit_tester"
+				(path "/81cf829a-b67d-5424-b23f-752e2a4fe473/1d4c5e6b-90e0-588e-8f81-1334289d1eaa"
+					(reference "JP4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 635 99.06) (xy 629.92 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "22a3e8b7-89ff-5c98-a669-03f5dc80be9f")
+	)
+	(label "ESTOP_FEED"
+		(at 629.92 99.06 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "b98a82d3-7c1f-5893-bbfb-7a99bd7cc84a")
+	)
+	(wire
+		(pts
+			(xy 645.16 99.06) (xy 650.24 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "09b9a87e-7a96-53a9-900e-8004a0e41d8c")
+	)
+	(global_label "ESTOP_A"
+		(shape passive)
+		(at 650.24 99.06 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "a1fe3d08-4acc-516e-b9f0-c48b2563e4de")
+		(uuid "3c8508de-1f38-5aee-9bee-4932fd7e6d1b")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 567.69 139.7 0)
+			(at 650.24 99.06 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13832,7 +14773,396 @@
 			)
 		)
 	)
-	(text "ESTOP chain: J_C 22 (source, 24 V via 2.2k) -> external ESTOP contacts -> J_C 23 -> 2.2k -> opto LED.\nILOCK chain: J_C 24 -> external interlock contacts -> J_C 25 -> 2.2k -> opto LED.\nPOS/STOPPED/AT_HOME/END/JUDGE/CLEAR are 24 V logic outputs of the bank, referenced to GND_F (J_C 28-33)."
+	(symbol
+		(lib_id "Jumper:SolderJumper_2_Open")
+		(at 640.08 139.7 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "20f3443a-a4ee-5de4-a253-16adcf1fd8fa")
+		(property "Reference" "JP5"
+			(at 640.08 137.668 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "feed (open)"
+			(at 640.08 142.24 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm"
+			(at 640.08 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 640.08 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Solder jumper (default OPEN): the tester feeds the ILOCK loop from +24V_F"
+			(at 640.08 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "b93ffa42-7768-5881-8bf6-f5767672424b")
+		)
+		(pin "2"
+			(uuid "8ca2a71e-17e5-5c2e-a8d3-ea86cf078467")
+		)
+		(instances
+			(project "unit_tester"
+				(path "/81cf829a-b67d-5424-b23f-752e2a4fe473/1d4c5e6b-90e0-588e-8f81-1334289d1eaa"
+					(reference "JP5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 635 139.7) (xy 629.92 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "eb55be26-64cb-5bc5-9dff-9a7251be37ac")
+	)
+	(label "ILOCK_FEED"
+		(at 629.92 139.7 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "751e4588-8946-5141-8c1a-6afbe72926c3")
+	)
+	(wire
+		(pts
+			(xy 645.16 139.7) (xy 650.24 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "39c99a6c-97f1-50d2-a0fd-eb98a01b3d26")
+	)
+	(global_label "ILOCK_A"
+		(shape passive)
+		(at 650.24 139.7 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "d9d4806f-6db2-5781-b555-48d80f96dc15")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 650.24 139.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Jumper:SolderJumper_2_Bridged")
+		(at 739.14 99.06 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "5f27191a-c60c-5f76-9087-5062a8b0c6a5")
+		(property "Reference" "JP2"
+			(at 739.14 97.028 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "loop (bridged)"
+			(at 739.14 101.6 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm"
+			(at 739.14 99.06 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 739.14 99.06 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Solder jumper (default CLOSED): returns the bank-fed ESTOP loop J_C 22 -> 23"
+			(at 739.14 99.06 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "6e956e37-0101-57e5-a10b-65c4f179e3c9")
+		)
+		(pin "2"
+			(uuid "8b68eb5a-931e-5b42-9497-33aa7d8645e0")
+		)
+		(instances
+			(project "unit_tester"
+				(path "/81cf829a-b67d-5424-b23f-752e2a4fe473/1d4c5e6b-90e0-588e-8f81-1334289d1eaa"
+					(reference "JP2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 734.06 99.06) (xy 728.98 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3df6ae80-5197-5b5f-9147-513943260a0e")
+	)
+	(global_label "ESTOP_A"
+		(shape passive)
+		(at 728.98 99.06 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "ad52ccfd-3b2b-536b-a57c-957116f880d6")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 728.98 99.06 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 744.22 99.06) (xy 749.3 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fba1e37f-9443-5737-869f-2e39add0e752")
+	)
+	(global_label "ESTOP_RET"
+		(shape passive)
+		(at 749.3 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ac62ef58-e53d-5067-be17-5b4f5b723aae")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 749.3 99.06 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Jumper:SolderJumper_2_Bridged")
+		(at 739.14 139.7 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "9836bb19-2975-577e-8eb0-803ed860b3c3")
+		(property "Reference" "JP3"
+			(at 739.14 137.668 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "loop (bridged)"
+			(at 739.14 142.24 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm"
+			(at 739.14 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 739.14 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Solder jumper (default CLOSED): returns the bank-fed ILOCK loop J_C 24 -> 25"
+			(at 739.14 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "39bfa9a5-b043-5caa-9336-ff4a08e14bc1")
+		)
+		(pin "2"
+			(uuid "670ac42b-eb00-5ad9-bf6a-7efb6de3efd4")
+		)
+		(instances
+			(project "unit_tester"
+				(path "/81cf829a-b67d-5424-b23f-752e2a4fe473/1d4c5e6b-90e0-588e-8f81-1334289d1eaa"
+					(reference "JP3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 734.06 139.7) (xy 728.98 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c51f42c5-a69f-5729-b36a-fed98130b592")
+	)
+	(global_label "ILOCK_A"
+		(shape passive)
+		(at 728.98 139.7 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "f132c7ac-7486-586a-b073-30ab828c319b")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 728.98 139.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 744.22 139.7) (xy 749.3 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9372197b-d481-5880-9a93-5425f28aa8d7")
+	)
+	(global_label "ILOCK_RET"
+		(shape passive)
+		(at 749.3 139.7 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "3c976348-a2e6-5163-9252-3f787366e9f7")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 749.3 139.7 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(text "ESTOP chain (0003 4.6): the bank drives J_C 22 with its loop supply; JP2 returns it to J_C 23, which the 2.2k + opto LED senses.\nILOCK chain: J_C 24 -> JP3 -> J_C 25 -> 2.2k -> opto LED.  JP4 / JP5 (open) can feed a loop from +24V_F through 2.2k instead.\nPOS/STOPPED/AT_HOME/END/JUDGE/CLEAR/STOP_LATCH are 24 V logic outputs of the bank, referenced to GND_F (J_C 28-33)."
 		(exclude_from_sim no)
 		(at 40 600 0)
 		(effects
@@ -13841,7 +15171,7 @@
 			)
 			(justify left top)
 		)
-		(uuid "b878992f-f76f-53ec-8377-32d05b258f21")
+		(uuid "4986a585-25d5-54ea-a418-03ff0534c5d3")
 	)
 	(embedded_fonts no)
 )

@@ -2,12 +2,13 @@
 """Generate the UNROUTED KiCad 10 PCB (placement + outline + imported netlist) of the test register board.
 
     python gen_pcb.py              # export the netlist with kicad-cli, write test_register.kicad_pcb
+    python gen_pcb.py --check      # verify the placed board: pad nets == schematic nets, DRC, ratsnest, determinism
 
 Pipeline: gen_register.py (schematic) -> kicad-cli netlist export -> this script.  Every footprint is copied from the
 installed KiCad footprint libraries (env KICAD_SHARE overrides the install location), moved to the placement given in
 `placement()`, and its pads are assigned to the netlist nets, so the file opens with a ratsnest and no tracks.
 Stdlib only.  Layout rules of thumb: connectors on the bottom edge, K lanes in a 3 x 9 grid (relay + its 7 small parts
-beside it), control relays and the power / panel / test terminals along the top, board 250 x 140 mm, 2 layers.
+beside it), control relays and the power / panel / test terminals along the top, board 250 x 150 mm, 2 layers.
 """
 from __future__ import annotations
 
@@ -27,7 +28,7 @@ FPDIR = KICAD_SHARE / "footprints"
 PROJECT = "test_register"
 NS = uuid.UUID("6f1c2b0e-52a1-4a43-9c1b-0b0b0b0b0d01")
 
-BW, BH = 250.0, 140.0          # board size, mm
+BW, BH = 250.0, 150.0          # board size, mm (140 -> 150: room for the 8-pole panel terminal and the 0003 parts)
 OX, OY = 20.0, 20.0            # board origin on the (A3) sheet
 N = 26
 
@@ -50,7 +51,7 @@ def placement() -> dict[str, tuple[float, float]]:
     # K lanes: 3 rows x 9 columns, cell 25 x 21 mm
     for i in range(N):
         col, row = i % 9, i // 9
-        xc, yc = 12.5 + col * 25.0, 52.0 + row * 21.0
+        xc, yc = 12.5 + col * 25.0, 62.0 + row * 21.0
         n = i + 1
         pos[f"K{n}"] = (xc + 3.0, yc + 1.35)
         cax, cbx = xc + 12.5, xc + 19.0
@@ -69,6 +70,8 @@ def placement() -> dict[str, tuple[float, float]]:
             pos[ref] = (22.5 + 13.0 * k, 28.0)
     for k, ref in enumerate(["DZ27", "DZ28", "DZ29", "D33"]):
         pos[ref] = (22.5 + 13.0 * k, 31.5)
+    for k, ref in enumerate(["D34", "D35", "D36"]):          # 0003 R1: series diodes pin -> coil
+        pos[ref] = (22.5 + 13.0 * k, 35.0)
     # indicator / pull-down / stop-lamp block
     grid = ["RI1", "RI2", "RI3", "RI4", "RR1", "RR2",
             "DI1", "DI2", "DI3", "DI4", "RR3", "RS1",
@@ -78,10 +81,14 @@ def placement() -> dict[str, tuple[float, float]]:
     pos["Q27"] = (172.0, 12.0)
     pos["Q28"] = (172.0, 20.0)
     # power / test / panel terminals, fuses, capacitors, TVS, mounting holes
-    pos["J4"], pos["J5"], pos["J6"] = (212.0, 11.0), (230.0, 11.0), (206.0, 27.0)
+    pos["J4"], pos["J5"], pos["J6"] = (212.0, 11.0), (230.0, 11.0), (200.0, 54.0)
     pos["F1"], pos["F2"] = (232.0, 28.0), (232.0, 36.0)
     pos["C1"], pos["C2"] = (205.0, 41.0), (217.0, 41.0)
     pos["DV1"] = (240.0, 20.0)
+    # decision 0003: series P-MOSFET + gate parts (R6), HOME pull-down (R4), solder jumpers (R3), CHASSIS pair (R5)
+    pos["QP1"], pos["DZP1"], pos["RGP1"] = (188.0, 14.0), (200.0, 8.0), (200.0, 13.0)
+    pos["RR4"], pos["RCH1"], pos["CCH1"] = (200.0, 18.0), (186.0, 28.0), (194.0, 28.0)
+    pos["SJ1"], pos["SJ2"] = (186.0, 36.0), (186.0, 42.0)
     for ref, p in zip(["H1", "H2", "H3", "H4"], [(5.0, 5.0), (125.0, 5.0), (245.0, 5.0), (244.0, BH - 5.0)]):
         pos[ref] = p
     return pos
@@ -229,6 +236,11 @@ def build(nl_text: str) -> str:
     for name, nodes in nets.items():
         for ref, pin in nodes:
             pad_nets[ref][pin] = (net_id[name], name)
+    # D-sub shells (footprint pads "SH", no pin on the schematic symbol) and the mounting holes are CHASSIS (0003 R5)
+    chassis = next(name for name, nodes in nets.items() if ("H1", "1") in nodes)
+    for ref, c in comps.items():
+        if "DSUB" in c["fp"]:
+            pad_nets[ref]["SH"] = (net_id[chassis], chassis)
     pos = placement()
     missing = set(comps) - set(pos)
     extra = set(pos) - set(comps)
@@ -257,7 +269,145 @@ def build(nl_text: str) -> str:
     return "\n".join(out) + "\n"
 
 
+DUMP = """
+import json, sys, pcbnew
+b = pcbnew.LoadBoard(sys.argv[1])
+pads, dups = {}, 0
+for f in b.GetFootprints():
+    seen = set()
+    for p in f.Pads():
+        n = p.GetNetname()
+        if n and p.GetNumber() in seen:
+            dups += 1
+        seen.add(p.GetNumber())
+        k = "%s|%s" % (f.GetReference(), p.GetNumber())
+        pads[k] = n if pads.get(k, n) == n else "CONFLICT"
+print(json.dumps({"pads": pads, "dups": dups, "tracks": len(list(b.GetTracks())), "zones": len(list(b.Zones())),
+                  "ratsnest": b.GetConnectivity().GetUnconnectedCount(False)}))
+"""
+
+
+def check() -> int:
+    """Placement checks: pad nets == schematic nets (pcbnew), DRC 0 violations and schematic parity (only the SH shell
+    pads, which have no symbol pin, may differ), ratsnest == sum(pads - 1), no copper, determinism, negative tests."""
+    import json
+    cli = os.environ.get("KICAD_CLI") or shutil.which("kicad-cli") or "C:/Program Files/KiCad/10.0/bin/kicad-cli.exe"
+    py = os.environ.get("KICAD_PYTHON", str(Path(cli).parent / "python.exe"))
+    work = default_build_dir()
+    net = export_netlist(work)
+    nl = Netlist(net.read_text(encoding="utf8"))
+    pcb = HERE / f"{PROJECT}.kicad_pcb"
+    errs: list[str] = []
+
+    def dump(path):
+        r = subprocess.run([py, "-c", DUMP, str(path)], capture_output=True, text=True, check=True)
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+        d["pads"] = {tuple(k.split("|", 1)): v for k, v in d["pads"].items()}
+        return d
+
+    def compare(d):
+        e = []
+        want = {nd: name for name, nodes in nl.nets.items() for nd in nodes}
+        ch = next(name for name, nodes in nl.nets.items() if ("H1", "1") in nodes)
+        for r, c in nl.parts.items():
+            if "DSUB" in c["footprint"]:
+                want[(r, "SH")] = ch
+        bad = 0
+        for nd, name in want.items():
+            got = d["pads"].get(nd)
+            if got is None:
+                e.append(f"pad {nd} not on the board")
+            elif got != name:
+                bad += 1
+                if bad <= 5:
+                    e.append(f"pad {nd}: board net {got!r} != schematic net {name!r}")
+        for nd, name in d["pads"].items():
+            if nd not in want and name:
+                e.append(f"pad {nd} has net {name!r} but is not in the schematic")
+        if d["tracks"] or d["zones"]:
+            e.append("board has copper (placement only expected)")
+        return e
+
+    d = dump(pcb)
+    e = compare(d)
+    errs += e
+    print(f"parts {len(nl.parts)}, pads compared {len(d['pads'])}: net comparison", "OK" if not e else f"{len(e)} problems {e[:5]}")
+    subprocess.run([cli, "pcb", "drc", "--severity-all", "--schematic-parity", "--format", "json", "-o", str(work / "drc.json"), str(pcb)],
+                   check=True, capture_output=True)
+    dr = json.loads((work / "drc.json").read_text(encoding="utf8"))
+    par = [p for p in dr.get("schematic_parity", []) if not (p["type"] == "net_conflict" and all(
+        "pad SH " in i.get("description", "") for i in p.get("items", [])))]
+    print(f"DRC: {len(dr['violations'])} violations; {len(dr['unconnected_items'])} unconnected items listed (capped at about 500); "
+          f"schematic parity: {len(dr.get('schematic_parity', []))} items, {len(par)} real (the SH shell pads have no symbol pin)")
+    if dr["violations"]:
+        errs.append("DRC violations")
+        for v in dr["violations"][:8]:
+            print("  ", v["type"], v["description"])
+    if par:
+        errs.append("schematic parity problems")
+    n_dup = d["dups"]
+    expect = sum(len(n) - 1 for n in nl.nets.values()) + n_dup
+    print(f"ratsnest (pcbnew): {d['ratsnest']} edges, expected {expect} = sum(pads-1) over schematic nets + {n_dup} "
+          "duplicate-numbered pads (second D-sub shell pads, MOSFET tab)")
+    if d["ratsnest"] != expect:
+        errs.append("ratsnest edge count mismatch")
+    txt = pcb.read_text(encoding="utf8")
+    again = build(net.read_text(encoding="utf8"))
+    same = again == txt and again == build(net.read_text(encoding="utf8"))
+    print("determinism (two generations identical, and identical to the file in the repository):", "OK" if same else "DIFFERENT")
+    if not same:
+        errs.append("generation not deterministic / file stale")
+    def pad_nets_of(text, num):
+        """(start, end) of the net id + name inside every pad `num` block that has a net."""
+        out = []
+        for m in re.finditer(r'\(pad "%s"' % num, text):
+            i, depth, instr = m.start(), 0, False
+            j = i
+            while True:
+                c = text[j]
+                if instr:
+                    instr = c != '"'
+                elif c == '"':
+                    instr = True
+                elif c == "(":
+                    depth += 1
+                elif c == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            mm = re.search(r'\(net (\d+ "[^"]*")\)', text[i:j])
+            if mm:
+                out.append((i + mm.start(1), i + mm.end(1), mm.group(1)))
+        return out
+    pads4 = pad_nets_of(txt, "4")
+    first = pads4[0]
+    other = next(x for x in pads4 if x[2] != first[2])
+    (a1, b1, _), (a2, b2, _) = sorted([first, other])
+    bad_txt = txt[:a1] + txt[a2:b2] + txt[b1:a2] + txt[a1:b1] + txt[b2:]
+    neg = work / "negative.kicad_pcb"
+    neg.write_text(bad_txt, encoding="utf8", newline="\n")
+    ok = bad_txt != txt and bool(compare(dump(neg)))
+    neg.unlink()
+    print("negative test (nets of two relay pads swapped):", "detected" if ok else "NOT DETECTED")
+    if not ok:
+        errs.append("negative test failed")
+    gid = re.search(r'\(net (\d+) "/?GND"\)', txt).group(1)
+    shell_bad = re.sub(r'(\(pad "SH".*?\(net )\d+ "[^"]*"', lambda mm: mm.group(1) + gid + ' "GND"', txt, count=1, flags=re.S)
+    neg = work / "negative2.kicad_pcb"
+    neg.write_text(shell_bad, encoding="utf8", newline="\n")
+    ok2 = shell_bad != txt and bool(compare(dump(neg)))
+    neg.unlink()
+    print("negative test (a D-sub shell pad on 0 V instead of CHASSIS):", "detected" if ok2 else "NOT DETECTED")
+    if not ok2:
+        errs.append("negative test 2 failed")
+    print("RESULT:", "PASS" if not errs else "FAIL")
+    return 1 if errs else 0
+
+
 def main():
+    if "--check" in sys.argv:
+        sys.exit(check())
     net = export_netlist(default_build_dir())
     pcb = build(net.read_text(encoding="utf8"))
     (HERE / f"{PROJECT}.kicad_pcb").write_text(pcb, encoding="utf8", newline="\n")

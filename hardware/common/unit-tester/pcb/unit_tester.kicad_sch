@@ -1117,7 +1117,7 @@
 			)
 		)
 	)
-	(text "Scrambler unit tester main board (Raspberry Pi Pico, 7 x 74HC595, 10 x 74HC165, 52 node channels,\nTBD62783A high-side drivers, TLP291-4 sensing, ISO7340 digital isolators, D-sub 37 J_A/J_B/J_C).\nDomains: FIELD = 24 V adapter (GND_F, +24V_F, +5V_F); MCU = USB (GND_M, +3V3).  Barrier = ISO7340 + optocouplers.\nGlobal labels join sheets; see README (pcb section) for the net and bit-order conventions."
+	(text "Scrambler unit tester main board (Raspberry Pi Pico, 7 x 74HC595, 10 x 74HC165, 52 node channels,\nTBD62783A high-side drivers, TLP291-4 sensing, ISO7340 digital isolators, D-sub 37 pins J_A/J_B/J_C).\nDomains: FIELD = 24 V adapter (GND_F, +24V_F, +5V_F); MCU = USB (GND_M, +3V3).  Barrier = ISO7340 + optocouplers.\nGlobal labels join sheets; see README (pcb section) for the net and bit-order conventions."
 		(exclude_from_sim no)
 		(at 30 20 0)
 		(effects

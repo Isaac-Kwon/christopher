@@ -14,8 +14,8 @@ Sheets (all generated, do not edit by hand):
     shift_out    7 x 74HC595 (56 bits, field side)
     shift_in     10 x 74HC165 (80 bits, MCU side)
     frontend_g0..g6   one TBD62783A group: driver + 1k + 2.2k sense + TLP291-4 for 8 nodes
-    aux_sense    22 auxiliary inputs (POS, STOPPED, AT_HOME, END, ESTOP, ILOCK, JUDGE, CLEAR)
-    connectors   J_A, J_B, J_C (DC37 sockets), ADC-option headers
+    aux_sense    23 auxiliary inputs (POS, STOPPED, AT_HOME, END, ESTOP, ILOCK, JUDGE, CLEAR, STOP_LATCH) + loop jumpers
+    connectors   J_A, J_B, J_C (DC37 pins: decision 0003 5.1, the cables are socket-socket), CHASSIS_F pair, ADC-option headers
 """
 from __future__ import annotations
 
@@ -38,16 +38,19 @@ N_OPTO = 19           # TLP291-4 packages; package p carries sense bits 4p..4p+3
 # auxiliary 165 inputs: bit -> (field-side net, J_C pin)
 AUX = [(52 + k, f"POS{k}_IN", 7 + k) for k in range(15)] + [
     (67, "STOPPED_IN", 3), (68, "AT_HOME_IN", 5), (69, "END_IN", 6),
-    (70, "ESTOP_RET", 23), (71, "ILOCK_RET", 25), (72, "JUDGE_IN", 34), (73, "CLEAR_IN", 35)]
+    (70, "ESTOP_RET", 23), (71, "ILOCK_RET", 25), (72, "JUDGE_IN", 34), (73, "CLEAR_IN", 35),
+    (74, "STOP_LATCH_IN", 36)]       # 0003 T4: STOP_LATCH (register -> bank) is sensed, 165 bit 74
 
+# J_C = control connector of decision 0003 5.2.  22/24 = ESTOP_A / ILOCK_A (the bank feeds the loop), 23/25 = the
+# return, sensed through 2.2k; the tester closes each loop with a solder jumper (default closed, 0003 T3).
 JC_PINS = {1: "STROBE_IN", 2: "RUN_OUT", 3: "STOPPED_IN", 4: "HOME_OUT", 5: "AT_HOME_IN", 6: "END_IN",
-           22: "ESTOP_SRC", 23: "ESTOP_RET", 24: "ILOCK_SRC", 25: "ILOCK_RET",
-           26: "+24V_BANK", 27: "+24V_BANK", 34: "JUDGE_IN", 35: "CLEAR_IN"}
+           22: "ESTOP_A", 23: "ESTOP_RET", 24: "ILOCK_A", 25: "ILOCK_RET",
+           26: "+24V_BANK", 27: "+24V_BANK", 34: "JUDGE_IN", 35: "CLEAR_IN", 36: "STOP_LATCH_IN"}
 for _k in range(15):
     JC_PINS[7 + _k] = f"POS{_k}_IN"
 for _p in range(28, 34):
     JC_PINS[_p] = "GND_F"
-JC_NC = (36, 37)
+JC_NC = (37,)
 
 # Pico pin numbers by GPIO (module pinout)
 PICO_PIN = {0: 1, 1: 2, 2: 4, 3: 5, 4: 6, 5: 7, 6: 9, 7: 10, 8: 11, 9: 12, 10: 14, 11: 15, 12: 16, 13: 17,
@@ -60,7 +63,7 @@ PICO_NETS = {2: "STROBE_M", 3: "RUN_M", 4: "HOME_M", 6: "MUX_EN0", 7: "MUX_EN1",
 # footprints
 FP = dict(
     pico="Module:RaspberryPi_Pico_Common_THT",
-    dsub="Connector_Dsub:DSUB-37_Socket_Horizontal_P2.77x2.84mm_EdgePinOffset9.90mm_Housed_MountingHolesOffset11.32mm",
+    dsub="Connector_Dsub:DSUB-37_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset9.90mm_Housed_MountingHolesOffset11.32mm",
     so16="Package_SO:SOIC-16_3.9x9.9mm_P1.27mm",
     so18w="Package_SO:SOIC-18W_7.5x11.6mm_P1.27mm",
     tlp="Package_SO:SOIC-16_4.55x10.3mm_P1.27mm",
@@ -77,6 +80,9 @@ FP = dict(
     cp="Capacitor_SMD:CP_Elec_8x10",
     f1812="Fuse:Fuse_1812_4532Metric",
     f2920="Fuse:Fuse_2920_7451Metric",
+    f1206="Fuse:Fuse_1206_3216Metric",
+    sot223="Package_TO_SOT_SMD:SOT-223-3_TabPin2",
+    sjb="Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm",
     tsr="Converter_DCDC:Converter_DCDC_TRACO_TSR-1_THT",
     term="TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",
     sj="Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
@@ -107,7 +113,10 @@ S_TSR = Sym("Converter_DCDC", "TSR_1-2450")
 S_TERM = Sym("Connector", "Screw_Terminal_01x02")
 S_SJ = Sym("Jumper", "SolderJumper_2_Open")
 S_SW = Sym("Switch", "SW_Push")
-S_DB37 = Sym("Connector", "DC37_Socket")
+S_DB37 = Sym("Connector", "DC37_Pins")      # 0003 T1: board connectors are pins (male); the cables are socket-socket
+S_SJB = Sym("Jumper", "SolderJumper_2_Bridged")   # closed by default
+S_QP = Sym("Transistor_FET", "Q_PMOS_GDS")        # pins 1 = G, 2 = D, 3 = S
+S_ZENER = Sym("Device", "D_Zener")
 S_H6 = Sym("Connector_Generic", "Conn_02x06_Odd_Even")
 S_H27 = Sym("Connector_Generic", "Conn_02x27_Odd_Even")
 S_FLAG = Sym("power", "PWR_FLAG")
@@ -303,7 +312,14 @@ def sheet_power() -> Sheet:
                ["24 V SELV adapter -> PTC 0.5 A -> field 24 V; separate PTC 2 A + jumper for the J_C bank supply (default open)",
                 "TSR 1-2450 (24 V -> 5 V, 1 A) supplies 74HC595, TBD62783A inputs and the field side of the isolators",
                 "The 24 V adapter is floating w.r.t. USB: GND_F is the field ground, GND_M the USB/MCU ground"])
-    sh.place(S_TERM, 60, 80, "J4", "24V_IN", FP["term"], {"1": G("+24V_IN"), "2": G("GND_F")}, desc="24 V DC input, screw terminal 5.08 mm")
+    sh.place(S_TERM, 60, 80, "J4", "24V_IN", FP["term"], {"1": "VIN_J", "2": G("GND_F")}, desc="24 V DC input, screw terminal 5.08 mm")
+    # 0003 T8 / 7.3: series reverse-polarity P-MOSFET ahead of the TVS and the PTC fuses (drain = terminal side, so a
+    # reversed adapter keeps it off; 12 V zener + 100k limit / pull the gate)
+    sh.place(S_QP, 260, 180, "Q1", "P-MOSFET (reverse polarity)", FP["sot223"], {"1": "GATEP", "2": "VIN_J", "3": G("+24V_IN")},
+             desc="Series P-channel MOSFET: drain on J4 (supply side), source on +24V_IN; Vgs limited by DZ1")
+    sh.place(S_ZENER, 320, 180, "DZ1", "12V", FP["d123"], {"1": G("+24V_IN"), "2": "GATEP"},
+             desc="Gate-source zener 12 V (anode on the gate)", rotation=0, show_value=False)
+    res(sh, 370, 180, "R412", "100k", FP["r0603"], "GATEP", G("GND_F"), desc="P-MOSFET gate pull-down to 0 V", show=True)
     sh.place(S_TVS, 60, 140, "D1", "SMAJ33A", FP["dsma"], {"1": G("+24V_IN"), "2": G("GND_F")},
              desc="TVS 33 V across the 24 V input (unidirectional part, class: mains-borne surge on the adapter lead)")
     sh.place(S_PTC, 120, 80, "F1", "PTC 0.5A 30V", FP["f1812"], {"1": G("+24V_IN"), "2": G("+24V_F")},
@@ -329,7 +345,7 @@ def sheet_power() -> Sheet:
     sh.flag("+24V_F", 60, 40)
     sh.flag("+24V_BANK", 80, 40)
     sh.flag("GND_F", 100, 40)
-    sh.text("Field domain: +24V_IN (adapter) -> F1 -> +24V_F -> TSR 1-2450 -> +5V_F.  GND_F = adapter 0 V.\n"
+    sh.text("Field domain: J4 -> Q1 (series P-MOSFET, reverse polarity) -> +24V_IN -> F1 -> +24V_F -> TSR 1-2450 -> +5V_F.  GND_F = adapter 0 V.\n"
             "J_C pins 26/27 (+24V_BANK) are fed from F2 (2 A) through solder jumper JP1, normally open.\n"
             "No protective earth connection on this board: connect the adapter PE to the enclosure.", 40, 280)
     return sh
@@ -398,7 +414,7 @@ def sheet_iso() -> Sheet:
         cap(sh, 80 + 40 * i, 320, ref, "100n", FP["c0603"], a, b, "Isolator supply decoupling")
     # STROBE: 24 V logic -> 2.2k -> 6N137 LED ; output pulled up, inverted
     res(sh, 380, 100, "R402", "2.2k", FP["r0603"], G("STROBE_IN"), "STB_A", desc="STROBE LED series resistor", show=True)
-    sh.place(S_D, 420, 130, "D175", "1N4148W", FP["d123"], {"1": "STB_A", "2": G("GND_F")}, rotation=0,
+    sh.place(S_D, 420, 130, "D180", "1N4148W", FP["d123"], {"1": "STB_A", "2": G("GND_F")}, rotation=0,
              desc="Reverse protection for the STROBE LED")
     sh.place(S_6N137, 480, 140, "U4", "6N137", FP["dip8"],
              {"2": "STB_A", "3": G("GND_F"), "5": G("GND_M"), "6": "STROBE_N", "7": G("+3V3"), "8": G("+3V3")},
@@ -451,7 +467,7 @@ def sheet_shift_in() -> Sheet:
     sh = Sheet("shift_in", "Input shift registers: 10 x 74HC165 (80 bits)",
                ["Chain: DS of U30 (bits 0-7) = GND; Q7 of chip c -> DS of chip c+1; Q7 of U39 (bits 72-79) -> MISO_165",
                 "First bit shifted out = bit 79 (HAL: first byte = most significant)",
-                "Bit n: chip U30+n//8, input D(n%8); bits 0-51 nodes, 52-66 POS, 67-71 flags, 72 JUDGE, 73 CLEAR, 74-79 tied low"])
+                "Bit n: chip U30+n//8, input D(n%8); bits 0-51 nodes, 52-66 POS, 67-71 flags, 72 JUDGE, 73 CLEAR, 74 STOP_LATCH, 75-79 tied low"])
     for c in range(10):
         x = 90 + (c % 5) * 150
         y = 120 + (c // 5) * 220
@@ -460,7 +476,7 @@ def sheet_shift_in() -> Sheet:
         dpins = ["11", "12", "13", "14", "3", "4", "5", "6"]
         for j, pin in enumerate(dpins):
             bit = 8 * c + j
-            nets[pin] = G(f"SENSE_{bit}") if bit < 74 else G("GND_M")
+            nets[pin] = G(f"SENSE_{bit}") if bit < 75 else G("GND_M")
         nets["7"] = "QN_NC"
         sh.place(S_165, x, y, f"U{30 + c}", "74HC165", FP["so16"], nets, nc=("7",),
                  desc=f"8-bit parallel-in shift register, bits {8 * c}-{8 * c + 7}", ds="https://www.ti.com/lit/ds/symlink/sn74hc165.pdf")
@@ -518,23 +534,26 @@ def frontend_group(g_: int) -> Sheet:
             res(sh, 500, y, f"R{201 + b}", "10k", FP["r0603"], G(f"SENSE_{b}"), G("GND_M"), desc=f"Sense bit {b} emitter pull-down", show=True)
         elif g_ == 6 and k in (6, 7):
             nm = "RUN" if k == 6 else "HOME"
-            res(sh, 160, y, f"R{53 + k - 6}", "1k 1W", FP["r2512"], f"DRV_OUT_{k}", G(f"{nm}_OUT"),
-                desc=f"{nm} output series resistor (current limit; bank load value TBD)", show=True)
+            # 0003 T2 / 7.6: a resettable fuse (hold >= 30 mA, trip <= 100 mA) instead of the 1k: the output must reach
+            # (supply - 2.5 V) at 20 mA into a relay-coil input and survive a 0 V short
+            sh.place(S_PTC, 160, y, f"F{3 + k - 6}", "PTC 30mA hold/100mA trip", FP["f1206"],
+                     {"1": f"DRV_OUT_{k}", "2": G(f"{nm}_OUT")}, rotation=90,
+                     desc=f"{nm} output resettable fuse (hold 30 mA or more, trip 100 mA or less; part number not confirmed)")
         # driver input pull-down
         if n < N_NODES + 2:
             res(sh, 590, y, f"R{301 + n}", "47k", FP["r0603"], G(f"DRV_IN_{n}"), G("GND_F"),
                 desc="Driver input pull-down (outputs of the 595 are high-Z until OE low)", show=True)
     sh.text(f"Group {g_}: drivers {ud}; sense optocouplers "
             + ", ".join(f"U{50 + (b // 4)}" for b in sorted({8 * g_ + k for k in range(8) if 8 * g_ + k < N_NODES}))
-            + "\nRUN_OUT / HOME_OUT are 24 V high-side outputs (group 6 only).", 40, 560, 1.5)
+            + "\nRUN_OUT / HOME_OUT are 24 V high-side outputs through resettable fuses F3 / F4 (group 6 only).", 40, 560, 1.5)
     return sh
 
 
 def sheet_aux() -> Sheet:
-    sh = Sheet("aux_sense", "Auxiliary sense inputs (J_C): POS, flags, ESTOP/ILOCK, JUDGE, CLEAR",
-               ["Bits 52-66 POS0-14, 67 STOPPED, 68 AT_HOME, 69 END, 70 ESTOP_OK, 71 ILOCK_OK (HAL flag bits), 72 JUDGE, 73 CLEAR (new)",
-                "ESTOP / ILOCK: +24V_F -> 2.2k -> J_C 22 / 24 ... external chain ... J_C 23 / 25 -> sense; closed chain reads 1",
-                "Opto units 74/75 of U68 are spare (no connection); 165 inputs 74-79 are tied low on the shift_in sheet"])
+    sh = Sheet("aux_sense", "Auxiliary sense inputs (J_C): POS, flags, ESTOP/ILOCK, JUDGE, CLEAR, STOP_LATCH",
+               ["Bits 52-66 POS0-14, 67 STOPPED, 68 AT_HOME, 69 END, 70 ESTOP_OK, 71 ILOCK_OK (HAL flag bits), 72 JUDGE, 73 CLEAR, 74 STOP_LATCH",
+                "ESTOP / ILOCK (0003 4.6): the BANK feeds J_C 22 / 24; the tester returns the loop (JP2 / JP3, bridged) to 23 / 25 and senses 23 / 25 through 2.2k; closed and fed reads 1",
+                "JP4 / JP5 (default open) feed the loops from +24V_F through 2.2k for a bench target without power. Opto unit 76 of U68 (bit 75) is spare"])
     for i, (b, net, jpin) in enumerate(AUX):
         y = 60 + 22 * i
         res(sh, 130, y, f"R{101 + b}", "2.2k", FP["r0603"], G(net), f"SNS_{b}", desc=f"{net} sense resistor (J_C pin {jpin})", show=True)
@@ -546,34 +565,45 @@ def sheet_aux() -> Sheet:
                  desc="4-channel optocoupler", show_value=(u == 0))
         res(sh, 400, y, f"R{201 + b}", "10k", FP["r0603"], G(f"SENSE_{b}"), G("GND_M"), desc=f"Sense bit {b} emitter pull-down", show=True)
     # spare units of package 18 (bits 74, 75)
-    for u, yy in ((2, 60 + 22 * 22), (3, 60 + 22 * 23)):
+    for u, yy in ((3, 60 + 22 * 23),):
         pins = opto_nets(u + 1, 0, 0, 0, 0)
         sh.place(S_TLP, 300, yy, "U68", "TLP291-4", FP["tlp"], {}, unit=u + 1, nc=list(pins.keys()),
                  desc="spare unit", show_value=False)
-    res(sh, 560, 100, "R404", "2.2k", FP["r0603"], G("+24V_F"), G("ESTOP_SRC"), desc="ESTOP chain source resistor (J_C pin 22)", show=True)
-    res(sh, 560, 140, "R405", "2.2k", FP["r0603"], G("+24V_F"), G("ILOCK_SRC"), desc="ILOCK chain source resistor (J_C pin 24)", show=True)
-    sh.text("ESTOP chain: J_C 22 (source, 24 V via 2.2k) -> external ESTOP contacts -> J_C 23 -> 2.2k -> opto LED.\n"
-            "ILOCK chain: J_C 24 -> external interlock contacts -> J_C 25 -> 2.2k -> opto LED.\n"
-            "POS/STOPPED/AT_HOME/END/JUDGE/CLEAR are 24 V logic outputs of the bank, referenced to GND_F (J_C 28-33).", 40, 600, 1.5)
+    res(sh, 560, 100, "R404", "2.2k", FP["r0603"], G("+24V_F"), "ESTOP_FEED", desc="Optional ESTOP loop feed resistor (JP4)", show=True)
+    res(sh, 560, 140, "R405", "2.2k", FP["r0603"], G("+24V_F"), "ILOCK_FEED", desc="Optional ILOCK loop feed resistor (JP5)", show=True)
+    for ref, yy, a, b, desc, closed in (
+            ("JP4", 100, "ESTOP_FEED", G("ESTOP_A"), "Solder jumper (default OPEN): the tester feeds the ESTOP loop from +24V_F (target without its own supply)", False),
+            ("JP5", 140, "ILOCK_FEED", G("ILOCK_A"), "Solder jumper (default OPEN): the tester feeds the ILOCK loop from +24V_F", False),
+            ("JP2", 100, G("ESTOP_A"), G("ESTOP_RET"), "Solder jumper (default CLOSED): returns the bank-fed ESTOP loop J_C 22 -> 23", True),
+            ("JP3", 140, G("ILOCK_A"), G("ILOCK_RET"), "Solder jumper (default CLOSED): returns the bank-fed ILOCK loop J_C 24 -> 25", True)):
+        sh.place(S_SJB if closed else S_SJ, 640 if ref in ("JP4", "JP5") else 740, yy, ref, ("loop (bridged)" if closed else "feed (open)"),
+                 FP["sjb"] if closed else FP["sj"], {"1": a, "2": b}, desc=desc, rotation=0, in_bom=False, show_value=False)
+    sh.text("ESTOP chain (0003 4.6): the bank drives J_C 22 with its loop supply; JP2 returns it to J_C 23, which the 2.2k + opto LED senses.\n"
+            "ILOCK chain: J_C 24 -> JP3 -> J_C 25 -> 2.2k -> opto LED.  JP4 / JP5 (open) can feed a loop from +24V_F through 2.2k instead.\n"
+            "POS/STOPPED/AT_HOME/END/JUDGE/CLEAR/STOP_LATCH are 24 V logic outputs of the bank, referenced to GND_F (J_C 28-33).", 40, 600, 1.5)
     return sh
 
 
 def sheet_conn() -> Sheet:
     sh = Sheet("connectors", "Connectors J_A / J_B / J_C and ADC-option headers",
-               ["J_A: IN / A side, pins 1-26 = lines A-Z (nodes 0-25), 27-29 = 0 V, 30-37 reserved",
+               ["J_A: IN / A side, pins 1-26 = lines A-Z (nodes 0-25), 27-29 = 0 V, 30-37 reserved. Board connectors are D-sub PINS (0003 5.1)",
                 "J_B: OUT / B side, pins 1-26 = lines A-Z (nodes 26-51), 27-29 = 0 V, 30-37 reserved",
-                "J_C: control; see README 3.4 (JUDGE 34, CLEAR 35 added to the inputs)"])
+                "J_C: control connector of decision 0003 5.2; shells (pads SH) = CHASSIS_F, joined to GND_F by 1M || 10nF"])
     for ref, val, x, base, side in (("J1", "J_A", 120, 0, "IN / A"), ("J2", "J_B", 420, 26, "OUT / B")):
         nets = {str(i + 1): G(f"NODE_{base + i}") for i in range(26)}
         nets.update({"27": G("GND_F"), "28": G("GND_F"), "29": G("GND_F")})
         sh.place(S_DB37, x, 250, ref, val, FP["dsub"], nets, nc=[str(p) for p in range(30, 38)], stub=10.16,
-                 desc=f"D-sub 37 socket, {side} port, 1-26 lines A-Z, 27-29 0 V", ds="")
+                 desc=f"D-sub 37 pins (male), {side} port, 1-26 lines A-Z, 27-29 0 V", ds="")
     nets = {}
     for p in range(1, 38):
         if p in JC_PINS:
             nets[str(p)] = G(JC_PINS[p])
     sh.place(S_DB37, 720, 250, "J3", "J_C", FP["dsub"], nets, nc=[str(p) for p in JC_NC], stub=10.16,
-             desc="D-sub 37 socket, control port (README 3.4)")
+             desc="D-sub 37 pins (male), control port (decision 0003 5.2)")
+    # 0003 T7 / 7.1, 7.2: the D-sub shells (footprint pads SH, not a symbol pin) are CHASSIS_F; the tester has no PE of
+    # its own, so CHASSIS_F is tied to GND_F through 1 Mohm || 10 nF (the cable shield brings it to the machine chassis)
+    res(sh, 420, 380, "R408", "1M", FP["r0603"], G("CHASSIS_F"), G("GND_F"), desc="CHASSIS_F to GND_F: static drain", show=True)
+    cap(sh, 480, 380, "C237", "10n 100V", FP["c0603"], G("CHASSIS_F"), G("GND_F"), "CHASSIS_F to GND_F: ESD / HF path")
     # ADC option headers
     h5 = {"1": G("+3V3"), "2": G("GND_M"), "3": G("MUX_S0"), "4": G("MUX_S1"), "5": G("MUX_S2"), "6": G("MUX_S3"),
           "7": G("MUX_EN0"), "8": G("MUX_EN1"), "9": G("MUX_EN2"), "10": G("MUX_EN3"), "11": G("ADC_IN"), "12": G("GND_M")}
@@ -582,7 +612,7 @@ def sheet_conn() -> Sheet:
     h6.update({"53": G("GND_F"), "54": G("GND_F")})
     sh.place(S_H27, 420, 450, "J6", "ADC_OPT_FIELD", FP["hdr2x27"], h6, stub=7.62,
              desc="ADC option (field side): 52 node taps + 2 x GND_F for the ADC daughter board")
-    sh.text("Mounting: D-sub sockets at the board edge (bottom). J5/J6 are the optional analogue-sense (M5) port:\n"
+    sh.text("Mounting: D-sub pins at the board edge (bottom). J5/J6 are the optional analogue-sense (M5) port:\n"
             "the 82k/10k dividers, 4 x CD74HC4067 and the buffer live on a separate daughter board (not designed here),\n"
             "because a populated divider ties GND_F to GND_M and so bypasses the isolation barrier. Leave J5/J6 empty for normal use.", 40, 640, 1.5)
     return sh
@@ -650,7 +680,7 @@ def main(outdir: Path = HERE):
     for k, (mx, my) in enumerate([(30, 190), (60, 190), (90, 190), (120, 190), (150, 190), (180, 190)]):
         root.place(S_MH, mx, my, f"H{k + 1}", "M3", FP["mh"], {}, desc="M3 mounting hole (pad-less)", show_value=False, in_bom=False)
     root.text("Scrambler unit tester main board (Raspberry Pi Pico, 7 x 74HC595, 10 x 74HC165, 52 node channels,\n"
-              "TBD62783A high-side drivers, TLP291-4 sensing, ISO7340 digital isolators, D-sub 37 J_A/J_B/J_C).\n"
+              "TBD62783A high-side drivers, TLP291-4 sensing, ISO7340 digital isolators, D-sub 37 pins J_A/J_B/J_C).\n"
               "Domains: FIELD = 24 V adapter (GND_F, +24V_F, +5V_F); MCU = USB (GND_M, +3V3).  Barrier = ISO7340 + optocouplers.\n"
               "Global labels join sheets; see README (pcb section) for the net and bit-order conventions.", 30, 20, 1.8)
     (outdir / f"{PROJECT}.kicad_pro").write_text(PRO % PROJECT, encoding="utf8", newline="\n") \

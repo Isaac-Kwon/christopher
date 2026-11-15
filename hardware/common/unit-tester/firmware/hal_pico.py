@@ -5,7 +5,7 @@ Pin map (README section 4.5):
       latch (RCLK) GP17, output enable (OE, active low, external pull-up) GP16
   74HC165 chain (10 chips, 80 bits): SPI1 SCK GP10, MISO GP12, load (SH/LD, active low) GP13
   STROBE input (own optocoupler)  GP2 ; RUN output GP3 ; HOME output GP4
-  ADC option: mux select GP20..GP23 (S0..S3), mux enable (active low) GP6..GP9, analog in GP26 (ADC0)
+  ADC option: mux select GP20, GP21, GP22, GP27 (S0..S3; GP23 is not on the Pico header), mux enable (active low) GP6..GP9, analog in GP26 (ADC0)
 
 Bit order of the 165 chain (first bit shifted in = highest): see SENSE_BITS below.
 """
@@ -18,7 +18,7 @@ from tester_core import NODES
 
 # 165 chain bit assignment: bits 0..51 sense nodes 0..51; 52..66 POS[0..14]; then flags.
 POS_SHIFT = 52
-FLAG_SHIFT = 67          # STOPPED, AT_HOME, END, ESTOP_OK, ILOCK_OK, JUDGE, CLEAR at consecutive bits (67..73)
+FLAG_SHIFT = 67          # STOPPED, AT_HOME, END, ESTOP_OK, ILOCK_OK, JUDGE, CLEAR, STOP_LATCH at consecutive bits (67..74)
 SENSE_BITS = 80
 
 
@@ -74,9 +74,9 @@ class PicoHal:
     def aux(self):
         v = self._read_chain()
         pos = v >> POS_SHIFT & 0x7FFF
-        flags = (v >> FLAG_SHIFT & 0x7F) << 1 | (self.strobe.value() & 1)
-        # flags bit order: STROBE, STOPPED, AT_HOME, END, ESTOP_OK, ILOCK_OK, JUDGE, CLEAR
-        return pos, flags & 0xFF
+        flags = (v >> FLAG_SHIFT & 0xFF) << 1 | (self.strobe.value() & 1)
+        # flags bit order: STROBE, STOPPED, AT_HOME, END, ESTOP_OK, ILOCK_OK, JUDGE, CLEAR, STOP_LATCH (bit 8, 165 bit 74)
+        return pos, flags & 0x1FF
 
     def set_run(self, v):
         self.run_pin.value(v)

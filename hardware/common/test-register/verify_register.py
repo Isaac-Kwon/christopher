@@ -24,6 +24,11 @@ What is simulated (only the netlist is used: net membership of component pins):
 Checks per position: K latched exactly for the live lines; P released iff all 26 live; S latched iff not all 26 live; the
 lamps (display slave-relay drives and on-board LEDs) show the latched pattern only while stopped; CLEAR releases everything
 when not stopped; while stopped K/P/S/lamps are frozen and the test voltage stays off; RELEASE clears all; RUN/STOP_LATCH.
+Interface items of decision 0003 (static netlist checks + the simulation above): series diode pin -> coil on the three
+timing inputs (R1; the clamp is on the coil side, the pin side keeps only the indicator pull-down), STOP_LATCH on J2.36
+(R2), the ESTOP / ILOCK loops closed by solder jumpers and wired to the panel (R3), the 8-pole panel connector with the
+HOME return and its pull-down (R4), CHASSIS = D-sub shells + plated holes, separate from 0 V, joined by 1M || 10 nF (R5),
+and the series P-MOSFET ahead of F1/F2 in the right orientation (R6; modelled as a closed switch by the simulation).
 Negative tests mutate the netlist and require the verification to fail.
 """
 from __future__ import annotations
@@ -87,6 +92,11 @@ class Netlist:
         for n in find_all(find1(tree, "nets"), "net"):
             name = find1(n, "name")[1]
             self.nets[name] = [(find1(x, "ref")[1], find1(x, "pin")[1]) for x in find_all(n, "node")]
+        # D-sub shells are footprint pads "SH" without a schematic pin: they are on net CHASSIS (0003 7.1)
+        for name, nodes in self.nets.items():
+            if ("H1", "1") in nodes:
+                nodes += [(r, "SH") for r, pt in sorted(self.parts.items()) if re.fullmatch(r"J\d", r) and "DSUB" in pt["footprint"]]
+                break
 
 
 # ----------------------------------------------------------------------------- static circuit
@@ -111,6 +121,8 @@ class Circuit:
         self.mos = {r: dict(g=self.net(r, "1"), s=self.net(r, "2"), d=self.net(r, "3"))
                     for r in P if re.fullmatch(r"Q\d+", r)}
         self.fuse_unions = [(self.net(r, "1"), self.net(r, "2")) for r in P if re.fullmatch(r"F\d+", r)]
+        # series reverse-polarity P-MOSFET (QP1: pin 2 = drain, pin 3 = source): closed switch for a correct supply
+        self.fuse_unions += [(self.net(r, "2"), self.net(r, "3")) for r in P if re.fullmatch(r"QP\d+", r)]
         self.vin = self.net("J4", "1")
         self.gnd = self.net("J4", "2")
         self.test = self.net("J5", "1")
@@ -608,10 +620,75 @@ def static_checks(circ: Circuit, nl: Netlist) -> list[str]:
     for pref, cnt in (("D", 32 + 0), ):
         pass
     n_d = len([r for r in P if re.fullmatch(r"D\d+", r)])
-    if n_d != 33:
-        e.append(f"expected 33 diodes D1..D33, found {n_d}")
+    if n_d != 36:
+        e.append(f"expected 36 diodes D1..D36, found {n_d}")
     if len([r for r in P if re.fullmatch(r"Q\d+", r)]) != 28:
         e.append("expected 28 MOSFETs (26 lamp drivers + LAMPGND switch + stop lamp)")
+    return e + interface_checks(circ, nl)
+
+
+def interface_checks(circ: Circuit, nl: Netlist) -> list[str]:
+    """Decision 0003 items R1-R6 as netlist topology checks."""
+    e: list[str] = []
+    net_of = {nd: name for name, nodes in nl.nets.items() for nd in nodes}
+    nt = lambda r, p: net_of.get((r, p))
+    alone = lambda r, p: nt(r, p) is not None and len(nl.nets[nt(r, p)]) == 1
+    # R1: pin -> series diode -> coil; clamp on the coil side; indicator (pull-down) on the pin side
+    for k, (rel, pin, dref, ind, name) in enumerate((("K27", "1", "D34", "RI1", "STROBE"), ("K28", "34", "D35", "RI2", "JUDGE"),
+                                                      ("K29", "35", "D36", "RI3", "CLEAR"))):
+        pin_net, coil = nt("J2", pin), nt(rel, "1")
+        dz, dc = f"DZ{27 + k}", f"D{27 + k}"
+        if pin_net is None or coil is None or pin_net == coil:
+            e.append(f"R1 {name}: coil + is on the connector pin net (no series diode)")
+            continue
+        if not (nt(dref, "2") == pin_net and nt(dref, "1") == coil):
+            e.append(f"R1 {name}: series diode {dref} is not anode on J2.{pin}, cathode on the coil")
+        if nt(dz, "2") != coil or nt(dc, "2") != nt("J4", "2"):
+            e.append(f"R1 {name}: clamp (diode + zener) is not on the coil side")
+        if nt(ind, "1") != pin_net:
+            e.append(f"R1 {name}: indicator resistor {ind} is not on the pin side")
+    # R2 / R3 / R4: connector J2 and the panel
+    if nt("J2", "36") is None or nt("J2", "36") != nt("K33", "5") and nt("J2", "36") != nt("K33", "8"):
+        e.append("R2: J2.36 is not STOP_LATCH (S3 pole 2 NO)")
+    for a, b, sj, lo, hi in (("22", "23", "SJ1", "6", "7"), ("24", "25", "SJ2", None, None)):
+        na, nb = nt("J2", a), nt("J2", b)
+        if na is None or nb is None or na == nb:
+            e.append(f"R3: J2.{a}/J2.{b} are missing or shorted together")
+            continue
+        if {nt(sj, "1"), nt(sj, "2")} != {na, nb}:
+            e.append(f"R3: solder jumper {sj} does not join J2.{a} and J2.{b}")
+        if lo and (nt("J6", lo) != na or nt("J6", hi) != nb):
+            e.append(f"R3: J6.{lo}/{hi} are not wired to J2.{a}/{b}")
+    if "bridged" not in nl.parts.get("SJ1", {}).get("value", "") or "Bridged" not in nl.parts["SJ1"]["footprint"]:
+        e.append("R3: SJ1 is not a bridged (closed by default) solder jumper")
+    if nt("J6", "5") != nt("J2", "4") or nt("RR4", "1") != nt("J2", "4") or nt("RR4", "2") != nt("J4", "2"):
+        e.append("R4: J6.5 / J2.4 (HOME) / pull-down RR4 are not on one net")
+    if not alone("J6", "8"):
+        e.append("R4: J6.8 is not left unconnected")
+    for p in [5, 6, 7] + list(range(8, 22)) + [26, 27, 37]:
+        if not alone("J2", str(p)):
+            e.append(f"R8: J2.{p} must stay unconnected (is on {nt('J2', str(p))})")
+    # R5: CHASSIS
+    ch = nt("H1", "1")
+    want = {(f"H{k}", "1") for k in range(1, 5)} | {("RCH1", "1"), ("CCH1", "1")} | {(r, "SH") for r in ("J1", "J2", "J3")}
+    if ch is None or set(nl.nets[ch]) != want:
+        e.append(f"R5: CHASSIS members differ from H1-H4, RCH1, CCH1 and the shells of J1-J3 "
+                 f"({sorted(set(nl.nets.get(ch, [])) ^ want)[:6]})")
+    elif ch == nt("J4", "2") or nt("RCH1", "2") != nt("J4", "2") or nt("CCH1", "2") != nt("J4", "2"):
+        e.append("R5: CHASSIS is not separated from 0 V by 1M || 10nF only")
+    if nl.parts.get("RCH1", {}).get("value") != "1M" or not nl.parts.get("CCH1", {}).get("value", "").startswith("10nF"):
+        e.append("R5: CHASSIS-0 V pair is not 1M || 10nF")
+    # R6: series P-MOSFET, drain on the supply side, source to F1 / F2 / TVS, gate zener + resistor
+    vin, vmos = nt("J4", "1"), nt("F1", "1")
+    chain = [
+        (nt("QP1", "2") == vin and vin is not None, "drain (pin 2) is not on the J4 supply"),
+        (nt("QP1", "3") == vmos == nt("F2", "1") == nt("DV1", "1") and vmos != vin, "source (pin 3) is not on F1/F2/TVS (reverse-polarity orientation)"),
+        (nt("QP1", "1") is not None and nt("QP1", "1") == nt("DZP1", "2") == nt("RGP1", "1"), "gate is not on DZP1 anode + RGP1"),
+        (nt("DZP1", "1") == vmos and nt("RGP1", "2") == nt("J4", "2"), "gate zener cathode / resistor return are wrong"),
+        (nt("F1", "1") != vin and nt("F2", "1") != vin, "a PTC is fed from the unprotected input"),
+        ("SOT-223" in nl.parts.get("QP1", {}).get("footprint", ""), "QP1 is not a SOT-223 P-MOSFET"),
+    ]
+    e += [f"R6: {m}" for ok, m in chain if not ok]
     return e
 
 
@@ -650,6 +727,46 @@ def mutate(text, spec):
     for ref, a, b in spec:
         text = swap_pins(text, ref, a, b)
     return text
+
+
+def move_node(nl: Netlist, node, to_node) -> Netlist:
+    """Copy of the netlist with pin `node` moved onto the net of pin `to_node`."""
+    import copy
+    n2 = copy.deepcopy(nl)
+    dst = next(name for name, nodes in n2.nets.items() if to_node in nodes)
+    for nodes in n2.nets.values():
+        if node in nodes:
+            nodes.remove(node)
+    n2.nets[dst].append(node)
+    return n2
+
+
+def swap_nodes(nl: Netlist, a, b) -> Netlist:
+    """Copy of the netlist with the nets of two pins (possibly of different parts) exchanged."""
+    import copy
+    n2 = copy.deepcopy(nl)
+    na = next(name for name, nodes in n2.nets.items() if a in nodes)
+    nb = next(name for name, nodes in n2.nets.items() if b in nodes)
+    n2.nets[na].remove(a); n2.nets[nb].remove(b)
+    n2.nets[na].append(b); n2.nets[nb].append(a)
+    return n2
+
+
+# decision-0003 negative tests: (description, mutation of the parsed netlist)
+NEGATIVE_0003 = [
+    ("reversed series P-MOSFET QP1 (pins 2<->3)", lambda nl: swap_nodes(nl, ("QP1", "2"), ("QP1", "3"))),
+    ("series diode D34 (STROBE) reversed", lambda nl: swap_nodes(nl, ("D34", "1"), ("D34", "2"))),
+    ("series diode D35 (JUDGE) missing: coil straight on the J2.34 pin", lambda nl: move_node(nl, ("K28", "1"), ("J2", "34"))),
+    ("series diode D36 (CLEAR) missing: coil straight on the J2.35 pin", lambda nl: move_node(nl, ("K29", "1"), ("J2", "35"))),
+    ("STROBE clamp zener DZ27 left on the pin side", lambda nl: move_node(nl, ("DZ27", "2"), ("J2", "1"))),
+    ("ESTOP loop open: SJ1 pin 2 not on ESTOP_B", lambda nl: move_node(nl, ("SJ1", "2"), ("J2", "24"))),
+    ("ILOCK jumper SJ2 missing its return (pin 2 on 0 V)", lambda nl: move_node(nl, ("SJ2", "2"), ("J4", "2"))),
+    ("panel ESTOP wires crossed (J6 pins 6<->7)", lambda nl: swap_nodes(nl, ("J6", "6"), ("J6", "7"))),
+    ("HOME pull-down RR4 not on the HOME net", lambda nl: move_node(nl, ("RR4", "1"), ("J4", "2"))),
+    ("J2 pin 26 (reserved) tied to +24 V", lambda nl: move_node(nl, ("J2", "26"), ("F1", "2"))),
+    ("mounting hole H2 on 0 V instead of CHASSIS", lambda nl: move_node(nl, ("H2", "1"), ("J4", "2"))),
+    ("CHASSIS tied straight to 0 V (RCH1 pin 1 on 0 V)", lambda nl: move_node(nl, ("RCH1", "1"), ("J4", "2"))),
+]
 
 
 # ----------------------------------------------------------------------------- main
@@ -713,6 +830,13 @@ def main() -> int:
         print("margins at worst-case relay times (smallest value that still passes):", margin_scan(circ))
     ok = True
     print("negative tests (mutated netlist copies must fail):")
+    for name, mut in NEGATIVE_0003:
+        try:
+            bad, _, _ = verify(mut(nl), True)
+        except Exception as ex:
+            bad = [f"exception {type(ex).__name__}: {ex}"]
+        print(f"  {'detected' if bad else 'MISSED  '}: {name} ({len(bad)} discrepancies)")
+        ok &= bool(bad)
     for name, spec in NEGATIVE:
         try:
             nlm = Netlist(mutate(text, spec))

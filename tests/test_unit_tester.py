@@ -393,3 +393,24 @@ def test_drum_sweep_through_26_letters_and_isolation():
     bad, _ = sim.make_sim(iso, [sim.short(ref.a_node(2), ref.b_node(7))])
     r = diagnose(iso, Tester(bad).scan("AB"))
     assert r.kinds() == ["short"] and "4-C" in r.findings[0].text and "1-H" in r.findings[0].text
+
+
+def test_pos_is_the_core_position_without_k():
+    """Decision 0003 4.5: POS = (l, m, r) of the bank; the unit's drums show r + k, so the host needs k."""
+    pos = positions(30, (20, 25, 3))
+    k = 7
+    transport, _ = sim.make_sim(sequence=sim.unit_sequence(ORDER, pos, k=k))
+    sw = Tester(transport).sweep(30, "A")
+    assert [protocol.unpack_pos(s.pos) for s in sw.samples] == pos          # the bus carries no k
+    assert check_sweep(ORDER, sw, k=k).ok
+    transport, _ = sim.make_sim(sequence=sim.unit_sequence(ORDER, pos, k=k))
+    assert not check_sweep(ORDER, Tester(transport).sweep(30, "A")).ok      # without k the reference is wrong
+    assert protocol.drum_letters((20, 25, 3), 7) == (20, 25, 10)
+
+
+def test_flags_include_judge_clear_and_stop_latch():
+    flags = protocol.F_ESTOP_OK | protocol.F_ILOCK_OK | protocol.F_JUDGE | protocol.F_STOP_LATCH
+    transport, hal = sim.make_sim(ref.shifter_spec(1), flags=flags)
+    _, got = Tester(transport).aux()
+    assert got == flags and got & protocol.F_STOP_LATCH and not got & protocol.F_CLEAR
+    assert (protocol.F_JUDGE, protocol.F_CLEAR, protocol.F_STOP_LATCH) == (64, 128, 256)
