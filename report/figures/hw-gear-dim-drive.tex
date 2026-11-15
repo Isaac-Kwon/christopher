@@ -1,5 +1,6 @@
 % 기어식 구동부의 축간 거리. 단위 mm. 그림 fig:hw-gear-dim-drive
-% 수치의 근거는 hardware/gear/layout.md 3.7절. 원은 피치원이고 이는 그리지 않았다.
+% 수치의 근거는 hardware/gear/layout.md 3.7절과 docs/decisions/0002 (구동부 360, 벨트 HTD 5M, 축간 약 104).
+% 원은 피치원이고 이는 그리지 않았다. (나)는 축 방향(가로)을 0.7배로 줄여 그렸다.
 \begin{tikzpicture}[x=0.022cm,y=0.022cm,
     dim/.style={<->,cgray,line width=0.4pt},
     dl/.style={font=\tiny,text=black,inner sep=1pt},
@@ -7,7 +8,7 @@
     pc/.style={draw=cblue,fill=cbluebg,fill opacity=0.5},
     one/.style={draw=corange,line width=0.8pt}]
   % ================= (가) 축 방향에서 본 모습 =================
-  \node[font=\footnotesize\bfseries,anchor=west] at (-235,235) {(가) 축 방향에서 본 피치원};
+  \node[font=\footnotesize\bfseries,anchor=west] at (-235,268) {(가) 축 방향에서 본 피치원};
   % 다른 층의 큰 원판 (점선)
   \draw[draw=cgreen,dashed] (0,39) circle (80);
   \draw[one,dashed] (0,0) circle (81);
@@ -18,17 +19,17 @@
   \draw[one] (0,39) circle (13);
   \draw[pc] (0,81) circle (19.5);
   \draw[pc] (0,120) circle (19.5);
-  \draw[draw=cgray,dashed] (0,120) circle (34.4);
-  % 모터와 벨트
-  \draw[cgray,dashed] (0,120) -- (-70,190);
-  \draw[draw=cgray,fill=clight] (-70,190) circle (8.6);
-  \node[lab,anchor=east] at (-82,196) {모터 풀리 18잇수};
-  \node[dl,anchor=east] at (-42,150) {99};
+  \draw[draw=cgray,dashed] (0,120) circle (57.3);
+  % 모터와 벨트 (HTD 5M 18:72, 축간 약 104)
+  \draw[cgray,dashed] (0,120) -- (-73.5,193.5);
+  \draw[draw=cgray,fill=clight] (-73.5,193.5) circle (14.3);
+  \node[lab,anchor=east] at (-92,205) {모터 풀리 18잇수\\(크랭크 끝)};
+  \node[dl,anchor=east] at (-42,150) {104};
   % 축
   \foreach \y in {-120,0,39,81,120} { \fill[cgray] (0,\y) circle (3); }
   % 축 이름 (왼쪽)
   \foreach \y in {-120,0,39,81,120} { \draw[cgray,line width=0.3pt] (-3,\y) -- (-100,\y); }
-  \node[lab,anchor=east] at (-102,120) {F: 26잇수 (모듈 1.5)\\풀리 72잇수};
+  \node[lab,anchor=east] at (-102,120) {F: 26잇수 (모듈 1.5)\\풀리 72잇수 (5M)};
   \node[lab,anchor=east] at (-102,81) {I: 아이들 26잇수};
   \node[lab,anchor=east] at (-102,39) {C: 30잇수 (모듈 1.5)\\한 이빨 (모듈 2)};
   \node[lab,anchor=east] at (-102,0) {M: 26잇수 (모듈 2)\\한 이빨 원판 (모듈 3)};
@@ -42,51 +43,59 @@
   \draw[dim] (105,-120) -- (105,0) node[midway,dl,fill=white] {120};
   \draw[dim] (140,0) -- (140,120) node[midway,dl,fill=white] {120};
   % ================= (나) 축을 따라 본 배치 =================
-  \begin{scope}[shift={(215,0)}]
-    \node[font=\footnotesize\bfseries,anchor=west] at (-25,235) {(나) 축을 따라 본 칸 배치};
+  % 칸: 뱅크 쪽 0-90, 옆판 A 90-98, 가운데 98-248, 옆판 B 248-256, 바깥 256-346
+  \begin{scope}[shift={(215,0)},xscale=0.7]
+    \node[font=\footnotesize\bfseries,anchor=west] at (-25,268) {(나) 축을 따라 본 칸 배치};
     % 옆판
-    \draw[draw=cgray,fill=clight] (40,-175) rectangle (48,175);
-    \draw[draw=cgray,fill=clight] (158,-175) rectangle (166,175);
+    \draw[draw=cgray,fill=clight] (90,-175) rectangle (98,240);
+    \draw[draw=cgray,fill=clight] (248,-175) rectangle (256,240);
     % 축
-    \draw[shaft] (-20,120) -- (196,120);
-    \draw[shaft] (54,81) -- (78,81);
-    \draw[shaft] (48,39) -- (214,39);
-    \draw[shaft] (-20,0) -- (162,0);
-    \draw[shaft] (-20,-120) -- (162,-120);
-    % 26:30 기어열 (가운데 칸)
-    \draw[pc,fill opacity=1] (60,100.5) rectangle (72,139.5);
-    \draw[pc,fill opacity=1] (60,61.5) rectangle (72,100.5);
-    \draw[pc,fill opacity=1] (60,16.5) rectangle (72,61.5);
-    % 자리올림 1 (가운데 칸)
-    \draw[one,fill=corangebg] (92,26) rectangle (112,52);
-    \draw[pc,fill opacity=1] (92,-26) rectangle (112,26);
+    \draw[shaft] (-20,120) -- (300,120);
+    \draw[shaft] (104,81) -- (130,81);
+    \draw[shaft] (98,39) -- (336,39);
+    \draw[shaft] (-20,0) -- (252,0);
+    \draw[shaft] (-20,-120) -- (252,-120);
+    % 라인 축 커플링 (뱅크 쪽 칸)
+    \foreach \y in {120,0,-120} { \draw[draw=cgray,fill=cgray] (4,\y-14) rectangle (44,\y+14); }
     % 자리올림 2 (뱅크 쪽 칸)
-    \draw[one,fill=corangebg] (10,-81) rectangle (22,81);
-    \draw[pc,fill opacity=1] (10,-159) rectangle (22,-81);
+    \draw[one,fill=corangebg] (56,-81) rectangle (80,81);
+    \draw[pc,fill opacity=1] (56,-159) rectangle (80,-81);
+    % 26:30 기어열 (가운데 칸)
+    \draw[pc,fill opacity=1] (110,100.5) rectangle (124,139.5);
+    \draw[pc,fill opacity=1] (110,61.5) rectangle (124,100.5);
+    \draw[pc,fill opacity=1] (110,16.5) rectangle (124,61.5);
+    % 자리올림 1 (가운데 칸)
+    \draw[one,fill=corangebg] (150,26) rectangle (176,52);
+    \draw[pc,fill opacity=1] (150,-26) rectangle (176,26);
+    % 모터 (옆판 B에 고정, 몸통은 가운데 칸 위쪽 뒤)
+    \draw[draw=cgray,fill=white] (101,150.5) rectangle (248,236.5);
+    \draw[cgray,line width=1.2pt] (256,193.5) -- (336,193.5);
+    \draw[draw=cgray,fill=clight] (264,179.2) rectangle (286,207.8);
     % 풀리와 슬롯 원판 (바깥 칸)
-    \draw[draw=cgray,fill=white] (176,85.6) rectangle (194,154.4);
-    \draw[draw=cgreen,fill=cgreenbg] (204,-41) rectangle (207,119);
-    \draw[draw=cgray,fill=white] (198,96) rectangle (213,112);
+    \draw[draw=cgray,fill=white] (264,62.7) rectangle (286,177.3);
+    \draw[draw=cgreen,fill=cgreenbg] (322,-41) rectangle (326,119);
+    \draw[draw=cgray,fill=white] (314,96) rectangle (334,112);
     % 이름
-    \node[lab,anchor=south,text=corange] at (16,84) {자리올림 2};
-    \node[lab,anchor=north,text=corange] at (104,-30) {자리올림 1};
-    \node[lab,anchor=south] at (66,142) {26:30};
-    \node[lab,anchor=south] at (185,157) {풀리};
-    \node[lab,anchor=north,text=cgreen] at (212,-45) {슬롯 원판};
-    \node[lab,anchor=west] at (216,104) {센서 3};
+    \node[lab,anchor=north,text=corange] at (68,-162) {자리올림 2};
+    \node[lab,anchor=north,text=corange] at (163,-30) {자리올림 1};
+    \node[lab,anchor=north] at (117,14) {26:30};
+    \node[lab,anchor=south] at (24,136) {커플링};
+    \node[lab] at (174,193.5) {모터};
+    \node[lab,anchor=north] at (275,60) {풀리};
+    \node[lab,anchor=north,text=cgreen] at (324,-45) {슬롯 원판};
+    \node[lab,anchor=west] at (350,104) {센서 3};
+    \node[lab,anchor=west] at (350,193.5) {크랭크};
     \node[lab,anchor=east] at (-22,120) {F};
     \node[lab,anchor=east] at (-22,0) {M};
     \node[lab,anchor=east] at (-22,-120) {S};
-    \node[lab,anchor=south] at (10,180) {$\leftarrow$ 열 모듈 쪽};
+    \node[lab,anchor=south] at (30,215) {$\leftarrow$ 열 모듈 쪽};
     % 칸 치수
-    \foreach \x in {0,40,48,158,166,226} { \draw[cgray,line width=0.3pt] (\x,-180) -- (\x,-205); }
-    \draw[dim] (0,-198) -- (40,-198) node[midway,below=1pt,dl] {40};
-    \draw[dim] (48,-198) -- (158,-198) node[midway,below=1pt,dl] {110};
-    \draw[dim] (166,-198) -- (226,-198) node[midway,below=1pt,dl] {60};
-    \node[dl,anchor=north] at (44,-201) {8};
-    \node[dl,anchor=north] at (162,-201) {8};
+    \foreach \x in {0,90,98,248,256,346} { \draw[cgray,line width=0.3pt] (\x,-180) -- (\x,-205); }
+    \draw[dim] (0,-198) -- (90,-198) node[midway,below=1pt,dl] {90};
+    \draw[dim] (98,-198) -- (248,-198) node[midway,below=1pt,dl] {150};
+    \draw[dim] (256,-198) -- (346,-198) node[midway,below=1pt,dl] {90};
     \draw[cgray,line width=0.3pt] (0,-205) -- (0,-245);
-    \draw[cgray,line width=0.3pt] (226,-205) -- (226,-245);
-    \draw[dim] (0,-238) -- (226,-238) node[midway,dl,fill=white] {226 (모듈 폭 240)};
+    \draw[cgray,line width=0.3pt] (346,-205) -- (346,-245);
+    \draw[dim] (0,-238) -- (346,-238) node[midway,dl,fill=white] {346 (모듈 폭 360)};
   \end{scope}
 \end{tikzpicture}

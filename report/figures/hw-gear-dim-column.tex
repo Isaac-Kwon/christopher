@@ -47,15 +47,16 @@
       % 인덱스 원판과 플랜지
       \draw[draw=cred,fill=credbg] (-27,\y-17) rectangle (-18,\y+17);
       % 접점 보드 (가운데 구멍)
-      \draw[draw=cgreen,fill=cgreenbg] (-21.6,\y+19) rectangle (-20,\y+55);
-      \draw[draw=cgreen,fill=cgreenbg] (-21.6,\y-55) rectangle (-20,\y-19);
+      % (결정 0002: 접점의 작동 높이 9.0, 보드 Z +18.0 .. +16.4, 기둥 16.4)
+      \draw[draw=cgreen,fill=cgreenbg] (-18,\y+19) rectangle (-16.4,\y+55);
+      \draw[draw=cgreen,fill=cgreenbg] (-18,\y-55) rectangle (-16.4,\y-19);
       \foreach \r in {22,29,36,43} {
-        \draw[cgreen,line width=0.5pt] (-21.6,\y+\r) -- (-27,\y+\r);
-        \draw[cgreen,line width=0.5pt] (-21.6,\y-\r) -- (-27,\y-\r);
+        \draw[cgreen,line width=0.5pt] (-18,\y+\r) -- (-27,\y+\r);
+        \draw[cgreen,line width=0.5pt] (-18,\y-\r) -- (-27,\y-\r);
       }
       % 보드 기둥
-      \draw[cgray,line width=0.8pt] (-20,\y+48) -- (0,\y+48);
-      \draw[cgray,line width=0.8pt] (-20,\y-48) -- (0,\y-48);
+      \draw[cgray,line width=0.8pt] (-16.4,\y+48) -- (0,\y+48);
+      \draw[cgray,line width=0.8pt] (-16.4,\y-48) -- (0,\y-48);
       % 마이터와 라인 축
       \draw[draw=cblue,fill=cbluebg] (69,\y-13) rectangle (82,\y+13);
       \draw[draw=cblue,fill=cbluebg] (82,\y-25) rectangle (94,\y+25);
