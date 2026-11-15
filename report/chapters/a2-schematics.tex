@@ -1,0 +1,29 @@
+% 회로도 부록: KiCad 회로도를 그대로 싣는다 (report/figures/make_schematic_figures.py로 생성).
+\chapter{회로도}\label{app:schematics}
+
+이 부록은 이 프로젝트가 만든 KiCad 회로도를 그대로 싣는다. 회로도는 모두 스크립트로 생성했고, 각 저장소 폴더의
+검증 스크립트가 넷리스트를 접점 수준으로 시뮬레이션해 소프트웨어 기준 모델과 대조했다. 쪽마다 한 시트이며
+벡터 그림이므로 PDF에서 확대해 읽는다. 배선(PCB 라우팅)은 아직 하지 않았다.
+
+\begin{description}
+\item[릴레이 시프터 보드] \code{hardware/relay/shifter-board/}. 2진 5단 시프터 한 쌍(가는 길·오는 길): 단마다
+G6S-2 DPDT 26개, 역기전력 다이오드, 단 표시등. 제어값 0--25 전부에서 \code{relay.rs}와 일치(\ref{sec:hw-relay-model}절).
+\item[릴레이 계수기 보드(공통·유닛)] \code{hardware/relay/counter-board/}. 26진 한 자리에 릴레이 11개(주종 쌍,
+자리올림 사슬, 25 감지). 공통 보드는 $l$, $m$, $a_3$과 계수 규칙 전체, 유닛 보드는 다이얼 설정 $a_1$, $a_2$와 버퍼.
+1회 구동 17,576 클럭 전체에서 기준 모델과 일치.
+\item[테스트 레지스터 보드] \code{hardware/common/test-register/}. 결정 0001의 회로(자기 유지 감지 릴레이 26개,
+통과 릴레이, 정지 릴레이, \code{JUDGE}·\code{CLEAR} 구간). \emph{작업 중인 판}이다.
+\item[스크램블러 단위 시험기] \code{hardware/common/unit-tester/pcb/}. Pico, 시프트 레지스터, 24\,V 구동·감지 52노드,
+절연. \emph{작업 중인 판}이다.
+\end{description}
+
+\IfFileExists{figures/generated/sch_shifter-board.pdf}{%
+  \includepdf[pages=-,pagecommand={\thispagestyle{plain}},addtotoc={1,section,1,릴레이 시프터 보드,sch:shifter}]{figures/generated/sch_shifter-board.pdf}}{}
+\IfFileExists{figures/generated/sch_counter-common.pdf}{%
+  \includepdf[pages=-,pagecommand={\thispagestyle{plain}},addtotoc={1,section,1,릴레이 계수기 보드(공통),sch:counter-common}]{figures/generated/sch_counter-common.pdf}}{}
+\IfFileExists{figures/generated/sch_counter-unit.pdf}{%
+  \includepdf[pages=-,pagecommand={\thispagestyle{plain}},addtotoc={1,section,1,릴레이 계수기 보드(유닛),sch:counter-unit}]{figures/generated/sch_counter-unit.pdf}}{}
+\IfFileExists{figures/generated/sch_test-register.pdf}{%
+  \includepdf[pages=-,pagecommand={\thispagestyle{plain}},addtotoc={1,section,1,테스트 레지스터 보드,sch:test-register}]{figures/generated/sch_test-register.pdf}}{}
+\IfFileExists{figures/generated/sch_unit-tester.pdf}{%
+  \includepdf[pages=-,pagecommand={\thispagestyle{plain}},addtotoc={1,section,1,스크램블러 단위 시험기,sch:unit-tester}]{figures/generated/sch_unit-tester.pdf}}{}
