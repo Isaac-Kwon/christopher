@@ -176,6 +176,64 @@
   note    = {3차 자료. 직접 열람하지 못한 문헌(Carter, Wenger 1945, Wilcox, Welchman, Budiansky)의 수치를 옮길 때만 사용},
 }
 
+@online{bombe-rebuild-brushes,
+  author  = {{Turing Welchman Bombe Rebuild Project}},
+  title   = {Drum 2 (drum hubs, clips and brush assemblies)},
+  url     = {https://bombe.org.uk/drum2/},
+  urldate = {2026-11-15},
+  note    = {bombe.org.uk. 재현기 드럼 브러시의 규격(0.008 in 피아노선 19가닥, 황동 페룰, 끝 30° 연마). 작성자·작성일 표기 없음. 전시 실물의 규격과 같은지는 명시되어 있지 않다},
+}
+
+@online{jackson-bh07,
+  author       = {Jackson, John},
+  title        = {Bombe History 7: The Rebuild Project},
+  organization = {The National Museum of Computing},
+  url          = {https://www.tnmoc.org/bh-7-the-rebuild-project},
+  urldate      = {2026-11-15},
+  note         = {재현기의 드럼 180개, 브러시 11,232개, 정류자 스터드 1만 2천 개 이상, BTM 도면 약 2,000건},
+}
+
+@online{iprogrammer-jensen2015,
+  author       = {{I Programmer}},
+  title        = {Simulating the {Turing-Welchman} Bombe With A {Pi}},
+  year         = {2015},
+  url          = {https://www.i-programmer.info/news/82/9061.html},
+  urldate      = {2026-11-15},
+  note         = {Simon Jensen의 탁상 봄베(Raspberry Pi + Arduino, 스테퍼 모터로 지시 드럼 3개 구동). 검색 결과 요약으로 확인},
+}
+
+% ---------- 부품·규격 자료 (Phase 3 개념 설계) ----------
+
+@manual{omron-g6s,
+  author       = {{Omron Corporation}},
+  title        = {{G6S} Surface-mounting Relay (datasheet)},
+  url          = {https://www.digikey.at/en/htmldatasheets/production/1172375/0/0/1/g6s-series.html},
+  urldate      = {2026-11-15},
+  note         = {유통사 사본의 검색 요약으로 확인(원문 페이지 열람 실패). 동작·복귀 시간 최대 4 ms, 코일 140–200 mW, 접점 2 A 30 V DC, 기계적 수명 1억 회 이상. 부품 확정 시 최신 데이터시트로 재확인할 것},
+}
+
+@manual{omron-my4,
+  author       = {{Omron Corporation}},
+  title        = {{MY} General-purpose Relay, {MY4} {DC12} (product specification)},
+  url          = {https://www.fa.omron.co.jp/product/item/MY4_DC12/en/pdf/},
+  urldate      = {2026-11-15},
+  note         = {검색 요약으로 확인(제조사 사이트 직접 열람 실패). 동작 시간 최대 20 ms, 소비 전력 약 0.9 W, 4극 접점 3–5 A, 접촉 저항 100 mΩ 이하. 기계적 수명은 확인하지 못함},
+}
+
+@manual{millmax-springpin,
+  author       = {{Mill-Max Mfg. Corp.}},
+  title        = {Spring-Loaded Pins (catalog pages)},
+  url          = {https://www.mill-max.com/sites/default/files/external/catalog/2019-05/023.1M.pdf},
+  urldate      = {2026-11-15},
+  note         = {검색 요약으로 확인. 중간 행정 스프링 힘 60 g, 수명 1,000,000회(축 방향 압축), 정격 2 A 연속·3 A 순간. 품번별로 다름. 미끄럼 접점 용도의 규격이 아님},
+}
+
+@standard{iec61140,
+  author       = {{International Electrotechnical Commission}},
+  title        = {{IEC} 61140: Protection against electric shock -- Common aspects for installations and equipment},
+  note         = {직접 열람하지 못함. 극저전압(ELV) 상한(교류 50 V, 직류 120 V)의 표준 근거로만 인용. 전시 장소의 적용 기준은 따로 확인할 것},
+}
+
 % ---------- 2차 자료: 미 해군·미 육군 봄베 ----------
 
 @inproceedings{ekhall-hallenberg2018,
