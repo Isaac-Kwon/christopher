@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""Generate the KiCad 10 schematics of the relay unit's wiring cards.
+
+  rotor_I .. rotor_VIII   W card: the rotor wiring of data/wirings/enigma.txt, outbound half (line i -> W[i]) and
+                          return half (line W[i] -> i, i.e. W^-1) between four 37-way D-sub connectors
+  reflector_B, reflector_C   U card: the reflector pairs (outbound line i -> return line R[i])
+
+Both card types are passive boards of the shifter outline (250 x 228 mm); the D-sub connectors J1..J4 sit at the
+shifter's J1..J4 positions (gen_cards_pcb.py) so that the stack's straight ribbons fit.  Conventions: README.md.
+Standard library only (ki_common.py is the shared KiCad helper, an identical copy of the one in
+hardware/gear/contact-board).
+
+    python gen_cards.py            # writes the ten projects (.kicad_pro unless present, .kicad_sch)
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import ki_common as K
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[2]
+WIRING_FILE = REPO / "data" / "wirings" / "enigma.txt"
+NS = "6f1c2b0e-52a1-4a43-9c1b-0b0b0b0b0f01"
+N = 26
+
+ROTORS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"]
+REFLECTORS = ["B", "C"]
+
+# same footprints as the shifter board (gen_shifter.py)
+FP_DSUB37 = ("Connector_Dsub:DSUB-37_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset9.90mm_Housed_"
+             "MountingHolesOffset11.32mm")
+FP_HOLE = "MountingHole:MountingHole_3.2mm_M3_Pad"
+S_DB37 = K.Sym("Connector", "DC37_Pins")
+S_HOLE = K.Sym("Mechanical", "MountingHole_Pad")
+S_FLAG = K.Sym("power", "PWR_FLAG")
+
+# connector function by shifter position name (the stack orientation rule in README.md section 2)
+W_CONN = {"J1": "OUTBOUND_OUT", "J2": "RETURN_OUT", "J3": "OUTBOUND_IN", "J4": "RETURN_IN"}
+U_CONN = {"J3": "OUTBOUND_IN", "J2": "RETURN_OUT"}
+
+
+def L(i: int) -> str:
+    return chr(65 + i)
+
+
+def table(kind: str, name: str) -> list[int]:
+    """Wiring of a rotor (entry side -> reflector side, core offset 0) or a reflector from enigma.txt."""
+    for line in WIRING_FILE.read_text(encoding="utf-8").splitlines():
+        f = line.split()
+        if len(f) >= 3 and not line.startswith("#") and f[0] == kind and f[1] == name:
+            w = [ord(c) - 65 for c in f[2]]
+            assert sorted(w) == list(range(N)), (kind, name)
+            return w
+    raise SystemExit(f"{kind} {name} not found in {WIRING_FILE.name}")
+
+
+def project_name(kind: str, name: str) -> str:
+    return f"rotor_{name}" if kind == "rotor" else f"reflector_{name}"
+
+
+def all_cards() -> list[tuple[str, str, str]]:
+    return ([(project_name("rotor", r), "rotor", r) for r in ROTORS]
+            + [(project_name("reflector", r), "reflector", r) for r in REFLECTORS])
+
+
+def inverse(w: list[int]) -> list[int]:
+    inv = [0] * N
+    for i, x in enumerate(w):
+        inv[x] = i
+    return inv
+
+
+def fwd_net(i: int, w: list[int]) -> str:
+    """Outbound line i enters at J3 pin i+1 and leaves at J1 pin w[i]+1."""
+    return f"OW_{L(i)}{L(w[i])}"
+
+
+def ret_net(j: int, winv: list[int]) -> str:
+    """Return line j enters at J4 pin j+1 and leaves at J2 pin winv[j]+1."""
+    return f"RW_{L(j)}{L(winv[j])}"
+
+
+def flag(sh: K.Sheet, net: str, x: float, y: float, n: int):
+    """PWR_FLAG on a net: tells ERC that the mounting-hole net CHASSIS is driven (it is tied to the frame)."""
+    x, y = K.g(x), K.g(y)
+    sh.label(net, x, y, 0)
+    sh.libs[S_FLAG.lib_id] = S_FLAG
+    ref = f"#FLG{n:02d}"
+    hid = "(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t\t(hide yes)\n\t\t\t)"
+    sh.items.append(
+        f'\t(symbol\n\t\t(lib_id "{S_FLAG.lib_id}")\n\t\t(at {K.f(x)} {K.f(y)} 0)\n\t\t(unit 1)\n'
+        f'\t\t(exclude_from_sim no)\n\t\t(in_bom no)\n\t\t(on_board no)\n\t\t(dnp no)\n'
+        f'\t\t(uuid "{sh._u("s")}")\n'
+        f'\t\t(property "Reference" "{ref}"\n\t\t\t(at {K.f(x)} {K.f(y + 2.54)} 0)\n\t\t\t{hid}\n\t\t)\n'
+        f'\t\t(property "Value" "PWR_FLAG"\n\t\t\t(at {K.f(x)} {K.f(y + 2.54)} 0)\n\t\t\t{hid}\n\t\t)\n'
+        f'\t\t(pin "1"\n\t\t\t(uuid "{sh._u("p")}")\n\t\t)\n'
+        f'\t\t(instances\n\t\t\t(project "{sh.project}"\n\t\t\t\t(path "{sh.inst_path}"\n'
+        f'\t\t\t\t\t(reference "{ref}")\n\t\t\t\t\t(unit 1)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t)')
+
+
+def holes(sh: K.Sheet, x0: float, y: float):
+    for h in range(4):
+        sh.part(S_HOLE, x0 + h * 20.0, y, f"H{h + 1}", "M3_CHASSIS", FP_HOLE, {"1": "CHASSIS"}, "",
+                "M3 mounting hole, plated, net CHASSIS", in_bom=False)
+    flag(sh, "CHASSIS", x0 + 90.0, y - 10.0, 1)
+
+
+def rotor_sheet(name: str) -> K.Sheet:
+    w = table("rotor", name)
+    winv = inverse(w)
+    proj = project_name("rotor", name)
+    ids = K.Ids(NS)
+    sh = K.Sheet(ids, proj, "A3", f"Relay rotor wiring card W: rotor {name}",
+                 ["Project Christopher - relay track, hardware/relay/wiring-cards; generated by gen_cards.py from data/wirings/enigma.txt",
+                  f"Rotor {name}: {''.join(L(x) for x in w)} (line i -> W[i], entry side -> reflector side)",
+                  "Outbound J3 pin i+1 -> J1 pin W[i]+1; return J4 pin j+1 -> J2 pin W^-1[j]+1; pins 27-37 and the 0 V reference not connected"],
+                 inst_path=f"/{ids('sheetfile', proj)}")
+    # inputs on the left (J3 outbound, J4 return), outputs on the right (J1 outbound, J2 return)
+    cols = [("J3", "OUTBOUND_IN", 60.0, lambda i: fwd_net(i, w), "outbound line i (A..Z) enters"),
+            ("J1", "OUTBOUND_OUT", 140.0, lambda i: fwd_net(winv[i], w), "outbound line W[i] leaves"),
+            ("J4", "RETURN_IN", 240.0, lambda i: ret_net(i, winv), "return line j enters"),
+            ("J2", "RETURN_OUT", 320.0, lambda q: ret_net(w[q], winv),
+             "return line W^-1[j] leaves")]
+    for ref, val, x, netf, what in cols:
+        nets = {str(i + 1): netf(i) for i in range(N)}
+        sh.part(S_DB37, x, 140.0, ref, val, FP_DSUB37, nets, "",
+                f"D-sub 37 pins (male): pins 1-26 = lines A-Z ({what}); 27-29 0 V reference NOT connected "
+                f"(0003 5.2); 30-37 reserved; shell = CHASSIS", length=5.08)
+    holes(sh, 100.0, 255.0)
+    sh.text(f"ROTOR {name} wiring card (W).  Passive: the outbound half is the rotor, the return half is its inverse.\n"
+            f"W[A..Z] = {''.join(L(x) for x in w)}\n"
+            f"Outbound  J3 pin i+1  ->  J1 pin W[i]+1     (net OW_<in><out>)\n"
+            f"Return    J4 pin j+1  ->  J2 pin Winv[j]+1  (net RW_<in><out>), Winv = {''.join(L(x) for x in winv)}\n"
+            "Stack (layout.md 3.2, card faces back): bottom edge = IN (J3 outbound, J4 return), top edge = OUT (J1 outbound, J2 return).\n"
+            "Connector names follow the shifter's J1..J4 positions, not the signal direction.  See README.md section 2.",
+            20.0, 20.0, 1.8)
+    return sh
+
+
+def reflector_sheet(name: str) -> K.Sheet:
+    r = table("reflector", name)
+    proj = project_name("reflector", name)
+    ids = K.Ids(NS)
+    sh = K.Sheet(ids, proj, "A3", f"Relay reflector card U: reflector {name}",
+                 ["Project Christopher - relay track, hardware/relay/wiring-cards; generated by gen_cards.py from data/wirings/enigma.txt",
+                  f"Reflector {name}: {''.join(L(x) for x in r)}",
+                  "Outbound line i (J3 pin i+1) is joined to return line R[i] (J2 pin R[i]+1); pins 27-37 not connected"],
+                 inst_path=f"/{ids('sheetfile', proj)}")
+    n_in = {str(i + 1): f"RF_{L(i)}{L(r[i])}" for i in range(N)}
+    n_out = {str(r[i] + 1): f"RF_{L(i)}{L(r[i])}" for i in range(N)}
+    sh.part(S_DB37, 60.0, 140.0, "J3", "OUTBOUND_IN", FP_DSUB37, n_in, "",
+            "D-sub 37 pins (male): outbound line i enters (from the front shifter S4, bottom edge in the stack); "
+            "27-29 NOT connected (0003 5.2)", length=5.08)
+    sh.part(S_DB37, 160.0, 140.0, "J2", "RETURN_OUT", FP_DSUB37, n_out, "",
+            "D-sub 37 pins (male): return line R[i] leaves (to the front shifter S4, top edge in the stack); "
+            "27-29 NOT connected (0003 5.2)", length=5.08)
+    holes(sh, 100.0, 255.0)
+    sh.text(f"REFLECTOR {name} card (U).  Passive: the outbound end of the stack turns around here.\n"
+            f"R[A..Z] = {''.join(L(x) for x in r)}   (an involution without fixed points)\n"
+            "J3 pin i+1 (outbound line i) is wired to J2 pin R[i]+1 (return line R[i]); net RF_<in><out>.\n"
+            "Only two connectors: J3 at the shifter's J3 position, J2 at its J2 position (README.md section 2).",
+            20.0, 20.0, 1.8)
+    return sh
+
+
+def main(outdir: Path = HERE):
+    for proj, kind, name in all_cards():
+        sh = rotor_sheet(name) if kind == "rotor" else reflector_sheet(name)
+        K.write_project_and_sheet(outdir, proj, sh)
+        print(f"wrote {proj}.kicad_sch")
+
+
+if __name__ == "__main__":
+    main(Path(sys.argv[1]) if len(sys.argv) > 1 else HERE)
