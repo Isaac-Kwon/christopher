@@ -66,6 +66,12 @@ class Bench:
         self.valid_strobe = False
         self.s_rise = self.s_fall = self.j_rise = self.j_fall = self.c_rise = self.c_fall = None
         self.k_ok = False
+        # sense relays K (on +24V_L: they survive an emergency stop): held since the last effective CLEAR / release, and
+        # "full" = every one of the 26 lines latched (a position without a stop).  A held "full" set that was never cleared
+        # makes the next position look full as well -> its stop is MISSED (sequencer README 11).
+        self.k_held = False
+        self.k_full = False
+        self.stale_missed = 0
         self.p_time = None
         self.stop_pending = None
         self.stops: list[dict] = []
@@ -127,6 +133,10 @@ class Bench:
                 self.contact_viol.append(f"t={t:.1f} C1: STROBE contact width {w:.2f} < 5.0")
             self.p_time = self.s_rise + kop + self.sim.draw(2.5, 5.0)
             self.valid_strobe = self.k_ok
+            if self.k_ok:
+                full_here = self.current_test_pos not in self.oracle
+                self.k_full = (self.k_full if self.k_held else False) or full_here
+                self.k_held = True
             self.s_fall = t
 
     def j_contact(self, t, lv):
@@ -138,7 +148,15 @@ class Bench:
                 self.contact_viol.append(f"t={t:.1f} C2: JUDGE contact starts {t - self.s_rise:.2f} after the STROBE contact (< 10)")
             pos = self.current_test_pos
             oracle_stop = pos in self.oracle
-            stop = oracle_stop or (not self.valid_strobe) or (self.p_time is not None and t < self.p_time)
+            line_stop = oracle_stop
+            if oracle_stop and self.valid_strobe and self.k_held and self.k_full:
+                # sense relays still latched from an earlier position: the register sees 26 live lines -> no stop
+                line_stop = False
+                self.stale_missed += 1
+                self.missed_stops += 1
+                self.errors.append(f"t={t:.1f} MISSED STOP at position {pos}: sense relays still latched from an earlier "
+                                   f"position (no CLEAR since)")
+            stop = line_stop or (not self.valid_strobe) or (self.p_time is not None and t < self.p_time)
             if not oracle_stop and stop:
                 if not self.valid_strobe and self.empty_since_clear:
                     self.l8_false += 1
@@ -178,6 +196,8 @@ class Bench:
             self.c_fall = t
             if self.c_rise is not None and t - self.c_rise < 10.0 and not self.stopped:
                 self.contact_viol.append(f"t={t:.1f} C5: CLEAR contact width {t - self.c_rise:.2f} < 10.0")
+            elif self.c_rise is not None and not self.stopped:
+                self.k_held = self.k_full = False        # hold bus was open long enough: K and P released
 
     empty_since_clear = True
     current_test_pos = 0
@@ -204,6 +224,7 @@ class Bench:
         def clear_all():
             self.stopped = False
             self.valid_strobe = False
+            self.k_held = self.k_full = False
             self.empty_since_clear = True
             self.stop_pending = None
             self.sl_hold_low = False

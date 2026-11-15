@@ -406,7 +406,8 @@ def sheet_sensors() -> Sheet:
 def sheet_logic() -> Sheet:
     sh = Sheet("logic", "Timing gating (hardware, no firmware): STROBE_G / JUDGE_G / CLEAR_G, cycle hold CYC, SEEN (L8)",
                ["STROBE_G = SLOT_S & TXE ; CLEAR_G = SLOT_C & TXE ; JUDGE_G = SLOT_J & SEEN & TXE ; TXE = TXEN | CYC (74HC32)",
-                "CYC (74HC74 unit 2): set while STROBE_G is high, cleared by the falling edge of CLEAR_G -> a started cycle is always finished (L7)",
+                "CYC (74HC74 unit 2): set while STROBE_G is high, cleared by the falling edge of CLEAR_G -> a started cycle is always finished (L7); reset by POR | HOMING",
+                "HOME flush (0003 4.4): the firmware raises TXEN for the CLEAR slot of the last slotted cell on the final HOME approach (HOMING keeps SEEN cleared) -> exactly one CLEAR",
                 "SEEN (74HC74 unit 1): set by the rising edge of STROBE_G, cleared by POR | HOMING | falling edge of STOP_LATCH (RC pulse) -> no JUDGE before a STROBE (L8)"])
     gates14 = [("SLOT_S", "FLT_S"), ("SLOT_J", "FLT_J"), ("SLOT_C", "FLT_C"), ("T_L", "FLT_TL"), ("I_L", "FLT_IL"),
                ("T_M", "FLT_TM"), ("I_M", "FLT_IM"), ("T_S", "FLT_TS"), ("I_S", "FLT_IS"),
@@ -450,6 +451,8 @@ def sheet_logic() -> Sheet:
         a, b, o = pins02[u]
         if u == 0:
             nets, nc = {a: G("CLR1"), b: G("SL_PULSE"), o: G("SEEN_R_N")}, []
+        elif u == 1:                                   # CYC_R_N = NOT(POR | HOMING): HOME drops a cycle cut by an emergency stop
+            nets, nc = {a: G("CLR1"), b: G("CLR1"), o: G("CYC_R_N")}, []
         else:
             nets, nc = {a: G("GND"), b: G("GND")}, [o]
         sh.place(S_02, 980, 70 + 40 * u, "U36", "74HC02", FP["so14"], nets, unit=u + 1, nc=nc, desc="Quad NOR", show_value=(u == 0))
@@ -460,7 +463,7 @@ def sheet_logic() -> Sheet:
              {"1": G("SEEN_R_N"), "2": G("+3V3"), "3": G("STROBE_G"), "4": G("+3V3"), "5": G("SEEN")}, unit=1, nc=["6"],
              desc="Dual D flip-flop: unit 1 = SEEN", ds="https://www.ti.com/lit/ds/symlink/sn74hc74.pdf")
     sh.place(S_74, 700, 400, "U37", "74HC74", FP["so14"],
-             {"13": G("POR_RC"), "12": G("GND"), "11": G("CLRN"), "10": G("STROBE_N"), "9": G("CYC")},
+             {"13": G("CYC_R_N"), "12": G("GND"), "11": G("CLRN"), "10": G("STROBE_N"), "9": G("CYC")},
              unit=2, nc=["8"], desc="Dual D flip-flop: unit 2 = CYC", show_value=False)
     sh.place(S_74, 840, 400, "U37", "74HC74", FP["so14"], {"7": G("GND"), "14": G("+3V3")}, unit=3, show_value=False)
     cap(sh, 560, 470, "C47", "100n", FP["c0603"], G("+3V3"), G("GND"), "Decoupling")
@@ -468,7 +471,8 @@ def sheet_logic() -> Sheet:
     cap(sh, 140, 400, "C50", "100n", FP["c0603"], G("POR_RC"), G("GND"), "Power-on reset capacitor")
     res(sh, 80, 450, "R61", "47k", FP["r0603"], G("SL_N"), G("SL_D"), desc="STOP_LATCH falling-edge detector: delay R (with C51) about 0.5 ms", show=True)
     cap(sh, 140, 450, "C51", "10n", FP["c0603"], G("SL_D"), G("GND"), "Edge detector delay capacitor")
-    sh.text("CYC ~S = STROBE_N (low while STROBE_G high), ~R = POR_RC, D = 0, clock = CLRN (rises when CLEAR_G falls).\n"
+    sh.text("CYC ~S = STROBE_N (low while STROBE_G high), ~R = CYC_R_N = NOR(POR | HOMING) (power-up and HOME: a cycle cut by an emergency stop\n"
+            "is dropped; the HOME flush CLEAR replaces its CLEAR), D = 0, clock = CLRN (rises when CLEAR_G falls).\n"
             "SEEN D = 1, clock = STROBE_G, ~R = SEEN_R_N = NOR(POR | HOMING, SL_PULSE); SL_PULSE = SL_N & SL_DB (STOP_LATCH falling edge, about 0.5 ms).\n"
             "TP header (CONNECTORS sheet): SLOT_S SLOT_J SLOT_C = conditioned slot levels for the oscilloscope.", 40, 520, 1.5)
     return sh

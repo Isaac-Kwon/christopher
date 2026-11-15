@@ -16,6 +16,8 @@
    30 positions per cycle-axis revolution), closed-loop stepper (exact steps), the firmware model (firmware_model.py) and the
    relay register (contact delays, K / P / S behaviour, release button) around the netlist-derived hardware.  Decision 0003 L1-L9 are
    checked on the connector-face waveforms of every emitted cycle (L2 in its calibrated form: the gear STROBE is calibrated).
+   Every HOME must end with exactly one CLEAR (L5) and no STROBE / JUDGE (decision 0003 4.4 (b)); an emergency stop in the middle
+   of a cycle (sense relays left latched / cycle hold left set), reset, HOME and run must stop at position 0.
 4. NEGATIVE TESTS: netlist and firmware mutants must be detected.
 """
 from __future__ import annotations
@@ -233,6 +235,12 @@ def static_checks(nl: Netlist, rep: Report):
     C(nl.net("J4", "4") == "ESTOP_K" and nl.net("J4", "5") == "ILOCK_K", "J_SAFE returns")
     # --- logic gates (connectivity of the gating equations is checked functionally by the simulation)
     C(nl.net("U33", "14") == "+3V3" and nl.net("U33", "7") == "GND", "U33 supply")
+    # HOME flush (0003 4.4): the CLEAR gate has no SEEN input (the flush CLEAR comes after HOMING has cleared SEEN), JUDGE has;
+    # CLR1 = POR | HOMING feeds the SEEN reset and the CYC reset (both are exercised by the simulation and its mutants)
+    C(nl.net("U33", "6") == "CLEAR_G" and "SEEN" not in {nl.net("U33", "4"), nl.net("U33", "5")} and "SLOT_C" in {nl.net("U33", "4"), nl.net("U33", "5")},
+      "CLEAR_G = SLOT_C & TXE, not gated by SEEN")
+    C("SEEN" in {nl.net("U33", "9"), nl.net("U33", "10")}, "JUDGE gated by SEEN")
+    C({nl.net("U35", "4"), nl.net("U35", "5")} == {"POR", "HOMING"} and nl.net("U35", "6") == "CLR1", "CLR1 = POR | HOMING")
 
 
 # ============================================================================= 2. hardware simulation from the netlist
@@ -530,6 +538,8 @@ class Register:
         self.false_stops = 0
         self.false_straddle = 0
         self.missed_stops = 0
+        self.k_full = False                    # held sense relays K cover all 26 lines (latched at a position without a stop)
+        self.stale_missed = 0                  # stops missed because K were still latched from an earlier position
         self.not_cleared = 0
         self.bad_strobe = 0
         self.stops = []
@@ -551,6 +561,9 @@ class Register:
                 w = (t + 1.5) - self.t_strobe
                 if not self.latched:
                     if w >= 5.0:
+                        n = test_index_truth(x_now)
+                        full_here = n is None or not self.stop_fn(n)
+                        self.k_full = (self.k_full if self.held else False) or full_here   # K add to a set never cleared
                         self.held = True
                     else:
                         self.bad_strobe += 1
@@ -575,7 +588,13 @@ class Register:
     def _judge_done(self, tj, w):
         if self.latched:
             return
-        want = (not self.held) or (self.cur_n is not None and self.stop_fn(self.cur_n))
+        line_stop = self.cur_n is not None and self.stop_fn(self.cur_n)
+        if line_stop and self.held and self.k_full:
+            # stale sense relays (latched at an earlier position, never cleared): the register sees 26 live lines
+            self.stale_missed += 1
+            self.missed_stops += 1
+            return
+        want = (not self.held) or line_stop
         if not want:
             return
         if w >= self.d["s_on"]:
@@ -597,7 +616,7 @@ class Register:
             te, what = self.sched.pop(0)
             if what == "clear":
                 if not self.latched:
-                    self.held = False
+                    self.held = self.k_full = False
             elif what == "latch":
                 if not self.latched:
                     self.latched = True
@@ -605,7 +624,7 @@ class Register:
                     hw.set_ext("STOPL_M", 1, te + 0.03)
             elif what == "unlatch":
                 self.latched = False
-                self.held = False
+                self.held = self.k_full = False
                 self.stop_latch_hist.append((te, 0))
                 self.stop_latch_fall_events.append(te)
                 hw.set_ext("STOPL_M", 0, te + 0.03)
@@ -726,6 +745,13 @@ class Harness:
                 if tr and tr[4] == "+24V_SW" and self.hw.val.get(tr[3], 0):
                     self.events.append((self.t, name, 0))
                     self.ev_state.append((self.t, name, self.fw.state, self.fw.txen, self.fw.homing, 0))
+        if (not self.sw) and on and self.hw:
+            # +24V_SW returns: a gate output that is already high (logic on +24V_L) appears at the connector now
+            for name, tr in self.conn_src.items():
+                if tr and tr[4] == "+24V_SW" and self.hw.val.get(tr[3], 0):
+                    self.events.append((self.t, name, 1))
+                    self.ev_state.append((self.t, name, self.fw.state, self.fw.txen, self.fw.homing, 1))
+                    self.reg.on_conn(self.t, name, 1, self.m.x)
         self.sw = on
         self.fw.sw_ok = on
 

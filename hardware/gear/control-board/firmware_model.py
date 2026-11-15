@@ -5,7 +5,9 @@ The firmware is NOT in the STROBE / JUDGE / CLEAR path (that path is the hardwar
   * generates the stepper step ramp (enable / step / dir of a closed-loop drive: the drive has no ramp of its own),
   * runs the state machine  REST / RUN / STOPDEC / CREEPOUT / RET / HOME*  (stop zone, return, restart, HOME, END),
   * counts the position-disc edges (T = one pulse per step of an axis, I = index sector) into l, m, r -> POS0-14,
-  * enforces the 48 V restart rule (RUNARM) and inhibits the timing outputs (TXEN = 0) during RETURN and HOME.
+  * enforces the 48 V restart rule (RUNARM) and inhibits the timing outputs (TXEN = 0) during RETURN and HOME, except the
+    HOME flush: the final HOME approach (HFLUSH) starts one slotted cell before home and enables TXEN from the end of that
+    cell's JUDGE slot to the end of its CLEAR slot -> exactly one CLEAR, no STROBE / JUDGE (decision 0003 4.4).
 
 Units: steps, steps/s, ms.  `Firmware.tick(t_ms, dt_ms)` returns the signed number of step pulses of this tick; the
 harness delivers sensor edges through `on_edge(sig, level, t_ms, s_edge)` in the order of the motion (like GPIO
@@ -69,6 +71,9 @@ class Params:
     cell: int = CELL
     period_x: int = CYCLE_X * 676   # one full period: 676 cycle-shaft revolutions = 17,576 tested positions + carry cells
     home_x: int = -70               # HOME position: inside cell 0 of cycle 0, before its STROBE slot
+    flush_back: int = (CYCLE_CELLS - 25) * CELL   # HOME flush: the final approach starts this far before home_x, i.e. at the
+                                    # same place in the last slotted cell before home (k = 25 of the previous revolution, 2000 steps)
+    v_flush: float = 3000.0         # final approach speed: the flush CLEAR slot (136 steps) lasts 45 ms (L5 needs <= 10,880 pps)
     x_strobe: int = SLOT_W["STROBE"][0]   # STROBE slot rise inside a cell (-26)
     end_pos: int = 17575            # last tested position in test order n (slice end: 26 Q + 25 at the end of a revolution)
     home_hold_ms: float = 100.0     # HOME level must be held this long (decision 0003 4.3)
@@ -131,6 +136,8 @@ class Firmware:
         self.move_v = 0.0
         self.move_a = 0.0
         self.home_how = ""
+        self.flushed = False         # HOME flush CLEAR done on the final approach (decision 0003 4.4)
+        self.goal_x = None           # x the current HOME move (HMOVE / HFLUSH) must reach (step target corrected at T_L edges)
         self.log: list[str] = []
 
     # ------------------------------------------------------------------ helpers
@@ -177,6 +184,7 @@ class Firmware:
                 if ax == 0:
                     self.kc = (self.kc + 1) % CYCLE_CELLS
                     self._xref(self.kc, s_e)
+                    self._retarget(s_e)
                 elif ax == 1:                       # carry 1 = cycle shaft at 330 deg, inside cell k = 27
                     self.kc, self.kc_sync = 27, True
             elif (not fwd) and (not level):
@@ -186,6 +194,7 @@ class Firmware:
                     old = self.kc                   # leaving cell `old` backwards
                     self.kc = (self.kc - 1) % CYCLE_CELLS
                     self._xref(old, s_e)
+                    self._retarget(s_e)
                 elif ax == 1:
                     self.kc, self.kc_sync = 27, True
         elif sig == "SLOT_S":
@@ -197,7 +206,15 @@ class Firmware:
             if level and fwd and self.state == "HSEARCH" and self._all_i() and "home_index_only" not in self.mut:
                 self.hsearch_edge_s = s_e
                 self.state = "HDEC"
+        elif sig == "SLOT_J":
+            # HOME flush (decision 0003 4.4): on the final approach the timing outputs are enabled from the end of the JUDGE slot
+            # of the last slotted cell (its STROBE slot has passed with TXEN = 0; HOMING keeps SEEN cleared) ...
+            if (not level) and fwd and self.state == "HFLUSH" and not self.flushed and "no_flush" not in self.mut:
+                self.txen = True
         elif sig == "SLOT_C":
+            if not level and fwd and self.state == "HFLUSH" and self.txen and not self.flushed:
+                self.txen = False           # ... to the end of its CLEAR slot: exactly one CLEAR, then nothing until AT_HOME
+                self.flushed = True
             if not level:
                 self.in_cycle = False
             if level:
@@ -205,8 +222,8 @@ class Firmware:
             else:
                 if self.cap_armed and self.s_clear_end is None:
                     self.s_clear_end = s_e
-                if (fwd and self.cell_pos is not None and all(self.sync) and not self.end_flag
-                        and test_index(*self.cell_pos) == self.p.end_pos):
+                if (fwd and self.cell_pos is not None and all(self.sync) and not self.end_flag and not self.homing
+                        and test_index(*self.cell_pos) == self.p.end_pos):      # (the HOME flush passes the last cell: not END)
                     self.end_pending = True
 
     def _xref(self, k, s_e):
@@ -216,6 +233,20 @@ class Firmware:
         l, m, r = self.cnt
         q = (m + 26 * r - (1 if k >= 28 else 0)) % 676       # cells 28, 29 lie after carry 1: M already counts Q + 1
         self.x_ref = (self.p.cell * (CYCLE_CELLS * q + k) + T_OFF, s_e)
+
+    def _retarget(self, s_e):
+        """HOME moves (HMOVE, HFLUSH): correct the step target at every T_L boundary.  After an emergency stop the shaft coasted
+        with the drive off (steps not counted), so the step reference is off by up to the coast distance; the first boundary of
+        the HOME move gives the true x again.  Only small corrections (< one cell) are taken: a larger one means the counters are
+        wrong, which the index check at the end of HOME catches."""
+        if self.state not in ("HMOVE", "HFLUSH") or self.goal_x is None or self.x_ref is None or "no_retarget" in self.mut:
+            return
+        per = self.p.period_x
+        rem_x = self.goal_x - self.x_ref[0]
+        rem_s = self.target - s_e
+        corr = (rem_x - rem_s + per // 2) % per - per // 2
+        if abs(corr) < self.p.cell:
+            self.target += corr
 
     # ------------------------------------------------------------------ the 1 ms ... 50 us control tick
     def _motion(self, vd: float, a: float, dt: float) -> int:
@@ -352,20 +383,30 @@ class Firmware:
         elif st == "HDEC":
             n = self._motion(0.0, p.a_home, dt)
             if self.v == 0.0:
-                self.target = self.hsearch_edge_s + (p.home_x - p.x_strobe)
+                self.target = self.hsearch_edge_s + (p.home_x - p.flush_back - p.x_strobe)
                 self.state = "HGO"
         elif st == "HGO":
             n, arrived = self._goto(self.target, p.v_hcreep, p.a_home, dt)
             if arrived:
-                self._home_done()
+                self._start_flush()
         elif st == "HMOVE":
             n, arrived = self._goto(self.target, p.v_home, p.a_home, dt)
             if arrived:
-                if self._all_i():
-                    self._home_done()
-                else:
+                self._start_flush()
+        elif st == "HFLUSH":
+            # final approach: one slotted cell forward at <= 60 rpm; TXEN only from the JUDGE end to the CLEAR end (on_edge)
+            n, arrived = self._goto(self.target, p.v_flush, p.a_home, dt)
+            if arrived:
+                self.txen = False
+                if not self._all_i():                   # counters were wrong: search the home mark
                     self.home_how += "+search"
                     self.state = "HBACK" if self._in_cycle0() else "HSEARCH"
+                elif self.flushed or "no_flush" in self.mut:
+                    self._home_done()
+                else:                                   # the slot edges of the flush were not seen: pass that cell again
+                    self.home_how += "+reflush"
+                    self.target = self.s - p.flush_back
+                    self.state = "HGO"
         # ---- outputs updated every tick
         return n
 
@@ -381,7 +422,9 @@ class Firmware:
         if sw:
             self.need_home = True        # emergency stop: the cycle may be cut anywhere -> HOME first
             self.txen = False
-        self.homing = False
+        # after an emergency stop HOMING stays high until HOME is done: it holds SEEN and the cycle hold CYC cleared, so a cycle
+        # cut by the stop emits nothing when +24V_SW returns or while HOME moves (the HOME flush CLEAR replaces its CLEAR)
+        self.homing = (sw or self.need_home) and "estop_no_homing" not in self.mut
 
     def _rest_after_stop(self):
         self.v = 0.0
@@ -405,10 +448,11 @@ class Firmware:
         self.end = False
         self.end_flag = self.end_pending = False
         self.need_home = True
+        self.flushed = False
         xn = self.x_now()
         self.home_how = ""
         if xn is not None and "forward_only" not in self.mut:
-            x_home = self.p.home_x
+            x_home = self.p.home_x - self.p.flush_back          # the final approach (HFLUSH) starts here
             fwd = (x_home - xn) % self.p.period_x
             if fwd <= self.p.period_x // 2:
                 self.target = self.s + fwd
@@ -416,10 +460,21 @@ class Firmware:
             else:
                 self.target = self.s - (self.p.period_x - fwd)
                 self.home_how = "rev"
+            self.goal_x = x_home
             self.state = "HMOVE"
             return
+        self.goal_x = None
         self.home_how = "search"
         self.state = "HBACK" if self._in_cycle0() else "HSEARCH"
+
+    def _start_flush(self):
+        """standing one slotted cell before home (same place in the cell): creep forward to home with HOMING = 1 and TXEN = 0;
+        on_edge enables the outputs for the CLEAR slot of that cell only (HOME flush CLEAR, decision 0003 4.4)"""
+        self.txen = False
+        self.flushed = False
+        self.target = self.s + self.p.flush_back
+        self.goal_x = self.p.home_x
+        self.state = "HFLUSH"
 
     def _home_done(self):
         self.v = 0.0
@@ -429,6 +484,7 @@ class Firmware:
         self.stopped = True
         self.at_home = True
         self.need_home = False
+        self.end_pending = False
         self.cnt = [0, 0, 0]
         self.sync = [True, True, True]
         self.kc, self.kc_sync = 0, True

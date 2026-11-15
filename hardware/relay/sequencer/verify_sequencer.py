@@ -12,9 +12,11 @@ What is checked (all on the connector face unless stated):
   STROBE (L8, also after HOME / stop release), CK rise >= CLEAR rise and CK rise + 13 ms <= next STROBE (L9); CK/NCK never both high and
   break-before-make gap below the counters' release time; the register at the contact face (C1-C6, with the random timing-relay
   delays); no missed stop and no false stop; positions tested = 0, 1, 2, ... without repeat or skip across stops, restarts and
-  operator RUN toggles; HOME (release, LOAD preset overlapping NCK, no timing output, AT_HOME), END at the 17,576th position or at the
-  slice end, standby (CK = NCK = 0, HOME needed), emergency stop (power loss), thermostat.
-Negative tests mutate the netlist and require the verification to fail.
+  operator RUN toggles; HOME (release, LOAD preset overlapping NCK, no STROBE / JUDGE, exactly one flush CLEAR with L5 and L6 -
+  decision 0003 4.4, AT_HOME), END at the 17,576th position or at the slice end, standby (CK = NCK = 0, HOME needed), emergency stop
+  (power loss), thermostat; emergency stop in the middle of a cycle with the register's sense relays left latched, then HOME:
+  the stop at position 0 must not be missed (stale-K scenario).
+Negative tests mutate the netlist and require the verification to fail (the flush mutants also through the stale-K scenario).
 """
 from __future__ import annotations
 
@@ -85,7 +87,25 @@ def analyze(sim, bench, stats: Stats, expect_first=0, home_windows=(), allow_unf
     C = pulses(sim.edge_list("CLEAR"))
     CK = pulses(sim.edge_list("CK_A"))
     CKB = pulses(sim.edge_list("CK_B"))
-    ev = sorted([(a_, b_, "S") for a_, b_ in S] + [(a_, b_, "J") for a_, b_ in J] + [(a_, b_, "C") for a_, b_ in C])
+    # HOME flush (decision 0003 4.4): every HOME pass ends with exactly one CLEAR (no STROBE / JUDGE), L5 wide, L6 before the
+    # next STROBE.  These CLEARs are not part of a position cycle.
+    in_home = lambda c: any(h0 <= c[0] <= h1 for (h0, h1) in home_windows)      # noqa: E731
+    for (h0, h1) in home_windows:
+        hc = [c for c in C if h0 <= c[0] <= h1]
+        if len(hc) != 1:
+            fails.append(f"HOME ({h0:.0f}..{h1:.0f}): {len(hc)} flush CLEAR pulses, expected exactly one")
+        for (a, b) in hc:
+            stats.add("HC", b - a)
+            if b - a < L5:
+                fails.append(f"L5: HOME flush CLEAR {b - a:.2f} ms at t={a:.1f}")
+            nxt = [x for x in sorted(S) if x[0] > b]
+            if nxt:
+                stats.add("HSC", nxt[0][0] - b)
+                if nxt[0][0] - b < L6:
+                    fails.append(f"L6: STROBE only {nxt[0][0] - b:.2f} after the HOME flush CLEAR at t={a:.1f}")
+        stats.home_flush = getattr(stats, "home_flush", 0) + len(hc)
+    C_cyc = [c for c in C if not in_home(c)]
+    ev = sorted([(a_, b_, "S") for a_, b_ in S] + [(a_, b_, "J") for a_, b_ in J] + [(a_, b_, "C") for a_, b_ in C_cyc])
     cyc, flush, i = [], [], 0
     while i < len(ev):
         if ev[i][2] == "S":
@@ -173,9 +193,9 @@ def analyze(sim, bench, stats: Stats, expect_first=0, home_windows=(), allow_unf
             fails.append(f"CK pulse {r1 - r0:.2f} ms at t={r0:.1f}")
     if len(CK) != len(CKB):
         fails.append(f"bus A has {len(CK)} CK pulses, bus B {len(CKB)}")
-    # no timing output inside HOME windows
+    # no STROBE / JUDGE inside HOME windows (the one CLEAR is checked above)
     for (h0, h1) in home_windows:
-        for name, pl in (("STROBE", S), ("JUDGE", J), ("CLEAR", C)):
+        for name, pl in (("STROBE", S), ("JUDGE", J)):
             for (a, b) in pl:
                 if a < h1 and b > h0:
                     fails.append(f"{name} pulse at t={a:.1f} during HOME ({h0:.0f}..{h1:.0f})")
@@ -230,16 +250,27 @@ def make(nl, seed, mode, oracle=(), auto_release=True, rel=(80.0, 400.0), tol=0.
     return sim, b
 
 
-def home_sequence(sim, b, fails, label="HOME"):
-    """Press HOME with RUN low; return the (start, AT_HOME rise) window."""
+def home_sequence(sim, b, fails, label="HOME", early_run=None):
+    """Press HOME with RUN low; return the (start, park) window of the HOME pass.  early_run = ms after the press at which the
+    operator already turns the start switch on (HOME accepted, pass still running): the first STROBE then follows the HOME
+    flush CLEAR as early as the relays allow (tightest L6)."""
     b.set_start(False)
     sim.run_until(sim.t + 150)
     t0 = sim.t + 10
     b.home_press(t0)
+    if early_run is not None:
+        b.at(t0 + early_run, lambda: b.set_start(True))
     ok = wait_for(sim, lambda: sim.levels_prev.get("AT_HOME", 0) == 1, 1500)
     t1 = sim.t
     if not ok:
         fails.append(f"{label}: AT_HOME never rose")
+    elif early_run is not None:
+        wait_for(sim, lambda: any(t >= t1 - 30.0 and lv for t, lv in sim.edge_list("STOPPED")), 200, step=1.0)
+        park = [t for t, lv in sim.edge_list("STOPPED") if lv and t >= t1 - 30.0]
+        if park:
+            t1 = park[0]
+        else:
+            fails.append(f"{label}: ring did not park after the HOME pass")
     else:
         sim.run_until(sim.t + 100)
         if b.n != 0:
@@ -248,6 +279,10 @@ def home_sequence(sim, b, fails, label="HOME"):
             fails.append(f"{label}: END still high after HOME")
         if not sim.levels_prev.get("STOPPED", 0):
             fails.append(f"{label}: STOPPED low although the bank stands at home")
+        # the HOME pass ends when the ring parks again (STOPPED rises): the flush CLEAR starts inside [t0, park]
+        park = [t for t, lv in sim.edge_list("STOPPED") if lv and t >= t1 - 30.0]
+        if park:
+            t1 = park[0]
     return (t0, t1)
 
 
@@ -427,6 +462,53 @@ def scen_power(nl, seed, mode, stats):
     return fails, sim, b
 
 
+def scen_stale(nl, seed, mode, stats, cut_after=4.5):
+    """emergency stop in the middle of a position cycle (after the STROBE, before its CLEAR): the register's sense relays K
+    stay latched (+24V_L survives), with all 26 lines (a position without a stop).  The operator HOMEs and restarts; position 0
+    is a stop.  Without the HOME flush CLEAR the first STROBE adds to the stale K, the register sees 26 live lines and the
+    stop at position 0 is missed (README 11 item 3).  Decision 0003 4.4: HOME ends with exactly one CLEAR."""
+    fails: list[str] = []
+    sim, b = make(nl, seed, mode)                 # no stops during the first run
+    sim.run_until(250)
+    hw = [home_sequence(sim, b, fails)]
+    b.set_start(True)
+    wait_for(sim, lambda: len(b.tested) >= 5, 3000, step=10.0)
+    wait_for(sim, lambda: sim.levels_prev.get("STROBE", 0) == 1, 300, step=0.1)
+    wait_for(sim, lambda: sim.levels_prev.get("STROBE", 0) == 0, 100, step=0.1)
+    sim.run_until(sim.t + cut_after)              # STROBE contact has opened (d_off <= 4 ms); JUDGE / CLEAR not yet
+    pos_cut = b.current_test_pos
+    if not (b.k_held and b.k_full):
+        fails.append(f"stale-K precondition: sense relays not latched full at the cut (position {pos_cut})")
+    sim.set_power(False)                          # emergency stop: +24V_SW gone in the middle of the cycle
+    sim.run_until(sim.t + 150)
+    if not b.k_held:
+        fails.append("stale-K precondition: the sense relays did not survive the emergency stop")
+    b.set_start(False)
+    sim.set_power(True)
+    sim.run_until(sim.t + 400)
+    b.oracle.clear()
+    b.oracle.add(0)                               # position 0 has a dead line: the register must stop there
+    early = 40.0 if seed % 2 == 0 else None       # even seeds: start switch on while the HOME pass still runs (tightest L6)
+    hw.append(home_sequence(sim, b, fails, "HOME after the emergency stop", early_run=early))
+    if b.k_held and early is None:
+        fails.append("sense relays still latched after HOME (no flush CLEAR)")
+    n0 = len(b.tested)
+    b.set_start(True)
+    wait_for(sim, lambda: len(b.stops) >= 1 or len(b.tested) >= n0 + 4, 3000, step=10.0)
+    sim.run_until(sim.t + 600)
+    b.set_start(False)
+    sim.run_until(sim.t + 300)
+    stats.runs += 1
+    if not any(s["pos"] == 0 and s["oracle"] for s in b.stops):
+        fails.append(f"no stop at position 0 after HOME (stale sense relays from position {pos_cut}; stale misses {b.stale_missed})")
+    first = [p for t, p in b.tested if t > hw[-1][1]]
+    if not first or first[0] != 0:
+        fails.append(f"first position after HOME is {first[:1]}, expected 0")
+    # the interrupted cycle (STROBE without JUDGE / CLEAR) is the emergency stop itself: drop only those findings
+    fails += [f for f in analyze(sim, b, stats, 0, hw) if "L7" not in f and "position sequence" not in f]
+    return fails, sim, b
+
+
 # ----------------------------------------------------------------------------- structural checks
 def structural(nl):
     errs, n_ok = [], 0
@@ -483,6 +565,16 @@ def structural(nl):
         chk(nl.net(u, "9") == "SW" and nl.net(u, "10") == "GND", f"{u} supply")
     chk(nl.net("U2", "13") == "PARK" and nl.net("U2", "14") == "CLK" and nl.net("U1", "3") == "CLK", "ring clock / inhibit wiring")
     chk(nl.net("U4", "1") == "PARK", "KST drive = PARK")
+    # HOME flush CLEAR (0003 4.4): the CLEAR window WC reaches the CLEAR driver input INC through KENK (cycles), through a HOMING
+    # contact (the HOME pass) and through the CLEAR relay's own pole 2 (hold to the end of the window); nothing else drives INC
+    chk(nl.net("U3", "3") == "INC", "CLEAR driver input = INC")
+    for name, why in (("KENK", "cycle CLEAR gate"), ("KHLd", "HOME flush CLEAR gate (HOMING)"),
+                      ("KC", "CLEAR self-hold through its window")):
+        r = ref_of(nl, name)
+        chk(nl.net(r, "9") == "WC" and nl.net(r, "8") == "INC", f"{name}: {why} WC -> INC (pole 2 NO)")
+    inc_src = {(r, pin) for r, pin in nl.nets["INC"] if r.startswith("K")}
+    chk(len(inc_src) == 3, f"INC driven by exactly three contacts, found {sorted(inc_src)}")
+    chk(sorted(int(nl.net(d_, "2")[1:]) for d_ in P if d_.startswith("D") and nl.net(d_, "1") == "WC") == [6, 7, 8], "WC window = Q6..Q8")
     # power chain
     chk(nl.net("J1", "1") == "VIN" and nl.net("J1", "2") == "GND", "power terminal")
     chk(any(r.startswith("F") and nl.net(r, "1") == "VIN" and nl.net(r, "2") == "VF" for r in P), "board fuse")
@@ -525,7 +617,16 @@ def mutants(nl):
     out.append(("bus B CK taken from bus A nets (single contact per bus not respected)", [(R("KCKB"), "5", "CK_A")]))
     out.append(("STOPPED output contact open", [(R("KST"), "5", "GND")]))
     out.append(("KENK enable chain open (windows never enabled)", [(R("KRDYb"), "5", "GND")]))
+    out.append(("HOME flush CLEAR removed (KHLd pole 2 open)", [(R("KHLd"), "9", "FLUSH_CUT")]))
     return out
+
+
+def flush_mutants(nl):
+    """negative tests of the HOME flush CLEAR, each checked with the stale-K scenario (and the mode that exposes it)"""
+    R = lambda n: ref_of(nl, n)      # noqa: E731
+    return [("HOME flush CLEAR removed (KHLd pole 2 open)", [(R("KHLd"), "9", "FLUSH_CUT")], "random", "MISSED STOP at position 0"),
+            ("HOME flush CLEAR removed", [(R("KHLd"), "9", "FLUSH_CUT")], "corner", "MISSED STOP at position 0"),
+            ("flush CLEAR self-hold removed (KC pole 2 open)", [(R("KC"), "9", "HOLD_CUT")], "fast", "flush CLEAR")]
 
 
 def quick_suite(nl, seed=1, mode="corner"):
@@ -582,10 +683,22 @@ def main():
             if f:
                 allf += [f"[{label}] {x}" for x in f[:6]]
                 print(f"  {label}: {len(f)} failures, first: {f[0]}")
-    print(f"scenario runs: {runs}; position cycles checked: {st.cycles}; register stops: {st.stops}")
+    n_stale = 0
+    for mode in (("random", "corner", "slow", "fast") if not a.quick else ("corner",)):
+        for sd in ((1, 2) if not a.quick else (1,)):
+            f, sim, b = scen_stale(nl, sd, mode, st)
+            runs += 1
+            n_stale += 1
+            if f:
+                allf += [f"[stale K {mode} {sd}] {x}" for x in f[:6]]
+                print(f"  stale K {mode} seed {sd}: {len(f)} failures, first: {f[0]}")
+    print(f"emergency stop mid-cycle -> HOME -> stop at position 0: {n_stale} runs")
+    print(f"scenario runs: {runs}; position cycles checked: {st.cycles}; register stops: {st.stops}; "
+          f"HOME passes with exactly one flush CLEAR: {getattr(st, 'home_flush', 0)}")
     for k, lab in (("S", "STROBE width"), ("J", "JUDGE width"), ("C", "CLEAR width"), ("JS", "JUDGE rise - STROBE rise"),
                    ("CJ", "CLEAR rise - JUDGE fall"), ("SC", "next STROBE rise - CLEAR fall"), ("CKw", "CK width"),
-                   ("CK_to_S", "CK rise -> next STROBE rise"), ("CK_after_C", "CK rise - CLEAR rise")):
+                   ("CK_to_S", "CK rise -> next STROBE rise"), ("CK_after_C", "CK rise - CLEAR rise"),
+                   ("HC", "HOME flush CLEAR width"), ("HSC", "next STROBE - HOME flush CLEAR")):
         if k in st.min:
             print(f"  {lab:32s} min {st.min[k]:7.2f}  max {st.max[k]:7.2f} ms")
     if a.full:
@@ -621,6 +734,20 @@ def main():
             print(f"  negative test: {name}: {'detected' if hit else 'NOT DETECTED'}" + (f"  ({f[0][:90]})" if hit else ""))
         neg_fail = len(ms) - det
         print(f"negative tests: {det}/{len(ms)} detected")
+        fdet = 0
+        fms = flush_mutants(nl)
+        for name, edits, mode, must in fms:
+            m = mutate(nl, edits)
+            try:
+                f, *_ = scen_stale(m, 1, mode, Stats())
+            except Exception as ex:      # noqa: BLE001
+                f = [f"exception {type(ex).__name__}: {ex}"]
+            hit = any(must in x for x in f)
+            fdet += hit
+            print(f"  negative test (stale-K scenario, {mode}): {name}: {'detected' if hit else 'NOT DETECTED'}"
+                  + (f"  ({[x for x in f if must in x][0][:100]})" if hit else (f"  ({f[0][:90]})" if f else "")))
+        print(f"flush negative tests: {fdet}/{len(fms)} detected")
+        neg_fail += len(fms) - fdet
         if neg_fail:
             allf.append("negative tests not detected")
     print(f"RESULT: {'PASS' if not allf else 'FAIL'}  ({time.time() - t0:.0f} s)")

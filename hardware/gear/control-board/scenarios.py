@@ -236,8 +236,12 @@ def home_run(v, nl, rep, x0, synced, seed, mut=(), dt=1.0):
     H.run(H.t + 30.0)
     H.fw.home = True
     t_lim = H.t + 1500.0 + 1000.0 * (v.PERIOD_X / 20800.0) * 1.1
-    while H.t < t_lim and not (H.fw.at_home and H.fw.state == "REST"):
+    H.t_h0 = None                                # HOME accepted (HOMING rises) ... AT_HOME
+    while H.t < t_lim and not (H.t_h0 is not None and H.fw.at_home and H.fw.state == "REST"):
         H.tick()
+        if H.t_h0 is None and H.fw.homing:
+            H.t_h0 = H.t - H.dt
+    H.t_h1 = H.t
     H.fw.home = False
     H.run(H.t + 50.0)
     return H, tag
@@ -265,12 +269,98 @@ def scenario_home(v, nl, rep, quick):
         rep.check(fw.txen and not fw.homing and fw.stopped and not fw.end, f"{tag}: flags after HOME")
         viol = [(round(t, 1), nm) for t, nm, st, tx, hm, lv in H.ev_state if lv and hm and nm != "CLEAR"]
         rep.check(not viol, f"{tag}: timing output started during HOME ({len(viol)} edges)")
-        d = (x0 - v.HOME_X) % v.PERIOD_X
-        shorter = min(d, v.PERIOD_X - d)
+        w = home_flush_check(v, H, rep, tag, H.t_h0, H.t_h1)
+        flush_w.extend(w)
         if synced:
-            rep.check(H.steps_total <= shorter + 600, f"{tag}: path {H.steps_total} steps, shortest {shorter}")
+            rep.check(H.steps_total <= home_path_bound(v, x0) + 600, f"{tag}: path {H.steps_total} steps, shortest {home_path_bound(v, x0)}")
         out.append((x0, synced, fw.home_how, H.steps_total, round(H.t / 1000.0, 1)))
     return out
+
+
+flush_w: list = []                                  # widths of the HOME flush CLEAR pulses (ms), for the summary
+
+
+def home_path_bound(v, x0):
+    """shortest HOME path: to the start of the final approach (one slotted cell before home) + that approach"""
+    fb = Params().flush_back
+    d = (x0 - (v.HOME_X - fb)) % v.PERIOD_X
+    return min(d, v.PERIOD_X - d) + fb
+
+
+def home_flush_check(v, H, rep, tag, t0=None, t1=None):
+    """decision 0003 4.4: HOME ends with exactly one CLEAR (L5 wide), no STROBE / JUDGE; returns the CLEAR widths"""
+    ev = [e for e in H.events if (t0 is None or e[0] >= t0) and (t1 is None or e[0] <= t1)]
+    hc, up = v.pulses(ev, "CLEAR")
+    hs = [e for e in ev if e[2] == 1 and e[1] in ("STROBE", "JUDGE")]
+    rep.check(len(hc) == 1 and up is None, f"{tag}: {len(hc)} CLEAR pulses during HOME (open: {up is not None}), expected exactly one flush CLEAR")
+    rep.check(not hs, f"{tag}: STROBE / JUDGE during HOME: {hs[:3]}")
+    for a, b in hc:
+        rep.check(b - a >= 12.5 - 1e-6, f"{tag}: L5 HOME flush CLEAR {b - a:.2f} ms < 12.5")
+    return [b - a for a, b in hc]
+
+
+def estop_home(v, nl, rep, when, seed=31, mut=(), tag=None):
+    """Emergency stop in the middle of a cycle, reset, HOME, run; position 0 is a stop.
+    when = "after JUDGE": the stop falls just after a JUDGE (the register's sense relays K are latched with all 26 lines, the shaft
+           coasts past the end of the CLEAR slot while +24V_SW is off: no CLEAR reaches the register).  Without the HOME flush CLEAR
+           the first STROBE after HOME adds to the stale K and the stop at position 0 is missed (sequencer README 11 item 3).
+    when = "at STROBE": the stop falls at a STROBE rise (cycle hold CYC and SEEN set, the shaft stands inside the JUDGE slot).  HOMING
+           (held from the emergency stop to the end of HOME) must keep every timing output off until the flush CLEAR, also while the
+           HOME moves backwards over that cell's STROBE slot."""
+    tag = tag or f"emergency stop {when} -> HOME -> stop at position 0"
+    Ck = rep.check
+    H = v.Harness(nl, seed=seed, dt=0.1, mut=mut)
+    start_run(H)
+    n_rise = lambda nm: sum(1 for e in H.events if e[1] == nm and e[2] == 1)      # noqa: E731
+    t_lim = H.t + 3000.0
+    while H.t < t_lim and n_rise("STROBE") < 5:
+        H.tick()
+    trig = ("JUDGE", 0) if when == "after JUDGE" else ("STROBE", 1)
+    n0 = len(H.events)
+    while H.t < t_lim and not any(e[1] == trig[0] and e[2] == trig[1] for e in H.events[n0:]):
+        H.tick()
+    H.sw_set(False)                                   # K_E: +24V_SW and 48 V gone
+    H.v48 = False
+    if when == "after JUDGE":
+        Ck(H.reg.held and H.reg.k_full, f"{tag}: precondition: sense relays latched with all lines at the cut")
+    H.run(H.t + 600.0)
+    Ck(H.fw.need_home and abs(H.m.vc) < 1.0, f"{tag}: precondition: standing, HOME required")
+    if when == "at STROBE":
+        Ck(H.m.level("SLOT_J"), f"{tag}: precondition: the shaft stands inside the JUDGE slot (x in cell {H.m.x % v.CELL})")
+    H.reg.start_on = False
+    t_on = H.t
+    H.sw_set(True)
+    H.v48 = True
+    H.run(H.t + 300.0)
+    early = [e for e in H.events if e[0] >= t_on and e[2] == 1]
+    Ck(not early, f"{tag}: timing output after the reset, before HOME: {early[:3]}")
+    H.reg.stop_fn = lambda n: n == 0                  # position 0 has a dead line
+    t_h0 = H.t
+    H.fw.home = True
+    t_lim = H.t + 60000.0
+    while H.t < t_lim and not (H.fw.at_home and H.fw.state == "REST"):
+        H.tick()
+    H.fw.home = False
+    t_h1 = H.t
+    rel = (H.m.x - v.HOME_X) % v.PERIOD_X
+    Ck(H.fw.at_home and (rel <= 2 or rel >= v.PERIOD_X - 2),
+       f"{tag}: AT_HOME not reached at the home position (x_rel {rel}; the coast after the emergency stop was not re-referenced)")
+    w = home_flush_check(v, H, rep, tag, t_h0, t_h1)
+    Ck(not H.reg.held, f"{tag}: sense relays still latched after HOME")
+    start_run(H)
+    H.run(H.t + 1500.0)
+    Ck(0 in H.reg.stops and H.reg.missed_stops == 0,
+       f"{tag}: MISSED STOP at position 0 after HOME (stops {H.reg.stops[:3]}, missed {H.reg.missed_stops}, stale {H.reg.stale_missed})")
+    # L6 after the flush, and L1-L8 from the HOME on (the cut cycle before it is the emergency stop itself)
+    c_end = [b for a, b in v.pulses([e for e in H.events if t_h0 <= e[0] <= t_h1], "CLEAR")[0]]
+    s_next = [a for a, b in v.pulses([e for e in H.events if e[0] > t_h1], "STROBE")[0]]
+    gap = (s_next[0] - c_end[-1]) if (c_end and s_next) else None
+    Ck(gap is not None and gap >= 1.5, f"{tag}: L6 first STROBE - HOME flush CLEAR fall = {gap}")
+    ev_all = H.events
+    H.events = [e for e in ev_all if e[0] >= t_h0]
+    v.check_waveforms(H, rep, tag)
+    H.events = ev_all
+    return dict(w=w, gap=gap, how=H.fw.home_how, stops=list(H.reg.stops))
 
 
 def scenario_end(v, nl, rep):
@@ -348,6 +438,7 @@ def mutants(nl):
     L.append(("RUN and ESTOP optocoupler emitters exchanged", lambda c: c.swap_pins(("U40", "15"), ("U40", "13"))))
     L.append(("opto input resistor R20 changed to 10k", lambda c: c.comp["R20"].__setitem__("value", "10k")))
     L.append(("Pico TXEN and HOMING pins exchanged", lambda c: c.swap_pins(("U1", "5"), ("U1", "6"))))
+    L.append(("cycle hold CYC reset by POR only (not by HOMING)", lambda c: c.move_pin("U37", "13", "POR_RC")))
     return L
 
 
@@ -356,7 +447,10 @@ def fw_mutants():
             ("no_txen_return", "return reverse without TXEN off"),
             ("forward_only", "HOME always searches forward"),
             ("bad_return", "return target before the STROBE of the same cell"),
-            ("home_index_only", "HOME on the three index sectors alone (26-cell model; false home in the empty cell 26)")]
+            ("home_index_only", "HOME on the three index sectors alone (26-cell model; false home in the empty cell 26)"),
+            ("no_flush", "HOME without the flush CLEAR"),
+            ("no_retarget", "HOME after an emergency stop without re-referencing the coasted steps"),
+            ("estop_no_homing", "HOMING not held after an emergency stop")]
 
 
 def main(args, v):
@@ -398,6 +492,13 @@ def main(args, v):
     hm = scenario_home(v, nl, rep, quick)
     print(f"   HOME: {len(hm)} cases (synced: shortest path, unsynced: forward search): " +
           ", ".join(f"{h[2]}:{h[3] / 1000:.0f}k steps/{h[4]} s" for h in hm[:6]) + " ...")
+    print(f"   HOME flush: exactly one CLEAR per HOME, no STROBE / JUDGE: {len(flush_w)} CLEARs, width {min(flush_w, default=0):.1f} .. {max(flush_w, default=0):.1f} ms (>= 12.5)")
+    es = []
+    for when in ("after JUDGE", "at STROBE"):
+        for sd in ((31,) if quick else (31, 32, 33)):
+            es.append((when, sd, estop_home(v, nl, rep, when, seed=sd)))
+    print("   emergency stop mid-cycle -> reset -> HOME -> run with a stop at position 0: " +
+          "; ".join(f"{w} seed {s}: HOME {r['how']}, flush {r['w'][0] if r['w'] else 0:.1f} ms, next STROBE +{(r['gap'] or 0):.0f} ms, stops {r['stops'][:2]}" for w, s, r in es))
     en = scenario_end(v, nl, rep)
     print(f"   END: full run and a 676-position slice end after the last tested position (test order) {[e[1] for e in en]},"
           f" POS (l, m, r) at END {[e[2] for e in en]}; RUN ignored afterwards")
@@ -424,11 +525,13 @@ def main(args, v):
                     scenario_weak(v, c, r2, True)
                     if "emergency" in name or "TBD U60" in name or "TXE gating" in name:
                         scenario_estop(v, c, r2)
-                    if "TXE gating" in name or "CYC" in name:
+                    if "TXE gating" in name or "CYC hold" in name:
                         scenario_cyc(v, c, r2)
                         H2, tg = home_run(v, c, r2, v.HOME_X + 12000 * 3 + 5000, True, 3)
-                        viol = [1 for t, nm, st, tx, hm_, lv in H2.ev_state if lv and hm_]
+                        viol = [1 for t, nm, st, tx, hm_, lv in H2.ev_state if lv and hm_ and nm != "CLEAR"]
                         r2.check(not viol, "timing output started during HOME")
+                    if "HOMING" in name:
+                        estop_home(v, c, r2, "at STROBE")
                 except Exception as e:
                     r2.fail.append(f"simulation error {type(e).__name__}: {e}")
                 r.fail += r2.fail
@@ -451,8 +554,16 @@ def main(args, v):
                     r.check(abs(H.m.x - x1) <= 2, "bank moved after 48 V returned with RUN high")
                 elif key == "forward_only":
                     H, tag = home_run(v, nl, r, v.HOME_X + v.PERIOD_X // 4, True, 4, mut=(key,))
-                    d = (H.start_x - v.HOME_X) % v.PERIOD_X
-                    r.check(H.steps_total <= min(d, v.PERIOD_X - d) + 600, "HOME path longer than the shortest")
+                    r.check(H.steps_total <= home_path_bound(v, H.start_x) + 600, "HOME path longer than the shortest")
+                elif key == "no_flush":           # must fail BECAUSE the stale sense relays mask the stop at position 0
+                    rr = v.Report()
+                    estop_home(v, nl, rr, "after JUDGE", mut=(key,))
+                    r.check(not any("MISSED STOP at position 0" in f for f in rr.fail),
+                            f"stale sense relays: MISSED STOP at position 0 after HOME ({len(rr.fail)} findings)")
+                elif key == "no_retarget":
+                    estop_home(v, nl, r, "after JUDGE", mut=(key,))
+                elif key == "estop_no_homing":
+                    estop_home(v, nl, r, "at STROBE", mut=(key,))
                 elif key == "no_txen_return":
                     H = v.Harness(nl, seed=5, dt=0.1, stop_fn=lambda n: n in {4, 11}, a_scale=0.1, mut=(key,),
                                   release_fn=lambda H, t: (H.reg.press(t), setattr(H, "_pr", True))[0] if (H.reg.latched and H.fw.stopped and not H.reg.pressing and not getattr(H, "_pr", False)) else (setattr(H, "_pr", False) if not H.reg.latched else None))

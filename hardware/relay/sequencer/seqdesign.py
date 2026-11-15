@@ -238,7 +238,10 @@ def build() -> Design:
             desc="HOMING (accepted HOME request).  p1 hold; p2: counters' clock supply drive = READY level normally, window HKON during the HOME program")
     d.relay(sl, "KHLb", "HL_C", ("SW", None, "GB"), ("KCKNC", "KADVP", None), desc="HOMING twin: GO chain B (runs the ring for the HOME program); p2 cuts the advance-pending hold (HOME resets the position)")
     d.relay(sl, "KHLc", "HL_C", ("HLD", None, "LDIN"), ("WK", None, "DONEIN"), desc="HOMING twin: LOAD window and DONE window gating")
-    d.relay(sl, "KHLd", "HL_C", ("KE1", "KE2", None), desc="HOMING twin: cycle enable chain is off while HOMING")
+    d.relay(sl, "KHLd", "HL_C", ("KE1", "KE2", None), ("WC", None, "INC"),
+            desc="HOMING twin: cycle enable chain is off while HOMING; p2 = flush CLEAR of the HOME pass (window WC -> CLEAR drive "
+                 "while HOMING; the CLEAR relay's own pole 2 holds it to the end of the window).  Decision 0003 4.4: HOME ends with "
+                 "exactly one CLEAR (no STROBE / JUDGE) so that sense relays left latched by an emergency stop are released")
     d.relay(sl, "KHD", "HD_C", ("HDH1", None, "HD_C"), ("V5", None, "HKON"), led="HOME done pass",
             desc="HOME done pass: set by the DONE drive, cleared when the ring is parked.  Keeps the cycle windows closed for the rest of the HOME pass")
     d.relay(sl, "KHDb", "HD_C", ("KE2", "KE_C", None), desc="HOME done twin: cycle enable chain is off during the done pass")
@@ -269,7 +272,9 @@ def build() -> Design:
     so = "outputs"
     for name, drv, coil, desc in (("KS", "S_OUT", "KS_C", "STROBE relay"), ("KJ", "J_OUT", "KJ_C", "JUDGE relay"), ("KC", "C_OUT", "KC_C", "CLEAR relay")):
         d.D(so, drv, coil, "1N4148W", f"{name}: series diode (driver -> coil, 0003 R1 style)")
-        d.relay(so, name, coil, ("SW", None, {"KS": "STROBE_O", "KJ": "JUDGE_O", "KC": "CLEAR_O"}[name]), fast=True, desc=desc)
+        p2 = ("WC", None, "INC") if name == "KC" else None     # CLEAR self-hold through its window (flush CLEAR of HOME)
+        d.relay(so, name, coil, ("SW", None, {"KS": "STROBE_O", "KJ": "JUDGE_O", "KC": "CLEAR_O"}[name]), p2, fast=True,
+                desc=desc + ("; p2 holds the CLEAR drive to the end of the WC window once it has started" if name == "KC" else ""))
     d.D(so, "CK_OUT", "CK_C", "1N4148W", "KCKA/KCKB: series diode (driver -> coils)")
     d.relay(so, "KCKA", "CK_C", ("KENO_A", "NCK_A", "CK_A"), ("SW", "KCKNC", None), fast=True,
             desc="CK/NCK changeover, bus A (counter common board + units 1-6). ONE changeover contact = break-before-make. Pole 2: AT_HOME / ADV hold break")
