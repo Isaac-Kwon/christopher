@@ -584,3 +584,144 @@ $n$)을 실물 소켓으로 확인한다.
 정한다. 보드의 자리와 패널의 구멍은 기구 설계의 일이다.
 
 \IfFileExists{figures/generated/sch_patch-panel.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_patch-panel.pdf}}{}
+
+% ======================================================================
+\section{릴레이 배선 카드: 로터 카드와 반사판 카드}\label{sch:wiring-cards}
+
+\paragraph{무엇을 하는가.} 릴레이 유닛은 시프터 넷과 배선 카드 다섯 장을 쌓은 것이다. 시프터가 로터의 \emph{회전}을
+맡으므로(26선을 $a$칸 옮김), 로터의 \emph{배선} 자체는 회전하지 않는 수동 카드로 충분하다. 로터 카드 W는 여덟
+종(I--VIII), 반사판 카드 U는 두 종(B, C)이고, 부품은 커넥터와 장착 구멍뿐이다. 배선은 \code{data/wirings/enigma.txt}
+한 곳에서 생성하므로 표(부록~\ref{app:wirings})와 카드가 어긋날 수 없다.
+
+\paragraph{회로.} 핀 1--26이 선 A--Z다. 로터 카드의 가는 길은 J3의 핀 $i$에서 J1의 핀 $W[i]$로, 오는 길은 J4의 핀
+$j$에서 J2의 핀 $W^{-1}[j]$로 간다. 즉 같은 배선을 오는 길에서는 거꾸로 읽는다. 한 장에 두 핀짜리 넷이 52개다.
+반사판 카드는 J3의 핀 $i$와 J2의 핀 $R[i]$를 잇는 26넷이다. 반사판은 고정점이 없는 대합($R[R[i]] = i$)이어서 카드를
+끝과 끝을 바꿔 꽂아도 같은 배선이 된다.
+
+\paragraph{왜 커넥터 자리가 시프터와 같은가.} 카드는 시프터와 같은 외곽($250 \times 228$~mm), 같은 구멍, 같은 D-sub
+37 풋프린트를 시프터의 J1--J4와 같은 좌표에 둔다. 그러면 쌓은 카드에서 이웃한 두 카드의 같은 자리 커넥터가 마주
+보므로, 유닛 안의 연결 14가닥이 모두 \emph{곧은 1:1 리본}(핀 $n$을 핀 $n$에)이 된다. 맨 앞의 S4만 앞을 보고 꽂히는데,
+표준 기판을 그대로 앞으로 꽂으면 리본 넷의 양 끝에서 핀 1이 반대 끝에 온다. 그래서 S4는 J1--J4를 뒷면에 거울로 놓은
+\emph{변형 기판}을 쓴다(부록~\ref{app:pcb}). 회로도와 넷리스트는 표준 시프터와 같다.
+
+\paragraph{확인.} ERC 위반 0건. 검증 스크립트가 카드 열 장과 시프터 넷의 넷리스트를 리본 표대로 이어 \emph{유닛
+전체의 넷리스트}를 합성하고, 그 결과를 기준 스크램블러와 비교했다. Enigma~I 순서 60개 모두에서 17,576 위치를 전부,
+로터 I--VIII과 반사판 B·C의 672 조합 전부에서는 표본 위치를 돌려 모두 일치했다. 음성 시험 17건(리본의 두 가닥을 바꿈, 리본을 엉뚱한
+커넥터에 꽂음, 로터 카드를 끝과 끝을 바꿔 꽂음(W와 $W^{-1}$이 바뀜), 잘못된 카드나 반사판, 표준 시프터를 S4 자리에 씀
+등)은 모두 잡혔다. S4를 같은 기판에 커넥터만 뒷면으로 납땜하는 안과
+둥근 케이블, 한 기판에 D-sub 여덟 개를 두는 안은 검토 후 기각했다(시프터 보드 README 6.2--6.3절).
+
+\IfFileExists{figures/generated/sch_relay-rotor-card-i.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_relay-rotor-card-i.pdf}}{}
+\IfFileExists{figures/generated/sch_relay-reflector-card-b.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_relay-reflector-card-b.pdf}}{}
+
+% ======================================================================
+\section{릴레이 시퀀서}\label{sch:relay-sequencer}
+
+\paragraph{무엇을 하는가.} 릴레이식 기계의 ``언제''를 정하는 보드다. 한 위치마다 테스트 레지스터에
+\code{STROBE}(시험 전압을 넣고 읽음), \code{JUDGE}(판정), \code{CLEAR}(지움)를 차례로 내고, 판정이 정지가 아니면
+계수기에 \code{CK}(한 칸 전진)를 낸다. 처음 위치로 돌리는 HOME, 마지막 위치의 END, 정지와 재시작, 대기(일정 시간
+조작이 없으면 끔)도 이 보드가 한다.
+
+\paragraph{원리: 왜 시간의 기준만 전자 부품인가.} 순서, 조건, HOME, END, 정지는 모두 릴레이 접점의 논리다(G6S-2
+44개, 그 가운데 15개는 접점만 늘리는 쌍둥이). 전자 부품은 시간의 기준 하나뿐이다. 555 타이머가 6.3~ms마다 펄스를
+내고 74HC4017 링 계수기가 그것을 열 칸(Q0--Q9)으로 나눈다. 결정 0003의 시간 규칙(L1--L9)은 모두 ``적어도 몇 ms''라는
+아래쪽 한계다. 릴레이와 RC로 시간을 만들면 동작 전압의 최대값만 알려져 있어서 아래쪽 한계를 보장할 수 없고, 릴레이를
+줄지어 이으면 오차가 쌓여 주기가 70--80~ms로 늘어난다. 기어식 기계에서 슬롯 원판이 ``언제''를 정하듯, 여기서는 링
+계수기가 같은 역할을 한다고 보면 된다.
+
+\paragraph{시간표.} 링의 칸 열 개가 한 위치이고 주기는 63~ms(초당 15.9 위치)다. 17,576 위치를 다 돌면 약 18.5분이다.
+
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+신호 & 링의 칸 \\
+\midrule
+\code{STROBE} & Q0--Q1 \\
+\code{JUDGE} & Q3--Q4 \\
+\code{CLEAR} & Q6--Q8 \\
+\code{CK} & Q7--Q8 (Q6에서 낼지 정함) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+링의 칸 출력은 다이오드 OR로 모여 고전압 쪽 드라이버(TBD62783A)를 거쳐 출력 릴레이를 움직이고, 출력 릴레이의 접점이
+\code{+24V\_SW}를 커넥터로 낸다. 계수기로 가는 \code{CK}와 \code{NCK}는 버스마다 \emph{한 극의 전환 접점}에서 나온다.
+한 접점이 두 쪽 가운데 하나에만 닿으므로 둘이 동시에 켜질 수 없다(먼저 떨어지고 나서 붙음). HOME은 링 한 바퀴다:
+Q0--Q4에서 코일을 끄고, Q3--Q6에서 \code{LOAD}, Q5부터 \code{NCK}, Q7에서 끝난다.
+
+\paragraph{확인.} 검사는 KiCad에서 내보낸 넷리스트만으로 회로를 만든다(손으로 옮긴 모델이 아니다). 구조 검사 100건,
+시나리오 34개(무작위 정지, 실행 중 START, 마지막 위치와 조각 끝의 END, 대기와 온도 스위치, 전원이 끊긴 비상 정지)를
+릴레이 시간을 최악·최선·무작위로 바꾸고 링을 $\pm 3$\%로 흔들어 돌렸고 실패는 0건이다. 17,576 위치 전체를 정지 90번과
+함께 넷리스트로 돌린 것도 놓친 정지와 거짓 정지가 없었다. 최악의 경우 커넥터에서 잰 최솟값은 다음과 같다.
+
+\begin{center}
+\small
+\begin{tabular}{lrr}
+\toprule
+규칙 & 요구 (ms) & 최솟값 (ms) \\
+\midrule
+L1 \code{STROBE} 폭 & $\ge 7.5$ & 8.24 \\
+L3 \code{JUDGE} 폭 & $\ge 7.5$ & 8.21 \\
+L5 \code{CLEAR} 폭 & $\ge 12.5$ & 14.39 \\
+L2 \code{JUDGE} 시작 $-$ \code{STROBE} 시작 & $\ge 11.5$ & 15.67 \\
+L4 \code{CLEAR} 시작 $-$ \code{JUDGE} 끝 & $\ge 1.5$ & 4.87 \\
+L6 다음 \code{STROBE} $-$ \code{CLEAR} 끝 & $\ge 1.5$ & 4.88 \\
+L9 \code{CK} 시작 $\to$ 다음 \code{STROBE} & $\ge 13$ & 15.73 \\
+\code{CK} 폭 & $\ge 5$ & 8.23 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+창을 옮기거나, 접점을 바꾸거나, \code{CK} 결정을 빼거나, END 유지를 끊은 넷리스트 21개는 모두 잡혔다.
+
+\paragraph{남은 것.} (1) 주기가 처음 계획한 35~ms보다 길다. 출력이 릴레이 접점이라 폭이 3.5--4.1~ms씩 줄어서
+\code{STROBE}와 \code{JUDGE}의 여유가 0.7~ms뿐이다. 리드 릴레이나 실측(R.1)으로 약 45~ms까지 줄일 수 있다.
+(2) 정지 뒤 재시작의 첫 주기는 \code{STROBE}와 \code{JUDGE} 없이 \code{CLEAR}와 \code{CK}만 낸다. 0003의 4.4절을
+글자대로 읽으면 \code{CLEAR}도 없어야 하는데, 막으면 정지한 주기의 \code{CLEAR}가 잘린다. 결정이 필요하다.
+(3) 주기 중간의 비상 정지는 레지스터의 감지 릴레이를 붙은 채로 남길 수 있다. 재설정 뒤 RELEASE를 누르거나 HOME 끝에
+\code{CLEAR}를 한 번 넣는 것으로 막는다. (4) 시퀀서는 6유닛씩 두 버스(\code{CLK\_A}, \code{CLK\_B})를 내는데 계수기
+공통 보드에는 클록 입력이 하나뿐이다. 둘째 버스를 받을 자리와 버스 버퍼(K7)를 계수기 쪽과 맞춰야 한다. (5) 릴레이
+시간 모델의 일부와 퓨즈 품번은 추정이다.
+
+\IfFileExists{figures/generated/sch_relay-sequencer.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_relay-sequencer.pdf}}{}
+
+% ======================================================================
+\section{기어식 제어 보드}\label{sch:gear-control}
+
+\paragraph{무엇을 하는가.} 기어식 기계의 구동과 시간 신호를 맡는 보드다. 하는 일은 둘로 나뉜다. 하나는 \emph{구동}이다.
+폐루프 스테퍼 드라이브에 enable, step, dir을 주어 가속·감속, 정지와 되돌림, 재시작, HOME, END를 한다. 이것은
+Raspberry Pi Pico의 펌웨어가 한다. 드라이브는 한 바퀴 2,600펄스로 두어 한 위치가 400펄스이고, 정상 속도에서
+초당 약 10,400펄스다. 다른 하나는 \emph{시간 신호}(\code{STROBE}, \code{JUDGE}, \code{CLEAR})다. 이것은 펌웨어를 거치지
+않는다.
+
+\paragraph{원리: 왜 시간 신호에 펌웨어를 넣지 않는가.} 판정의 정확성이 프로그램의 버그에 달리지 않게 하려는 것이다.
+축에 붙은 슬롯 원판의 광센서가 ``지금 \code{STROBE} 구간이다''를 직접 알려 주고, 그 신호가 RC 필터, 슈미트 트리거
+(74HC14), 74HC 게이트, 고전압 쪽 드라이버, 리셋 가능 퓨즈를 지나 커넥터로 나간다. 게이트의 식은 다음과 같다.
+\[
+\code{STROBE} = S \wedge T,\quad \code{CLEAR} = C \wedge T,\quad \code{JUDGE} = J \wedge \mathit{SEEN} \wedge T,\quad
+T = \mathit{TXEN} \vee \mathit{CYC}.
+\]
+$S, C, J$는 슬롯 센서, $\mathit{TXEN}$은 펌웨어의 허가, $\mathit{CYC}$는 시작한 주기를 끝까지 내게 하는 신호(규칙 L7)다.
+$\mathit{SEEN}$은 이번 주기에 \code{STROBE}가 있었다는 표시로, 전원 투입, HOME, 정지 래치가 풀리는 순간에 지운다(L8).
+그래서 \code{STROBE} 없이 \code{JUDGE}만 나가는 일이 없다. 펌웨어는 언제 허가할지만 정하고 펄스의 모양은 원판이 정한다.
+
+\paragraph{위치.} 빠른·중간·느린 드럼축마다 원판에 슬롯 26개의 T 센서와 한 바퀴에 한 번의 I(인덱스) 센서가 있다. 펌웨어가
+T의 가장자리를 세고 I에서 다시 맞춘다. 세 I가 모두 켜진 것이 처음 위치(\code{AT\_HOME})다. 운전자 정지 뒤에는 축이
+슬롯이 없는 자리까지 천천히 가서 주기를 끝내고, 비상 정지 뒤에는 HOME을 요구한다.
+
+\paragraph{확인.} ERC 위반 0건, 구조 검사 332건. 넷리스트에서 만든 게이트 회로를 펌웨어 모델, 기계 모델, 레지스터
+모델과 함께 시뮬레이션했다. 16번 돌려 5,217 위치를 시험하고 무작위 정지 269번을 넣었다. 거짓 정지와 놓친 정지가
+없고, 시험한 위치가 빠짐없이 이어지고, 위치 출력이 실제 위치와 같았다. 되돌림 225번이 모두 정지 구역 안에서 멈췄고,
+48~V가 돌아와도 RUN이 켜진 채면 축이 움직이지 않았다. 커넥터에서 잰 최솟값은 \code{STROBE} 폭 7.04, \code{JUDGE} 폭 8.00,
+\code{CLEAR} 폭 13.00, \code{JUDGE}$-$\code{STROBE} 12.02, \code{CLEAR}$-$\code{JUDGE} 1.52, 다음 \code{STROBE}$-$\code{CLEAR}
+3.93~ms다. 입력 저항을 바꾸거나 핀을 바꾸거나 펌웨어 규칙을 뺀 변형 14개는 모두 잡혔다.
+
+\paragraph{남은 것.} (1) L4(\code{CLEAR} 시작 $-$ \code{JUDGE} 끝 $\ge 1.5$~ms)가 가장 빠듯하다. 슬롯 각도에서 나오는 값이
+정확히 1.5~ms여서 기계 공차(약 0.3~ms)를 견디지 못한다. 슬롯 원판을 고치거나 결정 0001의 시험 8로 지연을 재서 정한다.
+(2) 해제를 \code{JUDGE} 펄스 도중에 누르면 거짓 정지(안전한 쪽)가 날 수 있다. 감속이 정상의 0.1배 이하일 때만
+재현됐다. (3) 위치 원판의 기하(한 칸 400스텝, 슬롯 26칸과 빈 칸 4칸)는 단순화한 것이라 기구 CAD와 맞춰야 한다.
+(4) 속도, 가속, HOME 시간(동기가 풀렸을 때 최대 약 6.5분)은 추정이다. (5) 48~V 접촉기의 보조 접점과 드라이브 경보의
+극성은 아직 확인하지 못했다.
+
+\IfFileExists{figures/generated/sch_gear-control-board.pdf}{\includepdf[pages=-,pagecommand={\thispagestyle{plain}}]{figures/generated/sch_gear-control-board.pdf}}{}
