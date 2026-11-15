@@ -18,6 +18,7 @@ pub mod check;
 pub mod enigma;
 pub mod error;
 pub mod menu;
+pub mod relay;
 pub mod search;
 pub mod wiring;
 
