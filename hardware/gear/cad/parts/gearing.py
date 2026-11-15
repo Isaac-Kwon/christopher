@@ -96,7 +96,8 @@ def position_disc():
 
 
 def slot_angles():
-    """{track: (r, a_start, a_end)} for slot k = 0 in deg of cycle-shaft angle (from params / L3.8)."""
+    """{track: (r, a_start, a_end)} for slot k = 0 in deg of cycle-shaft angle from the pad centre
+    (params.SLOT_STEPS = connector face for JUDGE / CLEAR, base slot for STROBE; L3.8)."""
     return {n: P.track_deg(n) for n in P.TRACKS}
 
 

@@ -11,10 +11,11 @@
    every 24 V input = 2.2k + TLP291 + 1N4148W, Pico pin map, power chains, sensors, safety loops, CHASSIS, no 48 V net.
 2. HARDWARE GATING SIMULATION: the 74HC14 / 08 / 32 / 02 / 74 network and its RC elements are read from the NETLIST (nets of the
    gate pins, R / C values) and simulated event by event (gate delay 20 ns, RC delays from the part values, Schmitt thresholds).
-3. CO-SIMULATION: rotating machine (slot windows of decision 0003 3.4 at 400 steps per cell, 26 slotted cells + 4 empty cells per
-   revolution of the cycle axis, position discs T / I), closed-loop stepper (exact steps), the firmware model (firmware_model.py) and the
+3. CO-SIMULATION: rotating machine (slot windows from the CAD single source hardware/gear/cad/params.py at 400 steps per cell,
+   26 slotted cells + 4 empty cells per revolution of the cycle axis; position discs on F / M / S as in the CAD: the F disc turns
+   30 positions per cycle-axis revolution), closed-loop stepper (exact steps), the firmware model (firmware_model.py) and the
    relay register (contact delays, K / P / S behaviour, release button) around the netlist-derived hardware.  Decision 0003 L1-L9 are
-   checked on the connector-face waveforms of every emitted cycle.
+   checked on the connector-face waveforms of every emitted cycle (L2 in its calibrated form: the gear STROBE is calibrated).
 4. NEGATIVE TESTS: netlist and firmware mutants must be detected.
 """
 from __future__ import annotations
@@ -35,7 +36,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import gen_control as gc                       # noqa: E402  (pin tables only)
-from firmware_model import Firmware, Params, pos_of   # noqa: E402
+from firmware_model import Firmware, Params, pos_of, test_index, SLOT_W, CELL, T_OFF, CARRY_X, CYCLE_X, CYCLE_CELLS   # noqa: E402
 
 KICAD_CLI = Path(os.environ.get("KICAD_CLI", "C:/Program Files/KiCad/10.0/bin/kicad-cli.exe"))
 
@@ -394,15 +395,18 @@ class HW:
 
 
 # ============================================================================= machine
-CELL = 400
-STROBE_W, JUDGE_W, CLEAR_W = (-26, 47), (99, 182), (198, 333)
-PERIOD_X = 12000 * 676
-HOME_X = -70
+STROBE_W, JUDGE_W, CLEAR_W = SLOT_W["STROBE"], SLOT_W["JUDGE"], SLOT_W["CLEAR"]
+PERIOD_X = CYCLE_X * 676
+HOME_X = Params().home_x
+STROBE_CAL_ON = 2.5            # calibrated STROBE relay of the register model: contact start = STROBE rise + 2.5 ms
+ZONE = (CLEAR_W[1], STROBE_W[0] + CELL)      # stop zone: end of CLEAR .. start of the next STROBE (steps in the cell)
 PRIO = {"I_L": 0, "I_M": 0, "I_S": 0}
 
 
 class Machine:
-    """Cycle-axis angle in steps (x).  Cells c = 30 q + k, pad centre X_c = 400 c, k < 26 tested (slots), k = 26..29 empty (carry)."""
+    """Cycle-axis angle in steps (x).  Cells c = 30 q + k, x = 400 c = STROBE contact start (pad centre +31.2), k < 26 tested
+    (slots), k = 26..29 empty (carry).  Position discs as in the CAD: F turns with the fast drum (T_L in every cell, I_L while the
+    fast drum shows letter 0, i.e. cells c = 0 mod 26), M and S step at carry 1 / 2 (x = 12000 j + 11000)."""
 
     def __init__(self, x0=HOME_X):
         self.x = x0
@@ -418,36 +422,31 @@ class Machine:
         S: dict[str, list] = {k: [] for k in ("SLOT_S", "SLOT_J", "SLOT_C", "T_L", "T_M", "T_S", "I_L", "I_M", "I_S")}
         c0, c1 = lo // CELL - 2, hi // CELL + 2
         for c in range(c0, c1):
-            q, k = divmod(c, 30)
+            q, k = divmod(c, CYCLE_CELLS)
+            X = CELL * c
+            b = X + T_OFF
+            S["T_L"].append((b, b + 20))                 # F position disc: one slot per fast-drum position, every cell
+            if c % 26 == 0:
+                S["I_L"].append((b, b + CELL))           # fast drum at letter 0
             if k >= 26:
                 continue
-            X = CELL * c
             S["SLOT_S"].append((X + STROBE_W[0], X + STROBE_W[1]))
             S["SLOT_J"].append((X + JUDGE_W[0], X + JUDGE_W[1]))
             S["SLOT_C"].append((X + CLEAR_W[0], X + CLEAR_W[1]))
-            b = X - 120
-            S["T_L"].append((b, b + 20))
-            if k == 0:
-                S["I_L"].append((b, CELL * (c + 1) - 120))
-        j0, j1 = (lo - 11000) // 12000 - 2, (hi - 11000) // 12000 + 3
+        j0, j1 = (lo - CARRY_X) // CYCLE_X - 2, (hi - CARRY_X) // CYCLE_X + 3
         for j in range(j0, j1):
-            xm = 12000 * j + 11000
+            xm = CYCLE_X * j + CARRY_X
             S["T_M"].append((xm, xm + 20))
             if (j + 1) % 26 == 0:
                 S["T_S"].append((xm, xm + 20))
-                S["I_M"].append((xm, xm + 12000 * 26))
-            if (j + 1) % 676 == 0:
-                S["I_S"].append((xm, xm + 12000 * 26))
-        # I_M / I_S intervals extend over 26 resp. 26 m-steps: I_M = m==0 (one m step per interval of 26): [xM_j, xM_j + 12000)
-        S["I_M"] = []
-        S["I_S"] = []
+        # I_M = (m == 0): [xM_j, xM_j + 12000) after the carry that brings M to 0; I_S = (r == 0): 26 such revolutions
         for j in range(j0 - 800, j1 + 800):
             if (j + 1) % 26 == 0:
-                xm = 12000 * j + 11000
-                S["I_M"].append((xm, xm + 12000))
+                xm = CYCLE_X * j + CARRY_X
+                S["I_M"].append((xm, xm + CYCLE_X))
             if (j + 1) % 676 == 0:
-                xm = 12000 * j + 11000
-                S["I_S"].append((xm, xm + 12000 * 26))
+                xm = CYCLE_X * j + CARRY_X
+                S["I_S"].append((xm, xm + CYCLE_X * 26))
         self.sigs = S
         self.edges = []
         for sig, iv in S.items():
@@ -497,11 +496,19 @@ def cell_of(x):
 
 
 def pos_truth(x):
+    """core position (l, m, r) of the tested cell at x (None in the empty cells): l = fast drum = c mod 26"""
     c = cell_of(x)
-    q, k = divmod(c, 30)
+    q, k = divmod(c, CYCLE_CELLS)
     if k >= 26:
         return None
-    return (k, q % 26, (q // 26) % 26)
+    return (c % 26, q % 26, (q // 26) % 26)
+
+
+def test_index_truth(x):
+    """test order n = 26 Q + k of the tested cell at x (None in the empty cells)"""
+    c = cell_of(x)
+    q, k = divmod(c, CYCLE_CELLS)
+    return None if k >= 26 else 26 * (q % 676) + k
 
 
 # ============================================================================= relay register model
@@ -550,8 +557,7 @@ class Register:
         elif name == "JUDGE":
             if level:
                 self.t_judge = t + d["j_on"]
-                n = cell_of(x_now)
-                self.cur_n = pos_of(*pos_truth(x_now)) if pos_truth(x_now) else None
+                self.cur_n = test_index_truth(x_now)
             elif self.t_judge is not None:
                 w = (t + d["j_off"]) - self.t_judge
                 self._judge_done(self.t_judge, w)
@@ -675,6 +681,7 @@ class Harness:
         l, m, r = pos_truth_sector(x)
         fw.cnt = [l, m, r]
         fw.sync = [True] * 3
+        fw.kc, fw.kc_sync = k_sector(x), True
         fw.x_ref = (x, fw.s)
         fw.txen = True
         fw.stopped = True
@@ -773,9 +780,14 @@ class Harness:
 
 def pos_truth_sector(x):
     """(l, m, r) sector values of the position discs at x (not the cell value: before the T boundary the old value holds)"""
-    l = min(25, ((x + 120) % 12000) // 400) if ((x + 120) % 12000) // 400 < 26 else 25
-    mi = (x - 11000) // 12000 + 1
+    l = ((x - T_OFF) // CELL) % 26
+    mi = (x - CARRY_X) // CYCLE_X + 1
     return (int(l), int(mi % 26), int((mi // 26) % 26))
+
+
+def k_sector(x):
+    """cell k (0..29) of the cycle-shaft revolution between the T boundaries at x"""
+    return int(((x - T_OFF) // CELL) % CYCLE_CELLS)
 
 
 # ============================================================================= waveform checks (decision 0003 L1-L9)
@@ -819,7 +831,9 @@ def check_waveforms(H: Harness, rep: Report, tag: str, allow_cut=None, strict_l1
             continue
         d = js - Sr[i]
         stats["JS"].append(d)
-        C_(d >= 11.5 - 1e-6, f"{tag}: L2 JUDGE rise - STROBE rise = {d:.3f} < 11.5")
+        # L2, calibrated form (decision 0003 3.3 L2 in brackets, 3.4: the gear STROBE is calibrated): JUDGE rise >= STROBE contact
+        # start + 7.5, STROBE contact start = STROBE rise + the calibrated relay delay of the register model
+        C_(d - STROBE_CAL_ON >= 7.5 - 1e-6, f"{tag}: L2 JUDGE rise - STROBE contact start = {d - STROBE_CAL_ON:.3f} < 7.5")
     for (cs, ce) in C:
         i = bisect.bisect_right([x[1] for x in J], cs) - 1
         if i >= 0 and cs - J[i][1] < 30.0:
@@ -931,7 +945,7 @@ def analyze_run(H, stop_set, rep, tag, cells):
     cellseq = []
     for te, nm, pos, truth in H.pos_samples:
         if nm == "STROBE" and truth is not None and not latched_at(te):
-            cellseq.append(pos_of(*truth))
+            cellseq.append(test_index(*truth))
     if cellseq:
         C(all(b - a == 1 for a, b in zip(cellseq, cellseq[1:])) and cellseq[0] == 0,
           f"{tag}: tested positions (register not latched) are not 0,1,2,...: {cellseq[:12]} ...")

@@ -7,7 +7,7 @@ import random
 import sys
 import time
 
-from firmware_model import Params, pos_of
+from firmware_model import Params, pos_of, test_index
 
 
 def fmt(x):
@@ -70,7 +70,7 @@ def analyze(v, H, stop_set, rep, tag):
             else:
                 break
         return val
-    cellseq = [pos_of(*tr) for te, nm, pos, tr in H.pos_samples if nm == "STROBE" and tr is not None and not latched_at(te)]
+    cellseq = [test_index(*tr) for te, nm, pos, tr in H.pos_samples if nm == "STROBE" and tr is not None and not latched_at(te)]
     C(bool(cellseq) and cellseq[0] == 0 and all(b - a == 1 for a, b in zip(cellseq, cellseq[1:])),
       f"{tag}: effective tested positions are not 0,1,2,... without repeat or gap: {cellseq[:10]}")
     ran = max(cellseq, default=-1)
@@ -81,11 +81,11 @@ def analyze(v, H, stop_set, rep, tag):
     # no timing output may START during HOME or a reverse RETURN
     viol = [(round(t, 1), nm, st) for t, nm, st, tx, hm, lv in H.ev_state if lv and nm != "CLEAR" and (hm or st == "RETREV")]
     C(not viol, f"{tag}: timing output started during HOME / RETURN: {viol[:3]}")
-    # stop zone: after every return the shaft stands between the end of CLEAR (+333) and the start of the next STROBE (+374)
+    # stop zone: after every return the shaft stands between the end of CLEAR and the start of the next STROBE (v.ZONE)
     zones = []
     for rel, pos, tr in H.zone_log:
         zones.append(rel)
-        C(333 <= rel < 374, f"{tag}: stopped at {rel:.0f} steps from the pad centre, outside the stop zone [333, 374)")
+        C(v.ZONE[0] <= rel < v.ZONE[1], f"{tag}: stopped at {rel:.0f} steps from the cell origin, outside the stop zone {v.ZONE}")
         C(tr is not None and pos == tr, f"{tag}: POS while standing {pos} != stop position {tr}")
     return stats, cellseq, zones, len(reg.stops)
 
@@ -114,7 +114,7 @@ def scenario_decel(v, nl, rep, quick):
         v.check_waveforms(H, rep2, tag)
         viol = [(round(t, 1), nm) for t, nm, st, tx, hm, lv in H.ev_state if lv and nm != "CLEAR" and (hm or st == "RETREV")]
         zn = [round(z) for z, p, t in H.zone_log]
-        ok = all(333 <= z < 374 for z in zn) and not viol and not rep2.fail
+        ok = all(v.ZONE[0] <= z < v.ZONE[1] for z in zn) and not viol and not rep2.fail
         res.append((scale, ok, zn[:6], len(viol), rep2.fail[:2]))
     nominal = [r for r in res if r[0] == 1.0][0]
     rep.check(nominal[1], f"decel x1.0 must be clean: {nominal}")
@@ -251,6 +251,9 @@ def scenario_home(v, nl, rep, quick):
     n_extra = 3 if quick else 8
     cases += [(v.HOME_X + int(rng.uniform(0, v.PERIOD_X)), True) for _ in range(n_extra)]
     cases += [(v.HOME_X + 12000 * 5 + 1234, False)] + [(v.HOME_X + int(rng.uniform(0, 3.0e6)), False) for _ in range(2 if quick else 3)]
+    # inside cycle 0: the fast drum shows letter 0 also in the empty cell 26 (a false home if HOME used the three index sectors only),
+    # and just past the home mark (STROBE slot of cell 0)
+    cases += [(v.CELL * 26 + 100, False), (v.CELL * 26 + 100, True), (v.CELL * 25 + 100, False), (v.STROBE_W[0] + 30, False)]
     for i, (x0, synced) in enumerate(cases):
         H, tag = home_run(v, nl, rep, x0, synced, seed=200 + i)
         fw = H.fw
@@ -275,21 +278,23 @@ def scenario_end(v, nl, rep):
     for end_pos, label in ((17575, "full run"), (675, "slice of 676 positions")):
         tag = f"END ({label})"
         p = Params(end_pos=end_pos)
-        n_start = end_pos - 3
+        n_start = end_pos - 3                       # test order n = 26 Q + k
         q, k = divmod(n_start, 26)
-        c = 30 * q + k
-        x = 400 * c + 353
+        c = v.CYCLE_CELLS * q + k
+        x = v.CELL * c + v.ZONE[0] + p.ret_offset   # standing in the stop zone after position n_start
         H = v.Harness(nl, seed=9, dt=0.1, p=p, start_x=x, synced=False)
-        H.sync_at_home(x, hold=(k, q % 26, q // 26))
+        H.sync_at_home(x, hold=v.pos_truth(v.CELL * c))
         H.fw.stopped = True
         start_run(H)
         H.run(H.t + 1500.0)
         fw = H.fw
         S, _ = v.pulses(H.events, "STROBE")
-        cells = [pos_of(*tr) for te, nm, pos, tr in H.pos_samples if nm == "STROBE" and tr is not None]
+        cells = [test_index(*tr) for te, nm, pos, tr in H.pos_samples if nm == "STROBE" and tr is not None]
         rep.check(cells == [end_pos - 2, end_pos - 1, end_pos], f"{tag}: tested positions {cells} (expected the last three)")
         rep.check(fw.end and fw.stopped and fw.state == "REST", f"{tag}: END / STOPPED not set (state {fw.state})")
-        rep.check(fw.pos == (25, 25, 25) or end_pos == 675 and fw.pos == (25, 25, 0), f"{tag}: POS at END {fw.pos}")
+        qe, ke = divmod(end_pos, 26)
+        last = v.pos_truth(v.CELL * (v.CYCLE_CELLS * qe + ke))   # core position of the last tested cell (l = (4 m + k) mod 26)
+        rep.check(fw.pos == last, f"{tag}: POS at END {fw.pos} != {last}")
         x_end = H.m.x
         H.reg.start_on = False
         H.run(H.t + 100.0)
@@ -297,7 +302,7 @@ def scenario_end(v, nl, rep):
         H.run(H.t + 600.0)
         rep.check(H.m.x == x_end, f"{tag}: the bank moved although END is set")
         v.check_waveforms(H, rep, tag)
-        res.append((label, cells))
+        res.append((label, cells, fw.pos))
     return res
 
 
@@ -350,7 +355,8 @@ def fw_mutants():
     return [("no_runarm", "48 V restart rule removed"),
             ("no_txen_return", "return reverse without TXEN off"),
             ("forward_only", "HOME always searches forward"),
-            ("bad_return", "return target before the STROBE of the same cell")]
+            ("bad_return", "return target before the STROBE of the same cell"),
+            ("home_index_only", "HOME on the three index sectors alone (26-cell model; false home in the empty cell 26)")]
 
 
 def main(args, v):
@@ -374,9 +380,10 @@ def main(args, v):
     mn = lambda a: min(a) if a else float("nan")
     print(f"   {ac['runs']} runs, {ac['cycles']} tested positions, {ac['stops']} stops (random oracle, random relay delays, release at random / early)")
     print(f"   connector face minima: STROBE {mn(ac['S']):.3f} ms (>= 7.0 calibrated), JUDGE {mn(ac['J']):.3f} (>= 7.5), CLEAR {mn(ac['C']):.3f} (>= 12.5),"
-          f" JUDGE-STROBE {mn(ac['JS']):.3f} (>= 11.5), CLEAR-JUDGE {mn(ac['CJ']):.3f} (>= 1.5), STROBE-CLEAR {mn(ac['SC']):.3f} (>= 1.5)")
+          f" JUDGE rise - STROBE contact start {mn(ac['JS']) - v.STROBE_CAL_ON:.3f} (>= 7.5, L2 calibrated; rise - rise {mn(ac['JS']):.3f}),"
+          f" CLEAR-JUDGE {mn(ac['CJ']):.3f} (>= 1.5), STROBE-CLEAR {mn(ac['SC']):.3f} (>= 1.5)")
     if ac["zone"]:
-        print(f"   stop zone: {len(ac['zone'])} returns, standing at {min(ac['zone']):.0f} .. {max(ac['zone']):.0f} steps after the pad centre (zone 333 .. 374)")
+        print(f"   stop zone: {len(ac['zone'])} returns, standing at {min(ac['zone']):.0f} .. {max(ac['zone']):.0f} steps after the cell origin (zone {v.ZONE[0]} .. {v.ZONE[1]})")
     print(f"   rules checked per run: L1-L8, C1-C6, stops == oracle, tested positions 0,1,2,... without repeat, POS == truth, no output during HOME / RETURN")
     wk = scenario_weak(v, nl, rep, quick)
     print(f"   very weak deceleration (x0.1: the shaft overruns into the next cycle) with early release: {len(wk)} runs, false stops {sum(w[3] for w in wk)}, {sum(w[4] for w in wk)} releases fell inside a JUDGE pulse (register false stop, unavoidable), nothing started while reversing")
@@ -392,7 +399,8 @@ def main(args, v):
     print(f"   HOME: {len(hm)} cases (synced: shortest path, unsynced: forward search): " +
           ", ".join(f"{h[2]}:{h[3] / 1000:.0f}k steps/{h[4]} s" for h in hm[:6]) + " ...")
     en = scenario_end(v, nl, rep)
-    print(f"   END: full run and a 676-position slice end after the last tested position {[e[1] for e in en]}; RUN ignored afterwards")
+    print(f"   END: full run and a 676-position slice end after the last tested position (test order) {[e[1] for e in en]},"
+          f" POS (l, m, r) at END {[e[2] for e in en]}; RUN ignored afterwards")
     allrep.fail += rep.fail
     print(f"   {rep.n} checks, {len(rep.fail)} failures", *rep.fail[:10], sep="\n   ")
     print(f"   (elapsed {time.time() - t0:.0f} s)")
@@ -460,10 +468,14 @@ def main(args, v):
                                   release_fn=lambda H, t: (H.reg.press(t), setattr(H, "_pr", True))[0] if (H.reg.latched and H.fw.stopped and not H.reg.pressing and not getattr(H, "_pr", False)) else (setattr(H, "_pr", False) if not H.reg.latched else None))
                     start_run(H)
                     H.run(H.t + 1800.0)
-                    cs = [pos_of(*tr) for te, nm, pos, tr in H.pos_samples if nm == "STROBE" and tr is not None]
+                    cs = [test_index(*tr) for te, nm, pos, tr in H.pos_samples if nm == "STROBE" and tr is not None]
                     lat = H.reg.stop_latch_hist
                     r.check(not (len(cs) != len(set(cs)) and False) and H.reg.stops.count(5) <= 1 and len(H.reg.stops) == len(set(H.reg.stops)),
                             "the same position stopped again after the restart")
+                elif key == "home_index_only":
+                    H, tag = home_run(v, nl, r, v.CELL * 25 + 100, False, 5, mut=(key,))
+                    rel = (H.m.x - v.HOME_X) % v.PERIOD_X
+                    r.check(rel <= 2 or rel >= v.PERIOD_X - 2, f"HOME ended at x_rel {rel} (not cell 0 of cycle 0)")
             except Exception as e:
                 r.fail.append(f"simulation error {type(e).__name__}: {e}")
             n_neg += 1

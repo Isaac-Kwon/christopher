@@ -155,7 +155,8 @@ def checks_drive(model, tab):
         r, a0, a1 = P.track_deg(name)
         txt.append(f"{name} r{r:.0f} {a0:+.2f}..{a1:+.2f}")
         ok &= abs(a0 - a0s) < 0.02 and abs(a1 - a1s) < 0.02
-    tab.add("slot disc tracks (angle from ms)", "STROBE -0.94..0.94, JUDGE 2.81..4.99, CLEAR 5.62..9.36", "; ".join(txt), ok)
+    tab.add("slot disc tracks (deg from the pad centre)", "STROBE -0.94..0.94, JUDGE 1.73..4.25, CLEAR 4.88..8.96", "; ".join(txt), ok)
+    checks_slot_timing(tab)
     sd = bb(pn["slot_disc"])
     tab.add("slot disc diameter", "160", f"{sd.ymax - sd.ymin:.2f}", abs(sd.ymax - sd.ymin - 160) < 0.01)
     # clearances in the drive module
@@ -171,6 +172,47 @@ def checks_drive(model, tab):
     pl = pn["pulley_large"]
     gap = math.hypot(P.SHAFTS['F'] - P.SHAFTS['C'], 0) - 10.0 - (motor.pulley_radius(P.HTD_T_LARGE) + P.BELT_T)
     tab.add("belt/pulley to C shaft surface", "> 0 (layout 71 > 59.3)", f"{gap:.2f}", gap > 0)
+
+
+D_ON, D_OFF = (2.5, 4.0), (1.5, 4.0)    # decision 0003 3.1: timing-relay delays (ms), range
+CAL_RESID = 0.5                         # decision 0003 3.4: STROBE contact window after calibration 0 ... 6 +- 0.5 ms
+TOL_MS = 0.5                            # layout 3.8: margin kept for slot / sensor / electronics tolerance (ms)
+CARRY1_START_DEG = 316.2                # layout 3.8: carry-1 engagement 316.2 ... 343.8 deg
+
+
+def checks_slot_timing(tab):
+    """Decision 0003 3.3 lower bounds at the connector face (60 rpm) from params.SLOT_STEPS, each with TOL_MS margin.
+    t = 0 is the STROBE contact start (calibrated STROBE: rise = -d_on of the STROBE relay, here the representative 2.5)."""
+    S0, S1 = P.slot_ms("STROBE")
+    J0, J1 = P.slot_ms("JUDGE")
+    C0, C1 = P.slot_ms("CLEAR")
+    T = P.STEP_MS
+    s_contact = S0 + D_ON[0]
+    rows = [
+        ("L1 STROBE contact width (calibrated 2.5 / 1.5)", ">= 5.0", (S1 + D_OFF[0]) - (S0 + D_ON[0]) - 5.0),
+        ("L2 JUDGE rise - STROBE contact start (calibrated form, - 0.5 residual)", ">= 7.5", J0 - (s_contact + CAL_RESID) - 7.5),
+        ("L3 JUDGE width", ">= 7.5", (J1 - J0) - 7.5),
+        ("L4 CLEAR rise - JUDGE fall", ">= 1.5", (C0 - J1) - 1.5),
+        ("L5 CLEAR width", ">= 12.5", (C1 - C0) - 12.5),
+        ("L6 (C6) next STROBE contact - CLEAR contact end (d_off 4, - 0.5 residual)", "> 0", (s_contact + T - CAL_RESID) - (C1 + D_OFF[1])),
+    ]
+    for name, spec, m in rows:
+        tab.add(f"slot timing {name}", f"{spec} + {TOL_MS} ms", f"margin {m:+.3f} ms", m >= TOL_MS - 1e-9)
+    lit2 = J0 - S0 - 11.5
+    tab.add("slot timing L2 uncalibrated form (JUDGE rise - STROBE rise >= 11.5)", "not used: the gear STROBE is calibrated (0003 3.4)",
+            f"margin {lit2:+.3f} ms", lit2 >= 0, hard=False)
+    # stop zone: CLEAR end ... next STROBE rise; worst = slowest calibrated STROBE relay (d_on 4) + residual + 0.1 deg C sensor
+    spp = P.STEPS_PER_POS / T                                  # steps per ms
+    zone = P.SLOT_STEPS["STROBE"][0] + P.STEPS_PER_POS - P.SLOT_STEPS["CLEAR"][1]
+    worst = zone - (D_ON[1] - D_ON[0] + CAL_RESID) * spp - 0.1 / P.SLOT_STEP_DEG
+    tab.add("stop zone CLEAR end ... next STROBE (steps of 0.03 deg)", "worst >= 15 (return target + 10 +- 2)",
+            f"nominal {zone} ({zone * P.SLOT_STEP_DEG:.2f} deg), worst {worst:.1f}", worst >= 15)
+    # carry 1 after the last cycle of the revolution (k = 25)
+    deg = lambda t: (t - P.T_CENTRE_MS) * P.STEP_DEG / T + 25 * P.STEP_DEG
+    j_end = deg(J1 + D_OFF[1])
+    tab.add("k = 25: JUDGE contact end (worst) before carry 1 (316.2 deg)", ">= 10 deg ahead (layout 8 G.2 k)",
+            f"{j_end:.2f} deg -> {CARRY1_START_DEG - j_end:.1f} deg", CARRY1_START_DEG - j_end >= 10.0)
+    tab.add("k = 25: CLEAR slot end before carry 1", "< 316.2 deg", f"{deg(C1):.2f} deg", deg(C1) < CARRY1_START_DEG)
 
 
 def checks_column(model, tab):

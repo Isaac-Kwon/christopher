@@ -1,7 +1,7 @@
 # Parametric CAD of the gear-drum bombe (track G, PLAN 0, item 8)
 
 Script-generated solid model (CadQuery 2.8 on the project venv, OpenCascade kernel); no GUI CAD is needed.
-Dimensions: `params.py` is the only place numbers live; every value cites `layout.md` (L), decision 0002 (D),
+Dimensions: `params.py` is the only place numbers live (the slot angles `SLOT_STEPS` are also read by the gear control-board model, `hardware/gear/control-board/firmware_model.py`); every value cites `layout.md` (L), decision 0002 (D),
 the drum PCB README (PCB) or is marked `(mod)` = modelling choice. Inputs: `hardware/gear/layout.md`,
 `docs/decisions/0002-gear-detail-decisions.md`, `hardware/gear/drum-pcb/README.md`.
 
@@ -61,7 +61,7 @@ in the posts, gold plating (0.035 mm, embedded in the PCB face), letter ring and
 brackets' fixings, the drive module's mounting to the frame, the display, the common panel's interior, hinges and gas springs are not
 modelled. Ball tips are exactly tangent to the pad plane (compressed state, 9.0 working height).
 
-## Check results (`python check.py`, last run: 68 PASS, 0 FAIL, 5 OPEN)
+## Check results (`python check.py`, last run: 77 PASS, 0 FAIL, 6 OPEN)
 
 | Group | Result |
 |---|---|
@@ -71,7 +71,8 @@ modelled. Ball tips are exactly tangent to the pad plane (compressed state, 9.0 
 | Pitch | drum pitch 120 vertical and horizontal, neighbouring drum bodies 20 apart, 18 drums, 6 blanking plates, plate gaps 4.0 |
 | Envelope | 1880.0 x 1350.0 x 403.0 (spec 1880 x 1350 x 400 +- 5); plinth 400; bank width 1880 over the side covers |
 | Guards | front cover to fixed trim gaps 2.0 (4 sides), shutter gap 1.0, plate and blanking-plate gaps 4.0 (all <= 4); front cover to the nearest moving part (knob) 31 (>= 20); motor to rear cover 3.0, to top cover 7.6 |
-| Slot disc | STROBE r72 -0.94 ... +0.94, JUDGE r62 +2.81 ... +4.99, CLEAR r52 +5.62 ... +9.36 (deg), computed from the ms table of decision 0001 |
+| Slot disc | STROBE r72 -0.94 ... +0.94 (base slot, calibrated by the sensor bracket), JUDGE r62 +1.73 ... +4.25, CLEAR r52 +4.88 ... +8.96 (deg from the pad centre; connector-face windows of layout 3.8 = `SLOT_STEPS`, motor steps of 0.03 deg) |
+| Slot timing | decision 0003 3.3 at 60 rpm with 0.5 ms tolerance margin: L1 +1.02, L2 (calibrated form, after the 0.5 ms calibration residual) +0.56, L3 +0.58, L4 +0.52, L5 +0.58, C6 +2.23 ms; stop zone CLEAR end ... next STROBE 44 steps (worst 19.9); k = 25 JUDGE contact end 305.50 deg (10.7 deg before carry 1), CLEAR slot end 308.96 deg. OPEN: L2 in its uncalibrated form (-0.44 ms; not applicable, the gear STROBE is calibrated) |
 
 ## Open items: dimensions that do not close geometrically (reported by `check.py` as OPEN)
 

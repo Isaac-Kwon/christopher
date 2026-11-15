@@ -208,18 +208,32 @@ PLATE_B_Z = (-222.0, -PLATE_T)    # (mod) up to the motor rear face
 INDICATOR_D, INDICATOR_L = 70.0, 25.0   # L3.9
 INDICATOR_REAR_W = 70.0           # (mod) narrow rear plate (a 116 plate would hit plate A)
 SENSOR_R = (48.0, 86.0)           # (mod) fork envelope
-# slot disc (L3.8, D1)
+# slot disc (L3.8, D1, decision 0003 3.3 / 3.4)
+# SINGLE SOURCE of the slot angles: the gear control-board model (hardware/gear/control-board/firmware_model.py,
+# verify_control.py) reads SLOT_STEPS / STEPS_PER_POS from this file.
 SLOTDISC_D, SLOTDISC_T = 160.0, 1.5   # L3.8
 CYCLE_N = 30                      # L3.8: 30 positions per revolution
 STEP_DEG = 360.0 / CYCLE_N        # 12 deg
-STEP_MS = 38.46                   # D1
-TRACKS = {"STROBE": (72.0, (0.0, 6.0)), "JUDGE": (62.0, (12.0, 19.0)),
-          "CLEAR": (52.0, (21.0, 33.0))}      # L3.8: radius, (t_start, t_end) in ms from STROBE start
-T_CENTRE_MS = 3.0                 # L3.8: full contact -3 ... +9 ms (centre at +3 ms of the STROBE clock)
+STEP_MS = 1000.0 / N_CH           # D1: 38.46 ms per position at 60 rpm (26 positions / s)
+DRIVE_PULSES_PER_REV = 2600       # control-board README 1: closed-loop drive setting (pulses per motor revolution)
+STEPS_PER_POS = DRIVE_PULSES_PER_REV * (HTD_T_LARGE // HTD_T_SMALL) // N_CH   # 2600 x 4 (D5) / 26 = 400 steps per position
+SLOT_STEP_DEG = STEP_DEG / STEPS_PER_POS                    # 0.03 deg of the cycle shaft per motor step (0.096 ms at 60 rpm)
+T_CENTRE_MS = 3.0                 # L3.8: full contact -3 ... +9 ms (pad centre at +3 ms of the STROBE contact clock)
+T_CENTRE_STEPS = T_CENTRE_MS * STEPS_PER_POS / STEP_MS      # 31.2 steps
+# Connector-face slot windows (= slot passes the sensor) at 60 rpm, in motor steps from the STROBE CONTACT start
+# (t = 0 of decision 0001; the pad centre is at +31.2 steps).  Edges on whole motor steps (0.03 deg).  L3.8:
+# JUDGE / CLEAR keep >= 0.5 ms on every decision-0003 lower bound (L2 calibrated form incl. the +-0.5 ms STROBE
+# calibration residual, L3, L4, L5) and leave the stop zone CLEAR end ... next STROBE start = 330 ... 374 (44 steps).
+# STROBE: the calibrated window with the representative relay (2.5 / 1.5 ms); the disc carries the base slot below.
+SLOT_STEPS = {"STROBE": (-26, 47), "JUDGE": (89, 173), "CLEAR": (194, 330)}
+STROBE_BASE_MS = (0.0, 6.0)       # L3.8: uncalibrated STROBE slot = contact face of D1 (widened 0 ... +1.5 deg and the
+                                  # sensor bracket turned by the calibration)
+TRACK_R = {"STROBE": 72.0, "JUDGE": 62.0, "CLEAR": 52.0}   # L3.8 track radii
+TRACKS = {n: TRACK_R[n] for n in ("STROBE", "JUDGE", "CLEAR")}   # track order on the disc
 SLOT_RADIAL_W = 2.0               # (mod)
 N_SLOT_POS = 26                   # L3.8: k = 0..25 (k = 26..29 empty)
-# layout.md 3.8 table (deg) for check.py
-TRACK_SPEC_DEG = {"STROBE": (-0.94, 0.94), "JUDGE": (2.81, 4.99), "CLEAR": (5.62, 9.36)}
+# layout.md 3.8 table (deg from the pad centre, cycle shaft) for check.py
+TRACK_SPEC_DEG = {"STROBE": (-0.94, 0.94), "JUDGE": (1.73, 4.25), "CLEAR": (4.88, 8.96)}
 
 # ----------------------------------------------------------------------------------------
 # Derived helpers
@@ -229,10 +243,22 @@ def slot_x(slot):
     return SLOT_X0 + PITCH * (slot - 0.5)
 
 
+def slot_ms(name):
+    """Connector-face window (t_start, t_end) in ms from the STROBE contact start at 60 rpm."""
+    s0, s1 = SLOT_STEPS[name]
+    k = STEP_MS / STEPS_PER_POS
+    return s0 * k, s1 * k
+
+
 def track_deg(name):
-    r, (t0, t1) = TRACKS[name]
-    k = STEP_DEG / STEP_MS
-    return r, (t0 - T_CENTRE_MS) * k, (t1 - T_CENTRE_MS) * k
+    """(radius, a_start, a_end) of the slot of position k = 0 on the disc, deg of the cycle shaft from the pad centre.
+    JUDGE / CLEAR: the connector-face window; STROBE: the uncalibrated base slot (calibration turns its sensor)."""
+    r = TRACK_R[name]
+    if name == "STROBE":
+        k = STEP_DEG / STEP_MS
+        return r, (STROBE_BASE_MS[0] - T_CENTRE_MS) * k, (STROBE_BASE_MS[1] - T_CENTRE_MS) * k
+    s0, s1 = SLOT_STEPS[name]
+    return r, (s0 - T_CENTRE_STEPS) * SLOT_STEP_DEG, (s1 - T_CENTRE_STEPS) * SLOT_STEP_DEG
 
 
 def groove_depth(r):

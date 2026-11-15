@@ -398,7 +398,7 @@ def sheet_sensors() -> Sheet:
         res(sh, 180, y, f"R{40 + i}", "4.7k", FP["r0603"], G("+3V3"), f"RAW_{k}", desc="Open-collector pull-up to 3.3 V", show=True)
         res(sh, 240, y, f"R{50 + i}", "1k", FP["r0603"], f"RAW_{k}", G(f"FLT_{k}"), desc="Filter series resistor", show=True)
         cap(sh, 300, y, f"C{20 + i}", "4.7n", FP["c0603"], G(f"FLT_{k}"), G("GND"), "Filter capacitor")
-    sh.text("Slot windows (connector face, decision 0003 3.4): STROBE -2.5..+4.5 ms, JUDGE +9.5..+17.5, CLEAR +19.0..+32.0 at 60 rpm.\n"
+    sh.text("Slot windows (connector face, layout.md 3.8, CAD params.SLOT_STEPS): STROBE -2.50..+4.52 ms, JUDGE +8.56..+16.63, CLEAR +18.65..+31.73 at 60 rpm.\n"
             "STROBE calibration = rotating bracket of the STROBE sensor (decision 0002); nothing on the board.", 40, 460, 1.5)
     return sh
 

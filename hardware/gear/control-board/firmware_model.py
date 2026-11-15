@@ -11,13 +11,45 @@ Units: steps, steps/s, ms.  `Firmware.tick(t_ms, dt_ms)` returns the signed numb
 harness delivers sensor edges through `on_edge(sig, level, t_ms, s_edge)` in the order of the motion (like GPIO
 interrupts).  `mut` is a set of mutation names used only by the negative tests of verify_control.py.
 
-Geometry assumptions (README 2): 400 steps per cell, pad centre of cell c at x = 400 c, the connector-face slot windows
-STROBE [-26, +47), JUDGE [+99, +182), CLEAR [+198, +333) steps around the centre (0.312 deg/ms, 10.4 steps/ms at 60 rpm).
+Geometry (README 1.2, hardware/gear/layout.md 3.7 / 3.8, CAD hardware/gear/cad):
+  * x = cycle-shaft angle in motor steps, 400 steps per position (cell), 30 cells per cycle-shaft revolution (12 deg = 400
+    steps, 0.03 deg per step).  x = 400 c is the STROBE CONTACT START of cell c (t = 0 of decision 0001; the pad centre is at
+    +31.2 steps).  Cell c = 30 Q + k: k = 0..25 have slots (tested), k = 26..29 are the empty carry cells.
+  * Slot windows (connector face): from the CAD single source hardware/gear/cad/params.py (SLOT_STEPS), read below.
+  * Position discs (CAD: one 26-slot + index disc on each of F, M, S):
+      F turns continuously, 30 positions per cycle-shaft revolution (26:30), so T_L gives one edge in EVERY cell (also the
+      empty ones) at x = 400 c - 120 (= +280 of the previous cell) and I_L is high while the fast drum shows letter 0
+      (cells c = 0 mod 26).  The fast drum of tested cell (Q, k) is l = (30 Q + k) mod 26 = (4 m + k) mod 26: its starting
+      letter moves by 4 every cycle (concept.md 5.2, the "30-point" order).
+      M steps once per revolution during carry 1 (cycle shaft 330 deg = cell 27.5): T_M edge at x = 12000 j + 11000, which
+      is also the phase mark of the cycle shaft for the cell counter k.  S steps when M passes 25 -> 0.
+  * Test order: n = 26 Q + k (Q = m + 26 r), the order in which the machine tests the 17,576 positions.  END and the
+    stop oracle use n; POS0-14 carries the core position (l, m, r) of decision 0003 4.5.
 """
 from __future__ import annotations
 
+import importlib.util
 import math
 from dataclasses import dataclass
+from pathlib import Path
+
+
+def _cad_params():
+    """hardware/gear/cad/params.py (pure Python, no CadQuery needed): the single source of the slot angles."""
+    path = Path(__file__).resolve().parent.parent / "cad" / "params.py"
+    spec = importlib.util.spec_from_file_location("gear_cad_params", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+CAD = _cad_params()
+CELL = CAD.STEPS_PER_POS                  # 400 motor steps per position
+CYCLE_CELLS = CAD.CYCLE_N                 # 30 cells per cycle-shaft revolution, k = 26..29 empty
+SLOT_W = dict(CAD.SLOT_STEPS)             # {"STROBE": (a, b), "JUDGE": ..., "CLEAR": ...} steps from the STROBE contact start
+T_OFF = -120                              # position-disc T edge of cell c at x = CELL c + T_OFF (+280 of the previous cell)
+CARRY_X = 27 * CELL + CELL // 2           # 11000: T_M edge (carry 1 at 330 deg) inside the cycle-shaft revolution
+CYCLE_X = CYCLE_CELLS * CELL              # 12000 steps per cycle-shaft revolution
 
 
 @dataclass
@@ -32,16 +64,24 @@ class Params:
     v_home: float = 20800.0         # HOME speed: 2 x the run speed (parameter)
     a_home: float = 8.0e5
     v_hcreep: float = 3000.0
-    ret_offset: int = 20            # steps after the end of CLEAR (zone: +333 .. +374 of the next cell, 41 steps wide)
-    cell: int = 400
-    period_x: int = 12000 * 676     # one full period of the position discs (17,576 positions + carry cells)
-    home_offset: int = 50           # steps after the AT_HOME rising edge (sector start = x -120) -> x = -70
-    end_pos: int = 17575            # last tested position (slice end: any 26 k + 25 ... only at the end of a revolution)
+    ret_offset: int = 10            # steps after the sensed end of CLEAR (zone CLEAR end .. next STROBE rise = 330 .. 374,
+                                    # 44 steps; worst case about 20 steps with the slowest calibrated STROBE relay)
+    cell: int = CELL
+    period_x: int = CYCLE_X * 676   # one full period: 676 cycle-shaft revolutions = 17,576 tested positions + carry cells
+    home_x: int = -70               # HOME position: inside cell 0 of cycle 0, before its STROBE slot
+    x_strobe: int = SLOT_W["STROBE"][0]   # STROBE slot rise inside a cell (-26)
+    end_pos: int = 17575            # last tested position in test order n (slice end: 26 Q + 25 at the end of a revolution)
     home_hold_ms: float = 100.0     # HOME level must be held this long (decision 0003 4.3)
 
 
 def pos_of(l: int, m: int, r: int) -> int:
+    """lexicographic index of the core position (l, m, r)"""
     return l + 26 * m + 676 * r
+
+
+def test_index(l: int, m: int, r: int) -> int:
+    """test order n = 26 Q + k of the tested cell whose core position is (l, m, r): Q = m + 26 r, l = (4 m + k) mod 26"""
+    return 26 * (m + 26 * r) + (l - 4 * m) % 26
 
 
 class Firmware:
@@ -72,6 +112,8 @@ class Firmware:
         self.need_home = True
         self.cnt = [0, 0, 0]
         self.sync = [False, False, False]
+        self.kc = 0                  # cell k (0..29) inside the cycle-shaft revolution: +1 per T_L edge, = 27 at the T_M edge
+        self.kc_sync = False
         self.x_ref = None            # (x of the last T_L boundary, s at that edge)
         self.stop_kind = None        # 'latch' | 'oper' | 'end'
         self.cap_armed = False
@@ -103,8 +145,14 @@ class Firmware:
     def _all_i(self) -> bool:
         return self.lv["I_L"] and self.lv["I_M"] and self.lv["I_S"]
 
+    def _in_cycle0(self) -> bool:
+        """inside cycle-shaft revolution 0 (M = S = 0): an unsynced HOME search backs out of it first"""
+        if "home_index_only" in self.mut:            # negative test: the rule of the 26-cell model (three index sectors)
+            return self._all_i()
+        return self.lv["I_M"] and self.lv["I_S"]
+
     def x_now(self):
-        if self.x_ref is None or not all(self.sync):
+        if self.x_ref is None or not all(self.sync) or not self.kc_sync:
             return None
         return self.x_ref[0] + (self.s - self.x_ref[1])
 
@@ -117,8 +165,8 @@ class Firmware:
             if level:
                 self.cnt[ax] = 0
                 self.sync[ax] = True
-            if self._all_i() and level and self.state == "HSEARCH":
-                self.hsearch_edge_s = s_e
+            if "home_index_only" in self.mut and level and fwd and self.state == "HSEARCH" and self._all_i():
+                self.hsearch_edge_s = s_e + (self.p.x_strobe - T_OFF)     # negative test: home on the index sectors alone
                 self.state = "HDEC"
         elif sig in ("T_L", "T_M", "T_S"):
             ax = "LMS".index(sig[2])
@@ -127,15 +175,28 @@ class Firmware:
                 if not ilev:
                     self.cnt[ax] = (self.cnt[ax] + 1) % 26
                 if ax == 0:
-                    self._xref(self.cnt[0] if not ilev else 0, s_e)
+                    self.kc = (self.kc + 1) % CYCLE_CELLS
+                    self._xref(self.kc, s_e)
+                elif ax == 1:                       # carry 1 = cycle shaft at 330 deg, inside cell k = 27
+                    self.kc, self.kc_sync = 27, True
             elif (not fwd) and (not level):
-                old = self.cnt[ax]
                 if not ilev:
                     self.cnt[ax] = (self.cnt[ax] - 1) % 26
                 if ax == 0:
-                    self._xref(old if not ilev else 1, s_e)
-        elif sig == "SLOT_S" and level and self.txen:
-            self.in_cycle = True
+                    old = self.kc                   # leaving cell `old` backwards
+                    self.kc = (self.kc - 1) % CYCLE_CELLS
+                    self._xref(old, s_e)
+                elif ax == 1:
+                    self.kc, self.kc_sync = 27, True
+        elif sig == "SLOT_S":
+            if level and self.txen:
+                self.in_cycle = True
+            # HOME mark = STROBE slot rising while the three index sectors are high.  The F index alone is ambiguous inside
+            # cycle 0: the fast drum shows letter 0 in cell 0 AND in the empty cell 26 (30 cells per revolution); only cell 0
+            # carries a slot.
+            if level and fwd and self.state == "HSEARCH" and self._all_i() and "home_index_only" not in self.mut:
+                self.hsearch_edge_s = s_e
+                self.state = "HDEC"
         elif sig == "SLOT_C":
             if not level:
                 self.in_cycle = False
@@ -145,14 +206,16 @@ class Firmware:
                 if self.cap_armed and self.s_clear_end is None:
                     self.s_clear_end = s_e
                 if (fwd and self.cell_pos is not None and all(self.sync) and not self.end_flag
-                        and pos_of(*self.cell_pos) == self.p.end_pos):
+                        and test_index(*self.cell_pos) == self.p.end_pos):
                     self.end_pending = True
 
-    def _xref(self, kb, s_e):
-        if not all(self.sync):
+    def _xref(self, k, s_e):
+        """absolute x of the T_L edge that bounds cell k (entered forwards / left backwards) from the counters"""
+        if not (all(self.sync) and self.kc_sync):
             return
         l, m, r = self.cnt
-        self.x_ref = (self.p.cell * (30 * (m + 26 * r) + kb) - 120, s_e)
+        q = (m + 26 * r - (1 if k >= 28 else 0)) % 676       # cells 28, 29 lie after carry 1: M already counts Q + 1
+        self.x_ref = (self.p.cell * (CYCLE_CELLS * q + k) + T_OFF, s_e)
 
     # ------------------------------------------------------------------ the 1 ms ... 50 us control tick
     def _motion(self, vd: float, a: float, dt: float) -> int:
@@ -280,16 +343,16 @@ class Firmware:
             n, arrived = self._goto(self.ret_target, p.v_ret, p.a_ret, dt)
             if arrived:
                 self._rest_after_stop()
-        elif st == "HBACK":
+        elif st == "HBACK":                          # started inside cycle 0: back out of it (at most one revolution)
             n = self._motion(-p.v_hcreep, p.a_home, dt)
-            if not self._all_i():
+            if not self._in_cycle0():
                 self.state = "HSEARCH"
         elif st == "HSEARCH":
             n = self._motion(p.v_home, p.a_home, dt)
         elif st == "HDEC":
             n = self._motion(0.0, p.a_home, dt)
             if self.v == 0.0:
-                self.target = self.hsearch_edge_s + p.home_offset
+                self.target = self.hsearch_edge_s + (p.home_x - p.x_strobe)
                 self.state = "HGO"
         elif st == "HGO":
             n, arrived = self._goto(self.target, p.v_hcreep, p.a_home, dt)
@@ -302,7 +365,7 @@ class Firmware:
                     self._home_done()
                 else:
                     self.home_how += "+search"
-                    self.state = "HSEARCH"
+                    self.state = "HBACK" if self._in_cycle0() else "HSEARCH"
         # ---- outputs updated every tick
         return n
 
@@ -345,7 +408,7 @@ class Firmware:
         xn = self.x_now()
         self.home_how = ""
         if xn is not None and "forward_only" not in self.mut:
-            x_home = -120 + self.p.home_offset
+            x_home = self.p.home_x
             fwd = (x_home - xn) % self.p.period_x
             if fwd <= self.p.period_x // 2:
                 self.target = self.s + fwd
@@ -356,7 +419,7 @@ class Firmware:
             self.state = "HMOVE"
             return
         self.home_how = "search"
-        self.state = "HBACK" if self._all_i() else "HSEARCH"
+        self.state = "HBACK" if self._in_cycle0() else "HSEARCH"
 
     def _home_done(self):
         self.v = 0.0
@@ -368,4 +431,5 @@ class Firmware:
         self.need_home = False
         self.cnt = [0, 0, 0]
         self.sync = [True, True, True]
-        self.x_ref = (-120, self.s - self.p.home_offset)
+        self.kc, self.kc_sync = 0, True
+        self.x_ref = (self.p.home_x, self.s)
