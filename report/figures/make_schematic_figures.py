@@ -22,6 +22,16 @@ OUT = ROOT / "report" / "figures" / "generated"
 # (output name, root schematic relative to the repository)
 SCHEMATICS = [
     ("shifter-board", "hardware/relay/shifter-board/shifter_board.kicad_sch"),
+    ("relay-rotor-card-i", "hardware/relay/wiring-cards/rotor_I.kicad_sch"),
+    ("relay-rotor-card-ii", "hardware/relay/wiring-cards/rotor_II.kicad_sch"),
+    ("relay-rotor-card-iii", "hardware/relay/wiring-cards/rotor_III.kicad_sch"),
+    ("relay-rotor-card-iv", "hardware/relay/wiring-cards/rotor_IV.kicad_sch"),
+    ("relay-rotor-card-v", "hardware/relay/wiring-cards/rotor_V.kicad_sch"),
+    ("relay-rotor-card-vi", "hardware/relay/wiring-cards/rotor_VI.kicad_sch"),
+    ("relay-rotor-card-vii", "hardware/relay/wiring-cards/rotor_VII.kicad_sch"),
+    ("relay-rotor-card-viii", "hardware/relay/wiring-cards/rotor_VIII.kicad_sch"),
+    ("relay-reflector-card-b", "hardware/relay/wiring-cards/reflector_B.kicad_sch"),
+    ("relay-reflector-card-c", "hardware/relay/wiring-cards/reflector_C.kicad_sch"),
     ("counter-common", "hardware/relay/counter-board/counter_common.kicad_sch"),
     ("counter-unit", "hardware/relay/counter-board/counter_unit.kicad_sch"),
     ("test-register", "hardware/common/test-register/test_register.kicad_sch"),
@@ -36,6 +46,8 @@ SCHEMATICS = [
     ("diagonal-d4", "hardware/common/diagonal-board/d4.kicad_sch"),
     ("diagonal-d5", "hardware/common/diagonal-board/d5.kicad_sch"),
     ("patch-panel", "hardware/common/patch-panel/patch_panel.kicad_sch"),
+    ("relay-sequencer", "hardware/relay/sequencer/sequencer.kicad_sch"),
+    ("gear-control-board", "hardware/gear/control-board/control_board.kicad_sch"),
 ]
 
 PERSONAL = re.compile(rb"(?i)c:[/\\]+users|/home/[a-z]|dropbox[/\\]")

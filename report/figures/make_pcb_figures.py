@@ -21,6 +21,16 @@ OUT = ROOT / "report" / "figures" / "generated"
 
 BOARDS = [
     ("shifter-board", "hardware/relay/shifter-board/shifter_board.kicad_pcb"),
+    ("relay-rotor-card-i", "hardware/relay/wiring-cards/rotor_I.kicad_pcb"),
+    ("relay-rotor-card-ii", "hardware/relay/wiring-cards/rotor_II.kicad_pcb"),
+    ("relay-rotor-card-iii", "hardware/relay/wiring-cards/rotor_III.kicad_pcb"),
+    ("relay-rotor-card-iv", "hardware/relay/wiring-cards/rotor_IV.kicad_pcb"),
+    ("relay-rotor-card-v", "hardware/relay/wiring-cards/rotor_V.kicad_pcb"),
+    ("relay-rotor-card-vi", "hardware/relay/wiring-cards/rotor_VI.kicad_pcb"),
+    ("relay-rotor-card-vii", "hardware/relay/wiring-cards/rotor_VII.kicad_pcb"),
+    ("relay-rotor-card-viii", "hardware/relay/wiring-cards/rotor_VIII.kicad_pcb"),
+    ("relay-reflector-card-b", "hardware/relay/wiring-cards/reflector_B.kicad_pcb"),
+    ("relay-reflector-card-c", "hardware/relay/wiring-cards/reflector_C.kicad_pcb"),
     ("test-register", "hardware/common/test-register/test_register.kicad_pcb"),
     ("unit-tester", "hardware/common/unit-tester/pcb/unit_tester.kicad_pcb"),
     ("counter-common", "hardware/relay/counter-board/counter_common.kicad_pcb"),
@@ -35,6 +45,9 @@ BOARDS = [
     ("diagonal-d4", "hardware/common/diagonal-board/d4.kicad_pcb"),
     ("diagonal-d5", "hardware/common/diagonal-board/d5.kicad_pcb"),
     ("patch-panel", "hardware/common/patch-panel/patch_panel.kicad_pcb"),
+    ("shifter-board-s4", "hardware/relay/shifter-board/shifter_board_s4.kicad_pcb"),
+    ("relay-sequencer", "hardware/relay/sequencer/sequencer.kicad_pcb"),
+    ("gear-control-board", "hardware/gear/control-board/control_board.kicad_pcb"),
 ]
 LAYERS = "Edge.Cuts,F.Fab,F.SilkS,F.CrtYd,User.Drawings"
 PERSONAL = re.compile(rb"(?i)c:[/\\]+users|/home/[a-z]|dropbox[/\\]")
