@@ -22,6 +22,9 @@ lines IN (S1.J1 pin i) must reach exactly OUT (S1.J4 pin s(i)) with s = the Enig
 Bombe.trace on a one-edge menu; the Python port of WheelOrder::scrambler is cross-checked against it), with
 no other connection (no shorts between lines, none to the control pins).
 
+Alternative studied and rejected: S4 = the standard board with J1-J4 soldered from the back (back_assembled_study, sigma from
+the pad coordinates): pin 1 aligned when front-facing but lines T..Z open and A..S reversed.
+
 Coverage: all 60 Enigma I wheel orders with reflector B at --samples random positions each (random crib offset k on
 a third of them), all 336 Navy/M3 three-rotor orders with B and C at a few positions each, and one wheel order
 exhaustively (17,576 positions).  Negative tests (a swapped ribbon, ribbons to the wrong slot, wrong/misplaced
@@ -249,10 +252,13 @@ def board_pin1_ends() -> dict:
     files = {"std": SHIFTER_DIR / "shifter_board.kicad_pcb", "s4": SHIFTER_DIR / "shifter_board_s4.kicad_pcb",
              "W": HERE / "rotor_I.kicad_pcb", "U": HERE / "reflector_B.kicad_pcb"}
     out = {}
+    sigma = dsub_sigma(files["std"].read_text(encoding="utf8"))
     for key, f in files.items():
         for ref, d in vsp.board_parts(f.read_text(encoding="utf8")).items():
             if re.fullmatch(r"J[1-4]", ref):
                 out[(key, ref)] = vsp.pin1_end(d)
+                if key == "std":    # "back": the same board, connector soldered from the back: its pin 1 sits in hole sigma(1)
+                    out[("back", ref)] = vsp.pin1_end(dict(d, pad1=d["pad%d" % sigma[1]], pad19=d["pad%d" % sigma[19]]))
     return out
 
 
@@ -286,13 +292,39 @@ def pin1_check(stack, s4_board="s4", ends=None, s4_variant=True) -> list[str]:
 
 
 class Ribbon:
-    def __init__(self, a, b, pinmap=None):
+    """Straight 1:1 ribbon.  pinmap: wire swaps at the b end (negative tests); amap / bmap: which board hole each
+    connector pin number of end a / b reaches (back-assembled connectors, see back_assembled_*)."""
+
+    def __init__(self, a, b, pinmap=None, amap=None, bmap=None):
         self.a, self.b = a, b
         self.pinmap = pinmap or {}
+        self.amap, self.bmap = amap or {}, bmap or {}
 
     def pins(self):
         for p in range(1, NPINS + 1):
-            yield p, self.pinmap.get(p, p)
+            yield self.amap.get(p, p), self.bmap.get(self.pinmap.get(p, p), self.pinmap.get(p, p))
+
+
+def dsub_sigma(pcb_text: str, ref: str = "J1") -> dict:
+    """sigma for a right-angle D-sub 37 soldered from the BACK side into the holes of the standard board.
+    The body must keep pointing out of the board edge, so the connector is turned about the axis along its body
+    (perpendicular to the pin rows): the along-row coordinate is mirrored about the centre of the pin row, the
+    two rows stay where they are.  Pin k of the back-mounted connector then sits in the hole of standard pin
+    sigma(k), found from the real pad coordinates of the footprint on the board."""
+    s = pcb_text.index(f'(property "Reference" "{ref}"')
+    a = pcb_text.rfind("\n\t(footprint", 0, s) + 1
+    blk = pcb_text[a:vsp.gen.block_end(pcb_text, a)]
+    pads = {int(m[1]): (round(float(m[2]), 3), round(float(m[3]), 3))
+            for m in re.finditer(r'\(pad "(\d+)" thru_hole[^\n]*\n\t+\(at ([-\d.]+) ([-\d.]+)', blk)}
+    assert len(pads) == NPINS
+    lo, hi = min(p[0] for p in pads.values()), max(p[0] for p in pads.values())
+    where = {p: k for k, p in pads.items()}
+    sigma = {}
+    for k, (x, y) in pads.items():
+        q = (round(lo + hi - x, 3), y)
+        assert q in where, f"pad {k} has no mirror hole"
+        sigma[k] = where[q]
+    return sigma
 
 
 class Unit:
@@ -347,7 +379,8 @@ class Unit:
 
 
 # ============================================================================= building units
-def build_unit(types, rotors=("I", "II", "III"), reflector="B", *, facing4="front", swap=None, mutate=None) -> Unit:
+def build_unit(types, rotors=("I", "II", "III"), reflector="B", *, facing4="front", swap=None, mutate=None,
+               s4_sigma=None) -> Unit:
     """rotors = (left, middle, right); reflector name.  facing4/swap/mutate are the negative-test hooks."""
     stack = [(i, k, (facing4 if i == "S4" else f), z) for i, k, f, z in STACK]
     pairs, leads, _ = derive_ribbons(stack)
@@ -355,6 +388,10 @@ def build_unit(types, rotors=("I", "II", "III"), reflector="B", *, facing4="fron
              "W_L": f"rotor_{rotors[0]}", "W_M": f"rotor_{rotors[1]}", "W_R": f"rotor_{rotors[2]}",
              "U": f"reflector_{reflector}"}
     rib = [Ribbon(*sorted(p)) for p in pairs]
+    if s4_sigma:        # S4 = standard board with J1-J4 soldered from the back: its pin k reaches the hole of pin sigma(k)
+        for rb in rib:
+            rb.amap = dict(s4_sigma) if rb.a[0] == "S4" else {}
+            rb.bmap = dict(s4_sigma) if rb.b[0] == "S4" else {}
     lead_map = {}
     for inst, conn in leads:
         if (inst, conn) == LAYOUT_LEADS["IN"]:
@@ -557,6 +594,64 @@ def run_negative_tests(types, texts, work, oracle) -> list[str]:
     return errs
 
 
+def back_assembled_study(types, oracle, ends, samples=20, exhaustive="B II IV V", quick=False) -> list[str]:
+    """The idea "S4 = the STANDARD bare PCB with J1-J4 soldered upside down from the back" (no separate board).
+    Returns problems = places where the model contradicts the documented verdict (the option does NOT work):
+    front-facing: pin 1 is aligned but the lines are wrong; back-facing: pin 1 is wrong at all four jumpers too."""
+    errs = []
+    sigma = dsub_sigma((SHIFTER_DIR / "shifter_board.kicad_pcb").read_text(encoding="utf8"))
+    assert sigma[1] == 19 and sigma[19] == 1
+    assert all(sigma[sigma[k]] == k for k in sigma)
+    row1 = {k: sigma[k] for k in range(1, 20)}
+    row2 = {k: sigma[k] for k in range(20, 38)}
+    assert row1 == {k: 20 - k for k in range(1, 20)} and row2 == {k: 57 - k for k in range(20, 38)}
+    print("  sigma (pin k of a back-soldered connector sits in the hole of standard pin sigma(k); from the pad coordinates):")
+    print("    row 1: k -> 20 - k   (1..19: 1->19, 2->18, ... 19->1)")
+    print("    row 2: k -> 57 - k   (20..37: 20->37, 21->36, ... 37->20)")
+    cut = [k for k in range(1, 27) if sigma[k] > 26]
+    print(f"    cable pin k (line k on every standard card) reaches the S4 hole of line sigma(k): lines A..S (pins 1..19) come "
+          f"out reversed (A<->S, B<->R, ...), lines T..Z (pins {cut[0]}..{cut[-1]}) land in the unused holes 31..37 = OPEN")
+    for facing in ("front", "back"):
+        stack = [(i, k, (facing if i == "S4" else f), z) for i, k, f, z in STACK]
+        pe = pin1_check(stack, "back", ends)
+        print(f"  S4 facing {facing}, standard PCB back-soldered: pin-1 alignment "
+              + ("all 14 jumpers aligned" if not pe else f"{len([x for x in pe if not x.startswith('lead')])} of 14 jumpers misaligned "
+                 f"({', '.join(x.split(' (')[0] for x in pe if not x.startswith('lead'))})"))
+        if facing == "front" and pe:
+            errs.append("back-assembled S4 facing front: pin 1 expected aligned")
+        if facing == "back" and not pe:
+            errs.append("back-assembled S4 facing back: pin 1 expected misaligned")
+        rng = random.Random(4)
+        enigma_i = [("B",) + x for x in itertools.permutations(("I", "II", "III", "IV", "V"), 3)]
+        tot = good_all = lines_ok = 0
+        order_pos = [(o, [(0, 0, 0, 0)] + [(rng.randrange(N), rng.randrange(N), rng.randrange(N), 0) for _ in range(samples - 1)])
+                     for o in enigma_i]
+        if not quick:
+            order_pos.append((tuple(exhaustive.split()), ((l, m, r, 0) for l in range(N) for m in range(N) for r in range(N))))
+        for k, (order, positions) in enumerate(order_pos):
+            unit = build_unit(types, order[1:], order[0], facing4=facing, s4_sigma=sigma)
+            n0, ok0, lines0 = 0, 0, 0
+            for l, m, r, kk in positions:
+                exp = scrambler_port(order, l, m, r)
+                perm, problems = unit.permutation(from_cores(l, m, r, kk))
+                n0 += 1
+                ok0 += (not problems and perm == exp)
+                lines0 += sum(1 for i in range(N) if perm[i] == exp[i])
+            if k == len(enigma_i):
+                print(f"    exhaustive {' '.join(order)}: {n0} positions, {ok0} fully correct, "
+                      f"{lines0 / (n0 * N):.1%} of the lines correct")
+            else:
+                tot += n0
+                good_all += ok0
+                lines_ok += lines0
+        print(f"    {len(enigma_i)} Enigma I orders x {samples} positions = {tot} traces: {good_all} fully correct, "
+              f"{lines_ok / (tot * N):.1%} of the 26 lines reach the right output -> "
+              + ("FAILS as predicted" if good_all == 0 else "UNEXPECTEDLY WORKS"))
+        if good_all:
+            errs.append(f"back-assembled S4 facing {facing}: composition unexpectedly correct")
+    return errs
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--build-dir")
@@ -655,6 +750,10 @@ def main() -> int:
                   f"[{time.time() - t1:.0f} s]")
             allerr += fails[:3]
             allerr += [f"port mismatch x{mm}"] if mm else []
+
+    # --- 5b. the alternative "standard PCB, J1-J4 soldered from the back" (documented NEGATIVE result)
+    print("alternative S4 = standard PCB with J1-J4 soldered upside down from the back (expected to fail, shifter-board README 6.2):")
+    allerr += back_assembled_study(types, oracle, ends, samples=max(2, a.samples // 5), exhaustive=a.exhaustive, quick=a.quick)
 
     # --- 6. negative tests
     print("negative tests (each mutated unit must differ from the scrambler of the intended wheel order):")
