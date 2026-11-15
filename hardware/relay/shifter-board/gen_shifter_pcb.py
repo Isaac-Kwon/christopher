@@ -7,6 +7,7 @@ mounting holes, all footprints placed and oriented, the nets imported from the s
 
     python gen_shifter_pcb.py            # exports the netlist with kicad-cli, writes shifter_board.kicad_pcb
                                          # and merges the board design rules into shifter_board.kicad_pro
+    python gen_shifter_pcb.py --variant s4   # the front-facing a4 board shifter_board_s4.kicad_pcb (+ .kicad_pro)
 
 Standard library only.  Footprints are copied from the installed KiCad libraries
 (env KICAD_SHARE overrides the default install location, env KICAD_CLI the kicad-cli path).
@@ -14,9 +15,19 @@ Standard library only.  Footprints are copied from the installed KiCad libraries
 Placement scheme (see README.md): relays in a 5 (stage columns) x 26 (line rows, A at the top) grid,
 rotated 90 degrees; per relay a flyback diode left of the coil pins; stage indicator R + LED below each
 column; J1/J2/J5 on the left edge, J3/J4 on the right edge.
+
+S4 variant (--variant s4): same schematic/netlist, outline, holes and relay grid.  Only J1-J4 change: they are
+placed on the BOTTOM side (B.Cu, relays stay on top), mirrored along the edge: the pin row and its span are the
+same, but pin 1 sits at the other end of the connector (the y0 values of J1<->J3 and J2<->J4 are exchanged and
+the rotations turned by 180 degrees).  Why: a card mounted facing the front is seen from the other side than the
+cards facing back, so with the standard footprint pin 1 of its four jumper sockets would be at the wrong end of
+every ribbon (wiring-cards/README.md); the mirror is the only placement that turns pin 1 around, because a
+D-sub is keyed and cannot be rotated on its own side without pointing the body into the board.  Also the
+sockets then face back like those of all other cards.  J5 and everything else is unchanged.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -93,6 +104,45 @@ def block_end(t: str, i: int) -> int:
         j += 1
 
 
+def _swap_side(t: str) -> str:
+    return re.sub(r'"([FB])\.(\w+)"', lambda m: f'"{"B" if m[1] == "F" else "F"}.{m[2]}"', t)
+
+
+def _mirror_text(t: str) -> str:
+    def fix(m):
+        blk = m.group(0)
+        if "(justify" in blk:
+            return re.sub(r'\(justify ([^)]*)\)', lambda k: f'(justify {k[1]} mirror)' if "mirror" not in k[1] else k[0], blk)
+        return blk[:-1].rstrip() + "\n\t\t\t(justify mirror)\n\t\t)" if blk.endswith(")") else blk
+    out, pos, res = 0, 0, []
+    for m in re.finditer(r'\(effects', t):
+        if m.start() < pos:
+            continue
+        e = block_end(t, m.start())
+        res.append(t[pos:m.start()])
+        blk = t[m.start():e]
+        if "(justify" in blk:
+            blk = re.sub(r'\(justify ([^)]*)\)',
+                         lambda k: k[0] if "mirror" in k[1] else f'(justify {k[1]} mirror)', blk)
+        else:
+            blk = blk[:-1].rstrip() + "\n\t\t\t(justify mirror)\n\t\t)"
+        res.append(blk)
+        pos = e
+    res.append(t[pos:])
+    return "".join(res)
+
+
+def _mirror_y(t: str) -> str:
+    """Mirror every coordinate of a footprint body in y (what KiCad stores for a back-side footprint)."""
+    def at(m):
+        a = m.group(4)
+        return f'(at {m.group(2)} {fmt(-float(m.group(3)))}' + (f' {fmt((-float(a)) % 360)}' if a else '') + ')'
+    t = re.sub(r'\((at) ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', at, t)
+    t = re.sub(r'\((start|end|center|mid|xy) ([-\d.]+) ([-\d.]+)\)',
+               lambda m: f'({m.group(1)} {m.group(2)} {fmt(-float(m.group(3)))})', t)
+    return t
+
+
 def place(libid: str, ref: str, value: str, x: float, y: float, rot: float,
           pin_net: dict[str, tuple[int, str]], hide_ref=False, flip=False) -> str:
     """Instantiate a library footprint on the board (F.Cu side)."""
@@ -103,9 +153,13 @@ def place(libid: str, ref: str, value: str, x: float, y: float, rot: float,
     t = re.sub(r'^\t\(generator [^)]*\)\n', "", t, flags=re.M)
     t = re.sub(r'^\t\(generator_version [^)]*\)\n', "", t, flags=re.M)
     t = t.replace(f'(footprint "{name}"', f'(footprint "{libid}"', 1)
-    head = f'\t(layer "F.Cu")\n\t(uuid "{uid("fp", ref)}")\n\t(at {fmt(x)} {fmt(y)}{" " + fmt(rot) if rot else ""})\n'
+    head = (f'\t(layer "{"B.Cu" if flip else "F.Cu"}")\n\t(uuid "{uid("fp", ref)}")\n'
+            f'\t(at {fmt(x)} {fmt(y)}{" " + fmt(rot) if rot else ""})\n')
     t, n = re.subn(r'^\t\(layer "F\.Cu"\)\n', head, t, count=1, flags=re.M)
     assert n == 1, libid
+    if flip:    # back-side footprint: layers swapped, body mirrored in the library y (pcbnew's Flip), texts mirrored
+        body_start = t.index(head) + len(head)
+        t = t[:body_start] + _mirror_text(_mirror_y(_swap_side(t[body_start:])))
     # reference / value / footprint properties
     t = re.sub(r'\(property "Reference" "[^"]*"', f'(property "Reference" "{ref}"', t, count=1)
     t = re.sub(r'\(property "Value" "[^"]*"', f'(property "Value" "{value}"', t, count=1)
@@ -167,7 +221,11 @@ def export_netlist(path: Path):
 
 
 # ----------------------------------------------------------------------------- placement
-def placements(nl: "vs.Netlist"):
+VARIANTS = {"std": PROJECT, "s4": PROJECT + "_s4"}      # variant -> output board name
+S4_TEXT = "S4 / a4 - FRONT"
+
+
+def placements(nl: "vs.Netlist", variant: str = "std"):
     """Yield (ref, footprint libid, x, y, rot, hide_ref) for every schematic part."""
     P = {}
     for b in range(5):
@@ -191,6 +249,12 @@ def placements(nl: "vs.Netlist"):
     P["J2"] = (CONN_DEPTH, top + span + gap + 10.28, 270, False)
     P["J3"] = (BOARD_W - CONN_DEPTH, top + 60.13, 90, False)
     P["J4"] = (BOARD_W - CONN_DEPTH, top + span + gap + 60.13, 90, False)
+    if variant == "s4":
+        # mirrored along the edge, on B.Cu: same pin-row span (centre), pin 1 at the other end, body still outward
+        for a, b in (("J1", "J3"), ("J2", "J4")):
+            (xa, ya, ra, _), (xb, yb, rb, _) = P[a], P[b]
+            P[a] = (xa, yb, (ra + 180) % 360, False, True)
+            P[b] = (xb, ya, (rb + 180) % 360, False, True)
     # mounting holes (plated, net CHASSIS) and the CHASSIS-0 V pair (0003 S2)
     for k, (x, y) in enumerate(HOLES, 1):
         P[f"H{k}"] = (x, y, 0, True)
@@ -201,7 +265,7 @@ def placements(nl: "vs.Netlist"):
     return P
 
 
-def build(nl: "vs.Netlist") -> tuple[str, dict]:
+def build(nl: "vs.Netlist", variant: str = "std") -> tuple[str, dict]:
     netid = {}
     node_net: dict[tuple[str, str], tuple[int, str]] = {}
     for name in sorted(nl.nets):
@@ -212,25 +276,28 @@ def build(nl: "vs.Netlist") -> tuple[str, dict]:
     for ref in nl.parts:
         if re.fullmatch(r"J\d", ref):
             node_net[(ref, "SH")] = (netid["/CHASSIS"], "/CHASSIS")
-    P = placements(nl)
+    P = placements(nl, variant)
     missing = set(nl.parts) - set(P)
     assert not missing, f"unplaced parts: {sorted(missing)}"
 
     o = ["(kicad_pcb\n\t(version 20241229)\n\t(generator \"gen_shifter_pcb.py\")\n\t(generator_version \"1.0\")\n"
          "\t(general\n\t\t(thickness 1.6)\n\t\t(legacy_teardrops no)\n\t)\n\t(paper \"A2\")\n"
-         "\t(title_block\n\t\t(title \"Relay shifter board (binary 5-stage shifter pair)\")\n\t\t(rev \"A\")\n"
+         "\t(title_block\n\t\t(title \"Relay shifter board (binary 5-stage shifter pair)"
+         + (" - S4 variant (a4, front-facing)" if variant == "s4" else "") + "\")\n\t\t(rev \"A\")\n"
          "\t\t(comment 1 \"Generated by gen_shifter_pcb.py - placement only, routing by hand\")\n"
-         "\t\t(comment 2 \"Netlist from shifter_board.kicad_sch; 4 layers, G6S-2 THT relays\")\n\t)\n"]
+         "\t\t(comment 2 \"Netlist from shifter_board.kicad_sch; 4 layers, G6S-2 THT relays\")\n"
+         + ('\t\t(comment 3 \"S4 variant: J1-J4 mirrored on B.Cu so that pin 1 of every stack jumper is aligned\")\n'
+            if variant == "s4" else "") + "\t)\n"]
     o.append(LAYERS)
     o.append(SETUP)
     o.append('\t(net 0 "")\n')
     for name, i in netid.items():
         o.append(f'\t(net {i} "{name}")\n')
     for ref in sorted(P):
-        x, y, rot, hide = P[ref]
+        x, y, rot, hide, *fl = P[ref]
         part = nl.parts[ref]
         o.append(place(part["footprint"], ref, part["value"], x, y, rot,
-                       {p: node_net[(ref, p)] for (r, p) in node_net if r == ref}, hide_ref=hide))
+                       {p: node_net[(ref, p)] for (r, p) in node_net if r == ref}, hide_ref=hide, flip=bool(fl and fl[0])))
     # outline
     corners = [(0, 0), (BOARD_W, 0), (BOARD_W, BOARD_H), (0, BOARD_H)]
     for k in range(4):
@@ -244,6 +311,12 @@ def build(nl: "vs.Netlist") -> tuple[str, dict]:
         o.append(f'\t(gr_text "STAGE {1 << b}"\n\t\t(at {fmt(X + 6)} {fmt(ROW0_Y - 9.5)} 0)\n\t\t(layer "F.SilkS")\n'
                  f'\t\t(uuid "{uid("lbl", b)}")\n\t\t(effects\n\t\t\t(font\n\t\t\t\t(size 1.5 1.5)\n\t\t\t\t(thickness 0.2)\n'
                  f'\t\t\t)\n\t\t)\n\t)\n')
+    if variant == "s4":     # unmistakable marking on the component side, in the free strip right of stage 16
+        for k, (txt, size, thick, cx) in enumerate(((S4_TEXT, 4.0, 0.5, 218.0),
+                                                    ("J1-J4 MIRRORED ON B.Cu: PIN 1 AT THE OTHER END", 1.5, 0.2, 226.0))):
+            o.append(f'\t(gr_text "{txt}"\n\t\t(at {fmt(cx)} {fmt(BOARD_H / 2)} 90)\n\t\t(layer "F.SilkS")\n'
+                     f'\t\t(uuid "{uid("s4txt", k)}")\n\t\t(effects\n\t\t\t(font\n\t\t\t\t(size {fmt(size)} {fmt(size)})\n'
+                     f'\t\t\t\t(thickness {fmt(thick)})\n\t\t\t)\n\t\t)\n\t)\n')
     o.append(")\n")
     return "".join(o), P
 
@@ -322,14 +395,19 @@ def merge_project(path: Path):
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--variant", choices=sorted(VARIANTS), default="std",
+                    help="std: shifter_board.kicad_pcb (S1-S3); s4: shifter_board_s4.kicad_pcb (front-facing a4)")
+    a = ap.parse_args()
+    name = VARIANTS[a.variant]
     with tempfile.TemporaryDirectory() as td:
         net = Path(td) / "shifter.net"
         export_netlist(net)
         nl = vs.Netlist(net.read_text(encoding="utf8"))
-    text, P = build(nl)
-    (HERE / f"{PROJECT}.kicad_pcb").write_text(text, encoding="utf8", newline="\n")
-    merge_project(HERE / f"{PROJECT}.kicad_pro")
-    print(f"wrote {PROJECT}.kicad_pcb ({len(P)} parts incl. {len(HOLES)} plated mounting holes, {BOARD_W} x {BOARD_H} mm) and board rules in the .kicad_pro")
+    text, P = build(nl, a.variant)
+    (HERE / f"{name}.kicad_pcb").write_text(text, encoding="utf8", newline="\n")
+    merge_project(HERE / f"{name}.kicad_pro")
+    print(f"wrote {name}.kicad_pcb ({len(P)} parts incl. {len(HOLES)} plated mounting holes, {BOARD_W} x {BOARD_H} mm) and board rules in the .kicad_pro")
 
 
 if __name__ == "__main__":

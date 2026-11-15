@@ -11,7 +11,8 @@ For rotor_I..VIII and reflector_B/C:
      U: J2, J3) has the footprint, position and rotation of the same-named connector in shifter_board.kicad_pcb;
   4. determinism: regenerating schematic and board gives byte-identical files;
   5. negative tests: two pad nets swapped; a connector moved by 1 mm; the outline changed; a hole removed.
-Information (not a pass/fail item): the pin-1 end of every stack ribbon, from the real footprint poses.
+  6. pin-1 alignment of all 14 stack ribbons and the leads from the real footprint poses (S4 = shifter_board_s4.kicad_pcb);
+     the standard shifter as S4 would misalign 4 jumpers (information).
 """
 from __future__ import annotations
 
@@ -121,36 +122,6 @@ def check_card(proj: str, kind: str, name: str, work: Path, shifter: dict, shift
     return errs, text
 
 
-# ----------------------------------------------------------------------------- pin-1 ends (information)
-def pin1_end(fp_text: str, x0: float, y0: float, theta: float) -> str:
-    """'L' if pin 1 of the D-sub is at the small-y (u) end of its connector, else 'R'."""
-    def local(pin):
-        m = re.search(r'\(pad "%s"[^\n]*\n\t\t\(at ([-\d.]+) ([-\d.]+)' % pin, fp_text)
-        return float(m[1]), float(m[2])
-    (a1, b1), (a19, b19) = local("1"), local("19")
-    y1 = K.pad_xy(x0, y0, theta, False, a1, b1)[1]
-    y19 = K.pad_xy(x0, y0, theta, False, a19, b19)[1]
-    return "L" if y19 > y1 else "R"
-
-
-def pin1_report(shifter: dict, rotor: dict, refl: dict) -> list[str]:
-    fp = K.FpLib().text(C.FP_DSUB37)
-    # connector -> pin-1 end, in the stack frame u -> +x for BOTH facings (README.md section 2)
-    end = {}
-    for inst, kind, _, _ in VC.STACK:
-        src = {"shifter": shifter, "W": rotor, "U": refl}[kind]
-        for conn in VC.CONNECTORS[kind]:
-            d = src[conn]
-            end[(inst, conn)] = pin1_end(fp, d["x"], d["y"], d["rot"])
-    bad = []
-    pairs, _, _ = VC.derive_ribbons()
-    for p in sorted(map(sorted, pairs)):
-        a, b = p
-        if end[a] != end[b]:
-            bad.append(f"{a[0]}.{a[1]} (pin 1 {end[a]}) - {b[0]}.{b[1]} (pin 1 {end[b]})")
-    return bad
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--build-dir")
@@ -192,13 +163,16 @@ def main() -> int:
     detect("outline 1 mm too wide", text.replace("(end 250 0)", "(end 251 0)", 1), "pose")
     neg.unlink()
 
-    # information: pin-1 ends of the stack ribbons
-    rotor, refl = parse_board(texts["rotor_I"]), parse_board(texts["reflector_B"])
-    bad = pin1_report(shifter, rotor, refl)
-    print(f"information: pin-1 end of the connectors in the stack frame (from the footprint poses): "
-          f"{14 - len(bad)} of 14 ribbons join connectors with the same pin-1 end")
-    for b in bad:
-        print("   mismatch:", b)
+    # pin-1 ends of the stack ribbons, from the real footprint poses of the board files (S4 = the mirrored variant)
+    bad = VC.pin1_check(VC.STACK, "s4", VC.board_pin1_ends())
+    print(f"pin-1 alignment of the 14 stack ribbons and the IN/OUT leads (S1-S3 standard shifter, S4 variant, rotor_I, reflector_B): "
+          f"{'all aligned' if not bad else bad}")
+    allerr += [f"pin 1: {x}" for x in bad]
+    old = VC.pin1_check(VC.STACK, "std", VC.board_pin1_ends(), s4_variant=False)
+    print(f"information: with the standard shifter as S4, {len(old)} jumpers would have pin 1 at opposite ends "
+          f"({', '.join(sorted(x.split(' (')[0] for x in old))}): the reason for shifter_board_s4.kicad_pcb")
+    if len(old) != 4:
+        allerr.append("pin 1: the standard-S4 negative case is not the expected 4 jumpers")
 
     print("RESULT:", "PASS" if not allerr else f"FAIL {allerr[:5]}")
     return 1 if allerr else 0

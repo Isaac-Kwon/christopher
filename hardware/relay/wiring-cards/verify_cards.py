@@ -8,7 +8,13 @@ What is composed (everything from the actual generated schematics, exported with
   * 3 W cards (rotor_<name>.kicad_sch) for the chosen wheel order, 1 U card (reflector_<name>.kicad_sch),
   * the 14 straight 37-way ribbons (pin n to pin n) of layout.md 3.4, DERIVED from the card poses of the stack
     (which edge/slot each connector of each card has, a4 facing front, all others facing back) and compared with the
-    explicit table of layout.md; the IN and OUT leads are S1.J1 / S1.J4.
+    explicit table of layout.md; the IN and OUT leads are S1.J1 / S1.J4.  S4 is the front-facing VARIANT of the
+    shifter board (shifter_board_s4.kicad_pcb: J1-J4 mirrored on the back side), so its jumpers are 25 / 50 mm.
+  * PIN-1 ALIGNMENT from the real board files (footprint poses of shifter_board.kicad_pcb for S1-S3,
+    shifter_board_s4.kicad_pcb for S4, rotor_I / reflector_B for W / U): both sockets of every ribbon must have pin 1
+    at the same end (a D-sub is keyed: the ribbon cannot be flipped), and so must the IN / OUT lead sockets with the
+    rest of their edge/slot chain.  The old configuration (the standard shifter as S4) is a negative test: it fails
+    on exactly the four jumpers S4.J1-U.J3, S4.J2-W_L.J4, S4.J3-W_L.J1, S4.J4-U.J2.
 Simulation: the shifter stage relays are set from Controls::from_cores (Python port of relay.rs: a1 = r+k,
 a2 = m-(r+k), a3 = l-m, a4 = l, S4 mounted reversed), relay contacts closed per the G6S-2 pin functions of
 verify_shifter.py, connectivity by union-find over nets + closed contacts + ribbons.  For every position the 26
@@ -26,6 +32,7 @@ from __future__ import annotations
 import argparse
 import itertools
 import random
+import re
 import shutil
 import sys
 import time
@@ -38,6 +45,8 @@ import ki_common as K  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 SHIFTER_DIR = HERE.parent / "shifter-board"
+sys.path.insert(0, str(SHIFTER_DIR))
+import verify_shifter_pcb as vsp  # noqa: E402  (board_parts / pin1_end of the real footprint poses)
 N = 26
 NPINS = 37
 
@@ -209,9 +218,11 @@ LAYOUT_RIBBONS = {
 LAYOUT_LEADS = {"IN": ("S1", "J1"), "OUT": ("S1", "J4")}
 
 
-def derive_ribbons(stack=STACK):
+def derive_ribbons(stack=STACK, s4_variant=True):
     """Straight ribbons from the poses: at each (edge, slot) the connectors in stack order are joined pairwise
-    front to back; an unpaired last connector is a lead to the panel jack.  Returns (pairs, leads, lengths)."""
+    front to back; an unpaired last connector is a lead to the panel jack.  Returns (pairs, leads, lengths).
+    The standard shifter facing front has its sockets on the component side, 14 mm in front of its board
+    (+14 mm per ribbon); the S4 variant has them on the back side like every other card."""
     chains: dict[tuple, list] = {}
     z = {inst: zz for inst, _, _, zz in stack}
     facing = {inst: f for inst, _, f, _ in stack}
@@ -223,10 +234,55 @@ def derive_ribbons(stack=STACK):
         for k in range(0, len(chain) - 1, 2):
             a, b = chain[k], chain[k + 1]
             pairs.append(frozenset([a, b]))
-            lengths.append(z[b[0]] - z[a[0]] + (14 if facing[a[0]] == "front" else 0))
+            lengths.append(z[b[0]] - z[a[0]] + (14 if facing[a[0]] == "front" and not s4_variant else 0))
         if len(chain) % 2:
             leads.append(chain[-1])
     return pairs, leads, lengths
+
+
+def board_pin1_ends() -> dict:
+    """{(kind key, connector): 'L'/'R'} from the real board files, kind key in std / s4 / W / U.  'L' = pin 1 at the
+    smaller board y of the connector's pin row.  In the stack frame the along-edge coordinate is +board y for BOTH
+    facings (a front-facing card is seen from its component side rotated counter-clockwise, a back-facing one from
+    the solder side rotated clockwise: both map board y to +x, README.md section 2), so the board-frame end is the
+    stack-frame end."""
+    files = {"std": SHIFTER_DIR / "shifter_board.kicad_pcb", "s4": SHIFTER_DIR / "shifter_board_s4.kicad_pcb",
+             "W": HERE / "rotor_I.kicad_pcb", "U": HERE / "reflector_B.kicad_pcb"}
+    out = {}
+    for key, f in files.items():
+        for ref, d in vsp.board_parts(f.read_text(encoding="utf8")).items():
+            if re.fullmatch(r"J[1-4]", ref):
+                out[(key, ref)] = vsp.pin1_end(d)
+    return out
+
+
+def _key(inst: str, s4_board: str) -> str:
+    return {"S4": s4_board, "W_L": "W", "W_M": "W", "W_R": "W", "U": "U"}.get(inst, "std")
+
+
+def pin1_check(stack, s4_board="s4", ends=None, s4_variant=True) -> list[str]:
+    """Pin-1 alignment of the 14 jumpers and the IN / OUT leads; returns the list of problems (empty = aligned).
+    stack: (instance, kind, facing, z); the shifter of S4 is the board file `s4_board` (std or s4), the others std."""
+    ends = ends or board_pin1_ends()
+    pairs, leads, _ = derive_ribbons(stack, s4_variant)
+    end = {(inst, c): ends[(_key(inst, s4_board), c)] for inst, kind, _, _ in stack for c in CONNECTORS[kind]}
+    bad = []
+    for a, b in sorted(map(sorted, pairs)):
+        if end[a] != end[b]:
+            bad.append(f"{a[0]}.{a[1]} (pin 1 {end[a]}) - {b[0]}.{b[1]} (pin 1 {end[b]})")
+    # a lead runs along its edge/slot chain as the continuation of the jumper before it: its socket must have the
+    # pin-1 end of that neighbouring connector (the jack end of the lead is then wired the same way for IN and OUT)
+    facing = {i: f for i, _, f, _ in stack}
+    chain_of = {}
+    for inst, kind, fc, _ in stack:
+        for c in CONNECTORS[kind]:
+            chain_of.setdefault(POSE[fc][c], []).append((inst, c))
+    for lead in leads:
+        chain = chain_of[POSE[facing[lead[0]]][lead[1]]]
+        prev = chain[chain.index(lead) - 1]
+        if end[prev] != end[lead]:
+            bad.append(f"lead on {lead[0]}.{lead[1]} (pin 1 {end[lead]}) vs its neighbour {prev[0]}.{prev[1]} (pin 1 {end[prev]})")
+    return bad
 
 
 class Ribbon:
@@ -463,6 +519,26 @@ def run_negative_tests(types, texts, work, oracle) -> list[str]:
     if not tbl:
         errs.append("negative test missed: S4 facing back vs ribbon table")
 
+    # pin-1 alignment (the physical orientation of the sockets; the netlist composition cannot see it)
+    ends = board_pin1_ends()
+    want_bad = {"S4.J1 (pin 1 L) - U.J3 (pin 1 R)", "S4.J2 (pin 1 L) - W_L.J4 (pin 1 R)",
+                "S4.J3 (pin 1 R) - W_L.J1 (pin 1 L)", "S4.J4 (pin 1 R) - U.J2 (pin 1 L)"}
+    got = set(pin1_check(STACK, "std", ends, s4_variant=False))
+    ok = got == want_bad
+    print(f"  negative test {'detected' if ok else 'MISSED  '}: the standard shifter used as S4 "
+          f"(pin 1 at the wrong end of {len(got)} jumpers: {', '.join(sorted(x.split(' (')[0] for x in got))})")
+    if not ok:
+        errs.append(f"negative test missed: standard shifter as S4 (got {sorted(got)})")
+    s3 = pin1_check(STACK, "s4", ends | {("std", c): ends[("s4", c)] for c in CONNECTORS["shifter"]})
+    print(f"  negative test {'detected' if s3 else 'MISSED  '}: the mirrored S4 board used for S1-S3 as well ({len(s3)} problems)")
+    if not s3:
+        errs.append("negative test missed: mirrored board in every shifter slot")
+    flipped = ends | {("W", "J1"): "R" if ends[("W", "J1")] == "L" else "L"}
+    wf = pin1_check(STACK, "s4", flipped)
+    print(f"  negative test {'detected' if wf else 'MISSED  '}: W card with pin 1 of J1 at the other end ({len(wf)} problems)")
+    if not wf:
+        errs.append("negative test missed: W.J1 pin 1 flipped")
+
     # netlist mutations of single cards (a pin swap inside a card), composed into the unit
     def mutated(proj, ref, pa, pb, flags):
         t = dict(types)
@@ -511,11 +587,24 @@ def main() -> int:
         e.append(f"derived ribbons differ from layout.md: {sorted(map(sorted, set(pairs) ^ LAYOUT_RIBBONS))}")
     if set(leads) != set(LAYOUT_LEADS.values()):
         e.append(f"leads {leads}")
-    if Counter(lengths) != Counter({25: 10, 39: 2, 64: 2}):
-        e.append(f"ribbon lengths {dict(Counter(lengths))} != layout.md 3.4 (25 x10, 39 x2, 64 x2)")
-    print(f"ribbons derived from the card poses (S4 front, rest back): {len(pairs)} ribbons + {len(leads)} leads, "
+    if Counter(lengths) != Counter({25: 12, 50: 2}):
+        e.append(f"ribbon lengths {dict(Counter(lengths))} != layout.md 3.4 (S4 variant: 25 x12, 50 x2)")
+    print(f"ribbons derived from the card poses (S4 variant front, rest back): {len(pairs)} ribbons + {len(leads)} leads, "
           f"lengths {dict(Counter(lengths))} mm: {'= layout.md 3.4' if not e else e}")
     allerr += e
+
+    # --- 2b. pin-1 alignment of all 14 jumpers + the IN / OUT leads, from the real board files
+    ends = board_pin1_ends()
+    pe = pin1_check(STACK, "s4", ends)
+    print("pin-1 alignment from the board files (S1-S3 shifter_board, S4 shifter_board_s4, W rotor_I, U reflector_B):")
+    for p1, p2 in sorted(map(sorted, pairs)):
+        print(f"   {p1[0]}.{p1[1]} (pin 1 {ends[(_key(p1[0], 's4'), p1[1])]}) - {p2[0]}.{p2[1]} (pin 1 {ends[(_key(p2[0], 's4'), p2[1])]})")
+    for lead in leads:
+        print(f"   lead {lead[0]}.{lead[1]} (pin 1 {ends[(_key(lead[0], 's4'), lead[1])]})")
+    nbad = len([x for x in pe if not x.startswith("lead")])
+    print(f"   {14 - nbad} of 14 jumpers aligned, {len(leads) - len([x for x in pe if x.startswith('lead')])} of {len(leads)} leads "
+          f"with their neighbour: {'PASS' if not pe else 'FAIL ' + str(pe)}")
+    allerr += [f"pin 1: {x}" for x in pe]
 
     oracle = Christopher()
 
