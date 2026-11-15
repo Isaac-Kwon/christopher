@@ -1,0 +1,28 @@
+% PCB 배치 부록 (report/figures/make_pcb_figures.py로 생성).
+\chapter{PCB 배치}\label{app:pcb}
+
+부품 배치까지 마친 보드의 앞면 배치도다. 외곽(Edge.Cuts), 부품 외형(F.Fab), 실크, 부품 경계(F.CrtYd)를 그렸다.
+배선은 아직 하지 않았다(넷리스트와 설계 규칙은 보드 파일에 들어 있고, DRC는 미연결 항목만 남는다).
+각 보드는 회로도 부록(\ref{app:schematics})의 같은 이름 회로도에서 생성했고, 보드의 넷리스트가 회로도와
+일치함을 검증 스크립트로 확인했다.
+
+\newcommand{\pcbfigure}[3]{%
+  \IfFileExists{figures/generated/pcb_#1.pdf}{%
+    \begin{figure}[p]
+      \centering
+      \includegraphics[width=\linewidth,height=0.8\textheight,keepaspectratio]{figures/generated/pcb_#1.pdf}
+      \caption{#2}\label{fig:pcb-#1}
+    \end{figure}}{}%
+  #3}
+
+\pcbfigure{shifter-board}{릴레이 시프터 보드의 배치(250 × 228\,mm, 4층). 릴레이 G6S-2를 5단 × 26선 격자로 놓아
+신호가 왼쪽 입력 커넥터에서 오른쪽 출력 커넥터로 흐른다. 역기전력 다이오드는 각 코일 옆, 단 표시등은 각 열 아래.
+릴레이 한 열(26개)만으로 208\,mm라서 계획했던 160 × 200\,mm에는 들어가지 않는다.}{}
+
+\pcbfigure{test-register}{테스트 레지스터 보드의 배치(250 × 140\,mm, 2층). 감지 릴레이 26개와 그 다이오드·램프
+구동이 3 × 9 격자로 같은 모양을 되풀이하고, 통과·정지·타이밍 릴레이와 전원·패널 단자가 위쪽, D-sub 세 개가
+아래 가장자리에 있다.}{}
+
+\pcbfigure{unit-tester}{스크램블러 단위 시험기 보드의 배치(290 × 116\,mm, 4층). 왼쪽 위가 Pico와 USB(저전압
+쪽), 가운데 가로줄이 절연 장벽(디지털 절연기와 포토커플러, 양 끝 슬롯), 그 아래가 24\,V 구동·감지 노드 7묶음과
+전원, 아래 가장자리에 D-sub 37 세 개. 장벽을 건너는 거리는 4.5\,mm 이상이 되도록 DRC 규칙으로 강제했다.}{}
