@@ -18,7 +18,7 @@ from tester_core import NODES
 
 # 165 chain bit assignment: bits 0..51 sense nodes 0..51; 52..66 POS[0..14]; then flags.
 POS_SHIFT = 52
-FLAG_SHIFT = 67          # STOPPED, AT_HOME, END, ESTOP_OK, ILOCK_OK at consecutive bits
+FLAG_SHIFT = 67          # STOPPED, AT_HOME, END, ESTOP_OK, ILOCK_OK, JUDGE, CLEAR at consecutive bits (67..73)
 SENSE_BITS = 80
 
 
@@ -38,7 +38,7 @@ class PicoHal:
         self.strobe = machine.Pin(2, machine.Pin.IN)
         self.run_pin = machine.Pin(3, machine.Pin.OUT, value=0)
         self.home_pin = machine.Pin(4, machine.Pin.OUT, value=0)
-        self.sel = [machine.Pin(p, machine.Pin.OUT, value=0) for p in (20, 21, 22, 23)]
+        self.sel = [machine.Pin(p, machine.Pin.OUT, value=0) for p in (20, 21, 22, 27)]  # GP23 is not on the Pico header (board: MUX_S3 = GP27)
         self.en = [machine.Pin(p, machine.Pin.OUT, value=1) for p in (6, 7, 8, 9)]
         self.adc_in = machine.ADC(26)
         self._rise = 0
@@ -74,9 +74,9 @@ class PicoHal:
     def aux(self):
         v = self._read_chain()
         pos = v >> POS_SHIFT & 0x7FFF
-        flags = (v >> FLAG_SHIFT & 0x1F) << 1 | (self.strobe.value() & 1)
-        # flags bit order: STROBE, STOPPED, AT_HOME, END, ESTOP_OK, ILOCK_OK
-        return pos, flags & 0x3F
+        flags = (v >> FLAG_SHIFT & 0x7F) << 1 | (self.strobe.value() & 1)
+        # flags bit order: STROBE, STOPPED, AT_HOME, END, ESTOP_OK, ILOCK_OK, JUDGE, CLEAR
+        return pos, flags & 0xFF
 
     def set_run(self, v):
         self.run_pin.value(v)

@@ -17,6 +17,8 @@
    - 회로도 부록 추가함(부록 B, `report/figures/make_schematic_figures.py`가 KiCad 회로도 5종을 PDF로 뽑음). 테스트 레지스터·단위 시험기는 작업 중인 판이므로 완료 후 스크립트를 다시 돌릴 것.
    - 본문 설명·그림이 아직 없음: 릴레이 계수기 보드(자리당 11릴레이 회로), 시프터 보드 PCB 배치, 테스트 레지스터 보드, 단위 시험기 보드·PCB 배치, 대각선 보드 5장 분할, 드럼 PCB 재배선(B벌 레인 r 18.4–23.8, 뒷면 구리 채움).
    - 결정 0002의 표준·부품(ISO 13857, ADA 308, Mill-Max Omniball, NEMA 34 모터)을 `references.bib`에 등록하고 본문에서 `\cite`로.
+   - **결정 0001 회로 수정 반영 필요**: 테스트 레지스터 보드 시뮬레이션이 그려진 회로의 문제 4건을 찾아 보드에서 고침 — (1) 26접점 사슬은 +24V가 아니라 유지 버스 H에서 공급, (2) P 자기유지 접점에 직렬 다이오드, (3) S2 잠금·S 자기유지를 HSUP에서 공급, (4) 해제 릴레이 K34(RELEASE 버튼) 추가. `docs/decisions/0001-*.md`와 `report/figures/hw-register-circuit.tex`를 이 보드(`hardware/common/test-register/README.md` 3.2절)에 맞출 것. 뱅크가 줘야 할 최소 폭: STROBE 5ms, JUDGE 5ms, CLEAR 10ms(결정의 6/7/12ms 충족).
+   - 인터페이스 미결: STROBE/JUDGE/CLEAR가 24V 레벨인지 무전압 접점인지, J2 36번 STOP_LATCH 제안, 시험기 RUN/HOME 24V 출력 사양, 표시용 종속 릴레이 코일 전류 — 설계 기준서 4.2절 갱신.
    - 릴레이식 유닛 크기: 시프터 보드가 250×228mm로 커져 카드 케이지 치수(개념 문서·보고서) 갱신 필요.
 7. ~~API 정리~~ **완료 (2026-11-15)** — `Menu.subset(positions)`(크립 유지, 체킹 가능), `Menu.with_test(letter, wire)`, `Bombe.run(..., fixed_right=)`·`search(..., fixed_right=)` 구간 구동(코어 `BombeOptions::fixed_right`). 메뉴 카드 도구도 새 API로 옮김(카드 6장 재검증 통과).
 

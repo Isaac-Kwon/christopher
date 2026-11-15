@@ -1,0 +1,7 @@
+(version 1)
+# Isolation barrier: any copper of the FIELD domain (24 V adapter) must stay this far from any copper of
+# the MCU domain (USB).  4.5 mm is the pad gap of the TLP291-4 footprint (4.9 mm) minus margin; the wide
+# ISO7340 (7.25 mm) and the DIP-8 6N137 (6.0 mm) are larger.
+(rule "domain_isolation"
+  (constraint clearance (min 4.5mm))
+  (condition "(A.NetClass == 'FIELD' && B.NetClass == 'MCU') || (A.NetClass == 'MCU' && B.NetClass == 'FIELD')"))
