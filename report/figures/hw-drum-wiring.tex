@@ -1,0 +1,28 @@
+% 드럼 기판의 네 링 배선 (로터 I, 링을 곧게 펴서 그림). 그림 fig:hw-drum-wiring
+% W = EKMFLGDQVZNTOWYHXUSPAIBRCJ (data/wirings/enigma.txt의 로터 I)
+\begin{tikzpicture}[x=0.46cm,y=1cm,
+    pad/.style={draw=cgray,fill=cyellowbg,minimum width=4mm,minimum height=4.4mm,inner sep=0pt,font=\scriptsize\ttfamily}]
+  \def\wI{0/4,1/10,2/12,3/5,4/11,5/6,6/3,7/16,8/21,9/25,10/13,11/19,12/14,13/22,14/24,15/7,16/23,17/20,18/18,19/15,20/0,21/8,22/1,23/17,24/2,25/9}
+  % 패드 네 줄 (위에서부터 링 4, 3, 2, 1)
+  \foreach \y/\r in {5.4/4,3.6/3,1.8/2,0/1} {
+    \foreach \i [count=\n from 0] in {A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z} {
+      \node[pad] (p\r-\n) at (\n,\y) {\i};
+    }
+  }
+  % 벌 A: 링 4의 패드 i -- 링 3의 패드 W[i]
+  \foreach \i/\w in \wI { \draw[cblue,line width=0.35pt] (p4-\i.south) -- (p3-\w.north); }
+  \draw[cblue,line width=1.4pt] (p4-0.south) -- (p3-4.north);
+  % 벌 B: 링 1의 패드 i -- 링 2의 패드 W[i]
+  \foreach \i/\w in \wI { \draw[corange,line width=0.35pt] (p1-\i.north) -- (p2-\w.south); }
+  \draw[corange,line width=1.4pt] (p1-0.north) -- (p2-4.south);
+  % 이름표
+  \node[anchor=east,font=\footnotesize,align=right] at (-1.0,5.4) {링 4\\입구 쪽};
+  \node[anchor=east,font=\footnotesize,align=right] at (-1.0,3.6) {링 3\\반사판 쪽};
+  \node[anchor=east,font=\footnotesize,align=right] at (-1.0,1.8) {링 2\\반사판 쪽};
+  \node[anchor=east,font=\footnotesize,align=right] at (-1.0,0) {링 1\\입구 쪽};
+  \node[anchor=west,font=\footnotesize,text=cblue,align=left] at (26.0,4.5) {벌 A\\가는 길\\$i \to W[i]$};
+  \node[anchor=west,font=\footnotesize,text=corange,align=left] at (26.0,0.9) {벌 B\\오는 길\\$W[i] \to i$};
+  \draw[->,cblue,line width=0.9pt] (26.2,5.35) -- (26.2,5.05);
+  \draw[->,corange,line width=0.9pt] (26.2,1.75) -- (26.2,1.45);
+  \node[note] at (12.5,2.7) {링 3과 링 2 사이에는 기판 안의 연결이 없다.\\이 사이는 기계 쪽의 고정 배선(다음 드럼 또는 반사판)이 잇는다.};
+\end{tikzpicture}

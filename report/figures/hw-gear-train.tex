@@ -1,0 +1,65 @@
+% 기어식의 구동열과 자리올림 (기구 개념도, 잇수와 치수는 추정). 그림 fig:hw-gear-train
+\begin{tikzpicture}[x=1cm,y=1cm,
+    gr/.style={draw=cblue,fill=cbluebg},
+    g1/.style={draw=corange,fill=corangebg},
+    lab/.style={font=\scriptsize,align=left}]
+  \node[font=\footnotesize\bfseries,anchor=west] at (-1.6,5.3) {(가) 옆에서 본 축과 기어};
+  % 축
+  \draw[shaft] (-0.3,4.0) -- (8.0,4.0);
+  \draw[shaft] (0.8,2.8) -- (5.8,2.8);
+  \draw[shaft] (1.6,1.4) -- (8.0,1.4);
+  \draw[shaft] (1.6,0.0) -- (8.0,0.0);
+  \node[blkn,minimum width=11mm,minimum height=9mm,font=\scriptsize] at (-0.9,4.0) {모터};
+  \node[lab,anchor=west] at (8.15,4.0) {빠른 열 축 $\to$ 위 드럼 (연속 회전)};
+  \node[lab,anchor=west] at (8.15,1.4) {가운데 열 축 $\to$ 가운데 드럼};
+  \node[lab,anchor=west] at (8.15,0.0) {느린 열 축 $\to$ 아래 드럼};
+  \node[lab,anchor=east] at (0.7,2.8) {주기 축};
+  % 26:30 기어 쌍
+  \draw[gr] (1.33,3.443) rectangle (1.67,4.557);
+  \draw[gr] (1.33,2.157) rectangle (1.67,3.443);
+  \node[lab,anchor=west] at (1.75,4.75) {26잇수};
+  \node[lab,anchor=west] at (1.75,2.35) {30잇수};
+  % STROBE 슬롯 원판과 광센서
+  \draw[draw=cgreen,fill=cgreenbg] (3.14,2.25) rectangle (3.26,3.35);
+  \draw[draw=cgray,fill=white] (2.95,3.2) rectangle (3.45,3.55);
+  \node[lab,anchor=west] at (3.5,3.42) {광센서 $\to$ \code{STROBE}};
+  \node[lab,anchor=north] at (3.2,2.2) {슬롯 원판};
+  % 주기 축의 한 이빨 기어 -> 가운데 열 축의 26잇수
+  \draw[g1] (4.83,2.333) rectangle (5.17,3.267);
+  \draw[gr] (4.83,0.467) rectangle (5.17,2.333);
+  \node[lab,anchor=west,text=corange] at (5.25,3.1) {한 이빨};
+  \node[lab,anchor=west] at (5.25,0.75) {26잇수};
+  % 가운데 열 축의 한 이빨 기어 -> 느린 열 축의 26잇수
+  \draw[g1] (6.63,0.933) rectangle (6.97,1.867);
+  \draw[gr] (6.63,-0.933) rectangle (6.97,0.933);
+  \node[lab,anchor=west,text=corange] at (7.05,1.75) {한 이빨};
+  \node[lab,anchor=west] at (7.05,-0.7) {26잇수};
+  % 디텐트
+  \foreach \y in {1.4,0.0} {
+    \draw[draw=cgray,fill=clight] (2.5,\y-0.28) rectangle (2.9,\y+0.28);
+    \draw[cred,line width=0.9pt] (2.7,\y-0.28) -- (2.7,\y-0.6);
+    \fill[cred] (2.7,\y-0.3) circle (0.06);
+  }
+  \node[lab,anchor=west,text=cred] at (2.95,-0.5) {26칸 디텐트};
+  % ---------- (나) 한 이빨 기어의 맞물림 ----------
+  \begin{scope}[yshift=-4.2cm]
+    \node[font=\footnotesize\bfseries,anchor=west] at (-1.6,2.5) {(나) 한 이빨 기어 (축 방향에서 본 모습)};
+    \draw[gr] (1.0,-0.1) circle (0.93);
+    \foreach \a in {0,...,25} { \draw[cblue,line width=1.0pt] (1.0,-0.1) ++({90+\a*360/26}:0.93) -- ++({90+\a*360/26}:0.13); }
+    \fill[cgray] (1.0,-0.1) circle (0.07);
+    \draw[g1] (1.0,1.36) circle (0.40);
+    \draw[corange,line width=2.0pt] (1.0,0.96) -- (1.0,0.80);
+    \fill[cgray] (1.0,1.36) circle (0.07);
+    \draw[->,corange] (1.0,1.36) ++(160:0.6) arc (160:20:0.6);
+    \node[lab,anchor=west] at (2.3,1.36) {구동 기어: 이가 하나,\\나머지 둘레는 민 원호};
+    \node[lab,anchor=west] at (2.3,-0.1) {26잇수 기어: 구동 기어 한 바퀴에\\한 이빨, 곧 $1/26$바퀴만 넘어간다};
+    % ---------- (다) 슬롯 원판 ----------
+    \node[font=\footnotesize\bfseries,anchor=west] at (7.1,2.5) {(다) 슬롯 원판 (30등분)};
+    \draw[draw=cgreen,fill=cgreenbg] (8.4,0.5) circle (1.1);
+    \foreach \k in {0,...,25} { \draw[cgreen,line width=1.6pt] (8.4,0.5) ++({90-\k*12}:0.72) -- ++({90-\k*12}:0.28); }
+    \draw[corange,line width=2.4pt] (8.4,0.5) ++({90-25.5*12}:1.18) arc ({90-25.5*12}:{90-29.5*12}:1.18);
+    \fill[cgray] (8.4,0.5) circle (0.07);
+    \node[lab,anchor=west] at (9.8,1.0) {슬롯 26개: 위치마다 \code{STROBE} 한 번};
+    \node[lab,anchor=west,text=corange] at (9.8,0.3) {슬롯이 없는 4칸: 자리올림 구간};
+  \end{scope}
+\end{tikzpicture}

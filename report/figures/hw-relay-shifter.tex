@@ -1,0 +1,33 @@
+% 이진 시프터 전체 (5단)와 제어값 11의 예. 06-hardware.tex, 그림 fig:hw-shifter
+\begin{tikzpicture}[x=1cm,y=1cm,
+    son/.style={blkb,minimum width=13mm,minimum height=9mm,font=\footnotesize},
+    soff/.style={blkn,minimum width=13mm,minimum height=9mm,font=\footnotesize},
+    idx/.style={font=\footnotesize\ttfamily,inner sep=1.5pt}]
+  \node[reg,minimum width=112mm,minimum height=7mm,font=\footnotesize] (cnt) at (5.0,2.5)
+     {계수기의 5비트 값 \quad $11 = 01011_2$ \quad (16, 8, 4, 2, 1의 자리 순으로 0, 1, 0, 1, 1)};
+  \foreach \k/\l/\b/\st in {0/1/1/son,1/2/1/son,2/4/0/soff,3/8/1/son,4/16/0/soff} {
+    \node[\st] (f\k) at (\k*2.5,0.6) {\l칸\\{\scriptsize\ifnum\b=1 동작\else 놓임\fi}};
+    \node[\st] (r\k) at (\k*2.5,-1.6) {\l칸\\{\scriptsize\ifnum\b=1 동작\else 놓임\fi}};
+    \draw[->,cgray] (\k*2.5,2.15) -- (f\k.north) node[midway,right,font=\scriptsize,text=cgray] {\b};
+    \draw[dashed,cgray] (f\k) -- (r\k);
+  }
+  % 가는 길: 선 3이 들어온다
+  \node[idx] (fi) at (-1.6,0.6) {3};
+  \node[idx] (fo) at (11.6,0.6) {14};
+  \draw[->,live] (fi) -- (f0);
+  \foreach \a/\b/\v in {0/1/4,1/2/6,2/3/6,3/4/14} {
+    \draw[->,live] (f\a) -- node[above,idx,text=cblue] {\v} (f\b);
+  }
+  \draw[->,live] (f4) -- (fo);
+  \node[note,anchor=east] at (-2.0,0.6) {가는 길\\선 번호};
+  % 오는 길: 같은 단을 반대로 지난다
+  \node[idx] (ri) at (11.6,-1.6) {14};
+  \node[idx] (ro) at (-1.6,-1.6) {3};
+  \draw[->,line width=1.1pt,draw=corange] (ri) -- (r4);
+  \foreach \a/\b/\v in {4/3/14,3/2/6,2/1/6,1/0/4} {
+    \draw[->,line width=1.1pt,draw=corange] (r\a) -- node[below,idx,text=corange] {\v} (r\b);
+  }
+  \draw[->,line width=1.1pt,draw=corange] (r0) -- (ro);
+  \node[note,anchor=east] at (-2.0,-1.6) {오는 길\\선 번호};
+  \node[note] at (5.0,-2.6) {점선으로 이은 위아래의 단은 같은 릴레이의 두 접점이다.\\가는 길은 $3 + 1 + 2 + 8 = 14$, 오는 길은 $14 - 8 - 2 - 1 = 3$.};
+\end{tikzpicture}

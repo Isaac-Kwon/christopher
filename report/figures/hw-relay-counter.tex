@@ -1,0 +1,50 @@
+% 계수기: 올리기/그대로의 분배(위)와 26진 한 자리(아래). 그림 fig:hw-counter
+\begin{circuitikz}[x=1cm,y=1cm,
+    cnt/.style={reg,minimum width=30mm,minimum height=8mm,font=\footnotesize}]
+  % ---------- (가) 클럭 펄스의 분배 ----------
+  \node[font=\footnotesize\bfseries,anchor=west] at (-1.6,5.0) {(가) 클럭 펄스를 다섯 계수기에 나누는 접점};
+  \node[cnt] (pl) at (11.0,4.0) {$p_L$ (제어값 $a_4$)};
+  \node[cnt] (a3) at (11.0,2.9) {$a_3 = p_L - p_M$};
+  \node[cnt] (pm) at (11.0,1.8) {$p_M$};
+  \node[cnt] (a2) at (11.0,0.7) {$a_2 = p_M - p_R - k$};
+  \node[cnt] (a1) at (11.0,-0.7) {$a_1 = p_R + k$};
+  \node[font=\footnotesize,anchor=east] (clk) at (0,2.0) {클럭 펄스};
+  \node[spdt] (wl) at (2.6,2.0) {};
+  \draw (clk.east) -- (1.0,2.0) coordinate (j1) -- (wl.in);
+  \node[circ] at (j1) {};
+  \draw[->] (j1) |- (pl.west);
+  \draw[->] (wl.out 1) -- ++(0.5,0) |- (a3.west);
+  \draw (wl.out 2) -- ++(0.9,0) |- (5.2,0.0) coordinate (j2);
+  \node[circ] at (j2) {};
+  \draw[->] (j2) |- (pm.west);
+  \node[spdt] (wm) at (7.0,0.0) {};
+  \draw (j2) -- (wm.in);
+  \draw[->] (wm.out 1) -- ++(0.5,0) |- (a2.west);
+  \draw[->] (wm.out 2) -- ++(0.5,0) |- (a1.west);
+  \node[font=\scriptsize,anchor=south] at (2.6,2.45) {$w_L$};
+  \node[font=\scriptsize,anchor=south] at (7.0,0.45) {$w_M$};
+  \node[note,anchor=north] at (2.4,1.45) {$p_L = 25$이면\\아래로 붙는다};
+  \node[note,anchor=north] at (7.0,-0.55) {$p_M = 25$이면\\아래로 붙는다};
+  \node[font=\scriptsize,text=cgray,anchor=south west] at (5.3,1.8) {$p_L$이 넘어가는 클럭에만};
+  % ---------- (나) 26진 한 자리 ----------
+  \begin{scope}[yshift=-4.3cm]
+    \node[font=\footnotesize\bfseries,anchor=west] at (-1.6,2.0) {(나) 26진 계수기 한 자리 (블록 수준, 릴레이 약 13개)};
+    \node[font=\footnotesize,anchor=east] (inc) at (0,0.2) {올리기 펄스};
+    \foreach \k/\l in {0/1,1/2,2/4,3/8,4/16} {
+      \node[blkb,minimum width=15mm,minimum height=10mm,font=\footnotesize] (b\k) at (1.6+\k*2.1,0.2) {\l의 자리\\{\scriptsize 릴레이 2개}};
+    }
+    \draw[->] (inc.east) -- (b0.west);
+    \foreach \a/\b in {0/1,1/2,2/3,3/4} { \draw[->] (b\a) -- (b\b); }
+    \node[font=\scriptsize,text=cgray,anchor=west] at (11.0,0.2) {화살표: 윗자리로 올림};
+    % 25 감지: 16, 8, 1의 자리의 a접점을 직렬로
+    \node[font=\footnotesize,anchor=east] (v) at (0,-1.4) {$+24$ V};
+    \draw (v.east) -- (0.8,-1.4) to[nos,l_={$q_1$}] (2.4,-1.4) -- (7.1,-1.4) to[nos,l_={$q_8$}] (8.7,-1.4)
+          -- (9.2,-1.4) to[nos,l_={$q_{16}$}] (10.8,-1.4) -- (11.6,-1.4);
+    \foreach \k in {0,3,4} { \draw[dashed,cgray] (b\k.south) -- ++(0,-0.95); }
+    \node[rcoil,anchor=west,minimum width=11mm] (w) at (11.6,-1.4) {$W$};
+    \node[note,anchor=west] at (12.8,-1.4) {넘어감\\릴레이};
+    \draw[->,cred] (w.north) |- (9.0,1.1) -| (b2.north);
+    \node[font=\scriptsize,text=cred,anchor=south] at (9.3,1.1) {$W$가 동작한 채로 펄스가 오면 모두 0으로};
+    \node[note] at (6.0,-2.5) {$25 = 11001_2$: 16, 8, 1의 자리가 모두 1인 값은 0에서 25 사이에 25뿐이다};
+  \end{scope}
+\end{circuitikz}

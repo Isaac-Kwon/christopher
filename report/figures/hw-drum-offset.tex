@@ -1,0 +1,33 @@
+% 접점 자리와 코어 오프셋의 관계 (로터 I, 드럼 글자 C, o = 2). 그림 fig:hw-drum-offset
+\begin{tikzpicture}[x=0.46cm,y=1cm,
+    pad/.style={draw=cgray,fill=cyellowbg,minimum width=4mm,minimum height=4.4mm,inner sep=0pt,font=\scriptsize\ttfamily},
+    ctc/.style={draw=cgray,fill=white,isosceles triangle,isosceles triangle apex angle=60,minimum size=2.6mm,inner sep=0pt}]
+  % 고정 접점 (기계 쪽): 자리 j = 0..25
+  \foreach \j in {0,...,25} {
+    \node[ctc,shape border rotate=-90] (c4-\j) at (\j,3.75) {};
+    \node[ctc,shape border rotate=90] (c3-\j) at (\j,-0.35) {};
+  }
+  \foreach \j/\l in {0/A,5/F,10/K,15/P,20/U,25/Z} {
+    \node[font=\scriptsize\ttfamily,above=0.5mm] at (c4-\j.north) {\l};
+    \node[font=\scriptsize\ttfamily,below=0.5mm] at (c3-\j.south) {\l};
+  }
+  % 드럼의 패드: 접점 자리 j 밑에 패드 (j + 2) mod 26
+  \foreach \i [count=\n from 0] in {C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,A,B} {
+    \node[pad] (q4-\n) at (\n,3.1) {\i};
+    \node[pad] (q3-\n) at (\n,0.3) {\i};
+  }
+  % 예: 자리 A(0)로 들어온 전류
+  \draw[live,->] (c4-0.south) -- (q4-0.north);
+  \draw[live] (q4-0.south) -- (q3-10.north);
+  \draw[live,->] (q3-10.south) -- (c3-10.north);
+  \node[pad,fill=cbluebg,draw=cblue] at (0,3.1) {C};
+  \node[pad,fill=cbluebg,draw=cblue] at (10,0.3) {M};
+  % 이름표
+  \node[anchor=east,font=\footnotesize,align=right] at (-1.0,3.75) {고정 접점\\(링 4)};
+  \node[anchor=east,font=\footnotesize,align=right] at (-1.0,3.0) {드럼의 패드};
+  \node[anchor=east,font=\footnotesize,align=right] at (-1.0,0.35) {드럼의 패드};
+  \node[anchor=east,font=\footnotesize,align=right] at (-1.0,-0.4) {고정 접점\\(링 3)};
+  \node[note,anchor=west,text=cblue] at (10.8,1.75) {기판의 배선 $W[\mathtt{C}] = \mathtt{M}$};
+  \node[note,anchor=west] at (26.0,3.1) {드럼이\\두 칸\\돌았다};
+  \node[note] at (12.5,-1.35) {자리 $j$의 접점은 패드 $j + o$에 닿고, 그 선이 닿는 패드 $W[j+o]$는 자리 $W[j+o] - o$의 접점 밑에 있다.\\$o = 2$에서 $\mathtt{A} \to \mathtt{K}$.};
+\end{tikzpicture}

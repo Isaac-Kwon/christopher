@@ -1,0 +1,46 @@
+% 테스트 레지스터와 정지 릴레이의 회로도 (06-hardware.tex, 그림 fig:hw-register)
+% 코일은 대문자(K_A, P, S), 그 릴레이의 접점은 소문자(k_A, p, s)로 적는다.
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=9mm}
+  % ---- (1) 시험 전류: +24 V, STROBE 접점, 메뉴 배선망, 감지 릴레이 코일 26개 ----
+  \node[font=\footnotesize,anchor=east] (v1) at (0,6.6) {$+24$ V};
+  \draw (v1.east) to[nos,l={\footnotesize \code{STROBE}}] (2.3,6.6) -- (2.8,6.6);
+  \node[cloud,minimum width=68mm,minimum height=9mm,anchor=west] (net) at (2.8,6.6)
+    {메뉴 배선망 (스크램블러, 대각선 보드)};
+  \foreach \x/\l in {3.5/A,5.0/B,6.5/C,8.9/Z} {
+    \node[rcoil] (K\l) at (\x,5.2) {$K_{\l}$};
+    \draw (\x,6.15) -- (K\l.north);
+    \draw (K\l.south) -- (\x,4.3);
+  }
+  \node at (7.7,5.2) {$\cdots$};
+  \draw (2.9,4.3) -- (9.6,4.3) node[right,font=\footnotesize] {0 V};
+  \node[note,anchor=west] at (10.3,6.0) {입력 케이블의 26선마다\\감지 릴레이 코일 하나};
+  \node[font=\footnotesize\bfseries,anchor=west] at (-1.1,7.4) {(1) 시험 전류의 경로};
+  % ---- (2) 접점 사슬과 통과 릴레이 ----
+  \node[font=\footnotesize\bfseries,anchor=west] at (-1.1,3.5) {(2) 접점 사슬: 26선이 전부 통전되었는가};
+  \node[font=\footnotesize,anchor=east] (v2) at (0,2.6) {$+24$ V};
+  \draw (v2.east) -- (2.6,2.6) to[nos,l={$k_A$}] (4.1,2.6) to[nos,l={$k_B$}] (5.6,2.6)
+        to[nos,l={$k_C$}] (7.1,2.6);
+  \draw[dashed] (7.1,2.6) -- (8.1,2.6);
+  \draw (8.1,2.6) to[nos,l={$k_Z$}] (9.6,2.6) -- (10.6,2.6);
+  \node[rcoil,anchor=west] (P) at (10.6,2.6) {$P$};
+  \draw (P.east) -- (12.3,2.6) node[right,font=\footnotesize] {0 V};
+  \node[note,anchor=north] at (11.05,2.25) {통과 릴레이};
+  % ---- (3) 정지 릴레이와 자기 유지 ----
+  \node[font=\footnotesize\bfseries,anchor=west] at (-1.1,1.55) {(3) 정지 릴레이};
+  \node[font=\footnotesize,anchor=east] (v3) at (0,0.7) {$+24$ V};
+  \draw (v3.east) -- (0.8,0.7) coordinate (a) -- (2.6,0.7) to[nos,l={$j$}] (4.1,0.7)
+        to[ncs,l={$p$}] (5.6,0.7) -- (8.6,0.7) coordinate (b) -- (10.6,0.7);
+  \node[rcoil,anchor=west] (S) at (10.6,0.7) {$S$};
+  \draw (S.east) -- (12.3,0.7) node[right,font=\footnotesize] {0 V};
+  \node[note,anchor=north] at (11.05,0.35) {정지 릴레이};
+  \draw (a) -- (0.8,-0.7) -- (2.6,-0.7) to[ncs,l_={원위치 버튼}] (4.1,-0.7) -- (5.9,-0.7)
+        to[nos,l_={$s$ (자기 유지)}] (7.4,-0.7) -- (8.6,-0.7) -- (b);
+  \node[circ] at (a) {};
+  \node[circ] at (b) {};
+  % ---- (4) RUN ----
+  \node[font=\footnotesize\bfseries,anchor=west] at (-1.1,-1.75) {(4) 구동 허가};
+  \node[font=\footnotesize,anchor=east] (v4) at (0,-2.5) {$+24$ V};
+  \draw (v4.east) -- (2.6,-2.5) to[nos,l_={시작}] (4.1,-2.5) to[ncs,l_={$s$}] (5.6,-2.5) -- (6.6,-2.5)
+        node[right,font=\footnotesize] {뱅크의 \code{RUN} (정지 릴레이가 동작하면 끊긴다)};
+\end{circuitikz}

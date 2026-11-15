@@ -7,6 +7,29 @@
 내야 할 답을 정의하는 기준 모델과, 전자식 구현의 기준이 되는 회로다. 각 기계의 스크램블러가 올바른지,
 올바른 위치에서 정지하는지는 이 기준과 비교해 판정한다.
 
+세 기계의 현재 상태는 서로 다르다(표~\ref{tab:status}). 아직 어느 기계도 실물로 동작한 적이 없다.
+
+\begin{table}[ht]
+\centering
+\caption{세 기계의 현재 상태(2026년 11월).}
+\label{tab:status}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{22mm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+기계 & 끝난 것 & 남은 것 \\
+\midrule
+전자식 (FPGA) & 엔진의 설계와 시뮬레이션 검증. Nexys Video용 배치와 배선, 엔진 두 대가 50~MHz에서 타이밍을
+  만족(\ref{sec:fpga-results}절). 호스트 소프트웨어 & 보드의 확보, 보드에서의 동작과 속도의 측정, 표시 장치 \\
+기어식 & 개념 설계. 로터 I에서 V까지 드럼 기판의 설계와 검증(\ref{sec:hw-drum-pcb}절) & 기판과 접점의
+  시제품, 자리올림 기구, 스크램블러 한 유닛 \\
+릴레이식 & 개념 설계. 시프터와 계수기의 기준 모델을 코어에 넣어 모든 위치에서 검증(\ref{sec:hw-relay-model}절)
+  & 시프터 보드의 시제품, 스크램블러 한 유닛 \\
+공통 & 설계 요구사항과 인터페이스의 정의, 전체 구동용 메뉴 카드(\ref{sec:hw-cards}절) & 구간용 카드, 메뉴 배선
+  패널, 대각선 보드, 테스트 레지스터의 제작 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 소프트웨어 단계에서 확인한 것은 다음과 같다.
 
 \begin{itemize}

@@ -1,0 +1,37 @@
+% 릴레이식 스크램블러 한 유닛의 겉모습 (개념도, 추정 치수). 그림 fig:hw-relay-view
+\begin{tikzpicture}[x=1cm,y=1cm,
+    sbd/.style={draw=cblue,fill=cbluebg,minimum width=11mm,minimum height=42mm,inner sep=1pt,font=\scriptsize,align=center},
+    wcd/.style={draw=corange,fill=corangebg,minimum width=6mm,minimum height=42mm,inner sep=1pt,font=\scriptsize,align=center},
+    ucd/.style={draw=cred,fill=credbg,minimum width=6mm,minimum height=42mm,inner sep=1pt,font=\scriptsize,align=center}]
+  % 카드 케이지
+  \draw[rounded corners=2pt,draw=cgray,fill=clight] (-0.9,-3.0) rectangle (9.5,3.1);
+  \node[anchor=north west,font=\footnotesize\bfseries] at (-0.8,3.05) {카드 케이지 (앞에서 본 모습)};
+  \node[sbd] (s1) at (0.2,0.1) {시프터\\보드\\$a_1$};
+  \node[wcd] (w1) at (1.35,0.1) {$W_R$};
+  \node[sbd] (s2) at (2.5,0.1) {시프터\\보드\\$a_2$};
+  \node[wcd] (w2) at (3.65,0.1) {$W_M$};
+  \node[sbd] (s3) at (4.8,0.1) {시프터\\보드\\$a_3$};
+  \node[wcd] (w3) at (5.95,0.1) {$W_L$};
+  \node[sbd] (s4) at (7.1,0.1) {시프터\\보드\\$a_4$\\{\tiny (거꾸로)}};
+  \node[ucd] (u) at (8.25,0.1) {$U$};
+  % 단 표시등
+  \foreach \b in {s1,s2,s3,s4} {
+    \foreach \k in {0,...,4} { \fill[cgreen] ([xshift=-3mm+\k*1.5mm,yshift=-3mm]\b.north) circle (0.04); }
+  }
+  \node[note] at (4.2,-2.5) {시프터 보드: 릴레이 130개, 단마다 표시등 하나\\주황: 로터 배선 카드, 빨강: 반사판 카드};
+  % 앞판
+  \draw[rounded corners=2pt,draw=cgray,fill=white] (10.1,-3.0) rectangle (14.4,3.1);
+  \node[anchor=north west,font=\footnotesize\bfseries] at (10.2,3.05) {유닛 앞판};
+  \node[blko,minimum width=15mm,minimum height=8mm,font=\scriptsize] at (11.2,1.7) {\code{IN} 잭};
+  \node[blko,minimum width=15mm,minimum height=8mm,font=\scriptsize] at (13.2,1.7) {\code{OUT} 잭};
+  \draw[fill=clight,draw=cgray] (11.2,0.0) circle (0.62);
+  \draw[line width=1.2pt] (11.2,0.0) -- ++(60:0.55);
+  \foreach \a in {0,...,25} { \draw[cgray] (11.2,0.0) ++({90-\a*360/26}:0.66) -- ++({90-\a*360/26}:0.1); }
+  \node[font=\scriptsize,align=center] at (11.2,-1.05) {오프셋 다이얼\\26위치};
+  \foreach \k in {0,...,4} {
+    \draw[fill=cyellowbg,draw=cgray] (12.45+\k*0.36,0.25) rectangle ++(0.26,0.5);
+    \draw[fill=cyellowbg,draw=cgray] (12.45+\k*0.36,-0.6) rectangle ++(0.26,0.5);
+  }
+  \node[font=\scriptsize,align=center] at (13.3,-1.05) {계수기 릴레이\\$a_1$, $a_2$};
+  \node[note] at (12.25,-2.5) {약 $200 \times 250 \times 150$ mm (추정)};
+\end{tikzpicture}

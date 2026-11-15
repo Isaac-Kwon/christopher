@@ -1,0 +1,37 @@
+% 이진 시프터의 한 단 (2칸 단, 26선 가운데 6선). 06-hardware.tex, 그림 fig:hw-stage
+\begin{circuitikz}[x=1cm,y=1cm]
+  % 선 i의 높이: y = 5 - i
+  \foreach \i in {0,...,5} {
+    \pgfmathsetmacro{\y}{5-\i}
+    \node[font=\footnotesize,anchor=east] at (0,\y) {입력 \i};
+    \node[spdt] (sw\i) at (2.0,\y) {};
+    \draw (0,\y) -- (sw\i.in);
+    % 놓임(b 접점): 출력 i
+    \draw (sw\i.out 1) -| (3.1,\y) -- (8.0,\y);
+    \node[font=\footnotesize,anchor=west] at (8.0,\y) {출력 \i};
+  }
+  % 동작(a 접점): 출력 i+2
+  \foreach \i in {0,...,3} {
+    \pgfmathsetmacro{\y}{5-\i}
+    \draw[cblue,line width=0.8pt] (sw\i.out 2) -- ++(0.75,0) -- (6.2,\y-2);
+    \node[circ,color=cblue] at (6.2,\y-2) {};
+  }
+  \foreach \i/\t in {4/6,5/7} {
+    \pgfmathsetmacro{\y}{5-\i}
+    \draw[cblue,line width=0.8pt,dashed] (sw\i.out 2) -- ++(0.75,0) -- ++(0.5,-0.36);
+    \node[font=\scriptsize,text=cblue,anchor=west] at (3.7,\y-0.64) {출력 \t 으로};
+  }
+  \foreach \i/\f in {0/24,1/25} {
+    \pgfmathsetmacro{\y}{5-\i}
+    \draw[cblue,line width=0.8pt,dashed] (5.2,\y+0.72) -- (6.2,\y);
+    \node[circ,color=cblue] at (6.2,\y) {};
+    \node[font=\scriptsize,text=cblue,anchor=east] at (5.25,\y+0.78) {입력 \f 에서};
+  }
+  % 코일과 기계적 연동
+  \draw[dashed,cgray] (2.0,5.75) -- (2.0,-0.9);
+  \node[rcoil,minimum width=30mm] (coil) at (2.0,-1.3) {단 릴레이의 코일 (26선 공통)};
+  \draw[->] (-0.6,-1.3) -- (coil.west) node[pos=0,left,font=\footnotesize] {제어 비트 $b_1$};
+  \node[note,anchor=west] at (9.6,4.4) {검은 선: 놓였을 때의 길\\(선 $i$ $\to$ 선 $i$)};
+  \node[note,anchor=west,text=cblue] at (9.6,3.0) {파란 선: 동작했을 때의 길\\(선 $i$ $\to$ 선 $i+2$)};
+  \node[note,anchor=west] at (9.6,1.4) {점선: 접점 26개가\\한 코일로 함께 움직인다};
+\end{circuitikz}

@@ -1,0 +1,47 @@
+% FPGA 엔진의 데이터 경로와 상태 순서 (rtl/fpga/src/bombe_engine.sv). 그림 fig:fpga-datapath
+\begin{tikzpicture}[x=1cm,y=1cm,
+    dp/.style={blk,minimum width=25mm,minimum height=14mm,font=\scriptsize},
+    cyc/.style={font=\scriptsize,text=cred,align=center},
+    st/.style={blkn,minimum width=15mm,minimum height=6mm,font=\scriptsize\ttfamily}]
+  % ---- 윗줄: 표를 만드는 부분 ----
+  \node[dp,fill=clight,draw=cgray] (rom) at (0,3.4) {배선 ROM\\{\tiny \code{enigma.txt}에서 생성}};
+  \node[dp,fill=cyellowbg] (tbl) at (3.2,3.4) {배선표 레지스터\\$9 \times 130$비트};
+  \node[dp,fill=cbluebg,draw=cblue] (inn) at (6.4,3.4) {안쪽 파이프라인\\14단, 클럭마다 한 글자\\$I$와 $I'$를 함께};
+  \node[dp,fill=cyellowbg] (ireg) at (9.6,3.4) {안쪽 치환 $I$, $I'$\\$130$비트 $\times 2$};
+  \node[dp,fill=cbluebg,draw=cblue] (row) at (12.8,3.4) {행 생성기\\26레인 $\times$ 5단\\클럭마다 한 행};
+  \draw[->] (rom) -- (tbl); \draw[->] (tbl) -- (inn); \draw[->] (inn) -- (ireg); \draw[->] (ireg) -- (row);
+  \draw[->,cgray] (tbl.north) -- ++(0,0.45) -| (row.north);
+  \node[font=\tiny,text=cgray,anchor=south] at (8.0,4.56) {오른쪽 로터의 배선표};
+  \node[cyc] at (1.6,2.35) {\code{LOAD}\\234클럭};
+  \node[cyc] at (6.4,2.35) {\code{INNER} 41클럭};
+  \node[cyc] at (12.8,2.35) {\code{SROWS} 32클럭};
+  % ---- 아랫줄: 위치마다 도는 부분 ----
+  \node[dp,fill=cyellowbg] (ram) at (12.8,0.6) {행 메모리\\선마다 분산 RAM\\64행 $\times$ 130비트};
+  \node[dp,fill=cyellowbg] (perm) at (9.6,0.6) {선별 치환 레지스터\\$16 \times 130$비트};
+  \node[dp,fill=cbluebg,draw=cblue] (spr) at (6.4,0.6) {케이블 단위 전파\\$26 \times 26$비트 상태\\클럭마다 한 걸음};
+  \node[dp,fill=credbg,draw=cred] (dec) at (3.2,0.6) {판정\\변화 없음, 또는\\레지스터가 가득};
+  \node[dp,fill=credbg,draw=cred] (fifo) at (0,0.6) {정지 FIFO\\64칸 $\times$ 46비트};
+  \draw[->] (row.south) -- (ram.north);
+  \draw[->] (ram) -- (perm); \draw[->] (perm) -- (spr); \draw[->] (spr) -- (dec); \draw[->] (dec) -- (fifo);
+  \draw[->] (fifo.south) -- ++(0,-0.5) node[below,font=\scriptsize] {레지스터 버스로};
+  \draw[->,cblue] (spr.south) -- ++(0,-0.35) -| ([xshift=-6mm]spr.south west) |- ([yshift=-3mm]spr.west);
+  \node[cyc] at (11.2,1.6) {\code{LATCH} 1클럭};
+  \node[cyc] at (6.4,-0.75) {\code{SPREAD} 걸음마다 1클럭};
+  \node[cyc] at (1.6,1.6) {\code{PUSH}};
+  % ---- 주기 ----
+  \draw[decorate,decoration={brace,amplitude=4pt}] (5.0,5.15) -- (14.1,5.15)
+     node[midway,above=4pt,font=\scriptsize] {오른쪽 로터가 한 바퀴 돌 때마다 (26위치에 한 번, 73클럭)};
+  \draw[decorate,decoration={brace,amplitude=4pt}] (-1.3,5.15) -- (4.5,5.15)
+     node[midway,above=4pt,font=\scriptsize] {구동을 시작할 때 한 번};
+  % ---- 상태 순서 ----
+  \begin{scope}[yshift=-2.6cm]
+    \foreach \k/\s in {0/LOAD,1/INNER,2/SROWS,3/LATCH,4/SPREAD,5/PUSH,6/ADVANCE} {
+      \node[st] (s\k) at (0.2+\k*2.1,0) {\s};
+    }
+    \foreach \a/\b in {0/1,1/2,2/3,3/4,4/5,5/6} { \draw[->] (s\a) -- (s\b); }
+    \draw[->] (s4.north) -- ++(0,0.4) -| node[pos=0.25,above,font=\tiny,text=cgray] {정지가 아니면} (s6.north);
+    \draw[->] (s6.south) -- ++(0,-0.45) -| node[pos=0.25,below,font=\tiny,text=cgray] {다음 위치} (s3.south);
+    \draw[->] ([xshift=3mm]s6.south) -- ++(0,-0.95) -| node[pos=0.25,below,font=\tiny,text=cgray] {오른쪽 로터가 한 바퀴 돌았으면} (s1.south);
+    \node[font=\scriptsize,anchor=east] at (-0.9,0) {상태};
+  \end{scope}
+\end{tikzpicture}

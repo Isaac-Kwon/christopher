@@ -1,0 +1,19 @@
+% 접점 2회로 릴레이 하나가 가는 길과 오는 길의 같은 선을 함께 전환한다. 그림 fig:hw-dpdt
+\begin{circuitikz}[x=1cm,y=1cm]
+  % 가는 길
+  \node[font=\footnotesize\bfseries,anchor=west] at (-2.6,2.6) {가는 길 (첫째 접점)};
+  \node[spdt] (a) at (2.0,1.6) {};
+  \draw[<-,live] (a.in) -- (0,1.6) node[left,font=\footnotesize,text=black] {앞 단에서: 선 $i$};
+  \draw[->] (a.out 1) -- ++(2.2,0) node[right,font=\footnotesize] {다음 단으로: 선 $i$ (놓임)};
+  \draw[->,cblue] (a.out 2) -- ++(2.2,0) node[right,font=\footnotesize] {다음 단으로: 선 $i+s$ (동작)};
+  % 오는 길
+  \node[font=\footnotesize\bfseries,anchor=west] at (-2.6,0.3) {오는 길 (둘째 접점)};
+  \node[spdt] (b) at (2.0,-0.7) {};
+  \draw[->,line width=1.1pt,draw=corange] (b.in) -- (0,-0.7) node[left,font=\footnotesize] {앞 단으로: 선 $i$};
+  \draw[<-] (b.out 1) -- ++(2.2,0) node[right,font=\footnotesize] {반사판 쪽에서: 선 $i$ (놓임)};
+  \draw[<-,cblue] (b.out 2) -- ++(2.2,0) node[right,font=\footnotesize] {반사판 쪽에서: 선 $i+s$ (동작)};
+  % 코일
+  \draw[dashed,cgray] (2.0,2.2) -- (2.0,-1.7);
+  \node[rcoil,minimum width=22mm] (c) at (2.0,-2.1) {릴레이 코일};
+  \draw[->] (-0.6,-2.1) -- (c.west) node[pos=0,left,font=\footnotesize] {단의 제어 비트};
+\end{circuitikz}

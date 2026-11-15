@@ -1,0 +1,34 @@
+% 드럼 기판의 연결 하나가 네 층을 지나는 길 (단면, 길이는 비례가 아님). 그림 fig:hw-drum-route
+\begin{tikzpicture}[x=1cm,y=1cm,
+    cu/.style={line width=2.2pt},
+    via/.style={draw=cgray,fill=clight,minimum width=2.2mm,minimum height=31mm,inner sep=0pt}]
+  % 층
+  \foreach \y/\l/\t in {3.0/F.Cu/{앞면: 패드, 스터브},2.0/In1.Cu/{안쪽 1: 반지름 방향},1.0/In2.Cu/{안쪽 2: 원호},0.0/B.Cu/{뒷면: 구리 없음}} {
+    \draw[cgray,dashed] (0.3,\y) -- (12.1,\y);
+    \node[anchor=east,font=\footnotesize\ttfamily] at (0.2,\y) {\l};
+    \node[anchor=west,font=\scriptsize,text=cgray] at (12.2,\y) {\t};
+  }
+  % 비아 네 개 (관통, 양면 마스크로 덮음)
+  \foreach \x in {2.4,4.0,8.4,10.0} { \node[via] at (\x,1.5) {}; }
+  % 패드와 스터브 (F.Cu)
+  \draw[cu,corange] (0.6,3.0) -- (1.7,3.0);
+  \node[font=\scriptsize,above] at (1.15,3.05) {패드 \texttt{4A}};
+  \draw[cu,cred] (1.7,3.0) -- (2.4,3.0);
+  \draw[cu,cred] (10.0,3.0) -- (10.7,3.0);
+  \draw[cu,corange] (10.7,3.0) -- (11.8,3.0);
+  \node[font=\scriptsize,above] at (11.25,3.05) {패드 \texttt{3E}};
+  % 반지름 방향 (In1.Cu)
+  \draw[cu,cgreen] (2.4,2.0) -- (4.0,2.0);
+  \draw[cu,cgreen] (8.4,2.0) -- (10.0,2.0);
+  % 원호 (In2.Cu)
+  \draw[cu,cblue] (4.0,1.0) -- (8.4,1.0);
+  % 연결점
+  \foreach \p in {(2.4,3.0),(2.4,2.0),(4.0,2.0),(4.0,1.0),(8.4,1.0),(8.4,2.0),(10.0,2.0),(10.0,3.0)} { \fill \p circle (0.07); }
+  % 설명
+  \node[font=\scriptsize,text=cred] at (2.1,3.3) {스터브};
+  \node[font=\scriptsize,text=cred] at (10.4,3.3) {스터브};
+  \node[font=\scriptsize,text=cgreen,below] at (3.2,1.95) {패드 사이의 틈};
+  \node[font=\scriptsize,text=cblue,below] at (6.2,0.95) {연결마다 자기 반지름(레인)의 원호 하나};
+  \node[font=\scriptsize,text=cgreen,below] at (9.2,1.95) {패드 사이의 틈};
+  \node[font=\scriptsize,text=cgray] at (6.2,-0.5) {비아 넷, 스터브 둘, 반지름 방향 둘, 원호 하나};
+\end{tikzpicture}

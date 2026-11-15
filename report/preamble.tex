@@ -41,6 +41,7 @@
 \usepackage{pgfplotstable}
 \pgfplotsset{compat=1.18}
 \usepackage{tikz-timing}
+\usepackage{circuitikz}   % 회로도(릴레이 접점, 스위치)
 \usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,shapes.geometric,shapes.misc,decorations.pathreplacing,matrix,patterns}
 \tikzset{
   >={Stealth[length=2.2mm]},
@@ -57,6 +58,8 @@
   note/.style={font=\footnotesize,align=center,text=cgray},
   wire/.style={line width=0.5pt},
   live/.style={line width=1.1pt,draw=cblue},
+  rcoil/.style={draw,fill=cyellowbg,minimum width=9mm,minimum height=6mm,inner sep=1pt,font=\scriptsize,align=center},
+  shaft/.style={line width=2.2pt,draw=cgray},
 }
 
 % ---------- 상자 ----------
