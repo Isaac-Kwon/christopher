@@ -50,6 +50,8 @@ SCHEMATICS = [
     ("gear-control-board", "hardware/gear/control-board/control_board.kicad_sch"),
     ("relay-position-display", "hardware/relay/position-display/position_display.kicad_sch"),
     ("relay-offset-dial", "hardware/relay/offset-dial/offset_dial.kicad_sch"),
+    ("relay-rotor-socket", "hardware/relay/wiring-cards/rotor_socket.kicad_sch"),
+    ("relay-rotor-cartridge-i", "hardware/relay/wiring-cards/cart_I.kicad_sch"),
 ]
 
 PERSONAL = re.compile(rb"(?i)c:[/\\]+users|/home/[a-z]|dropbox[/\\]")

@@ -33,7 +33,7 @@ SVG is kept (no Inkscape/rsvg on this machine; TeX Live has `dvisvgm` only for t
 | `parts/shaft.py` | O8 shaft with O6 collar and O3 cross pin, sleeve, shim, 608ZZ / 6004ZZ envelopes, mitre (pitch-cone envelope, 25T m2) for drum and line shafts |
 | `parts/board.py` | contact board 110 x 110 x 1.6, O38 centre hole, 104 holes; 104 Mill-Max 7845-0 envelopes (body O4.37, plunger, ball O3.96, tail); 4 board posts |
 | `parts/column.py` | front/rear plates 116 x 400 x 8 with 3 x O22 bores, spacer posts, blanking plate |
-| `parts/line.py` | O20 line shaft, coupling O40 x 50, 16 mm plate bracket with three 6004 |
+| `parts/line.py` | O20 line shaft, coupling O40 x 50, 16 mm plate bracket with three 6004, drum-change brake envelope on F (`f_brake`) |
 | `parts/gearing.py` | 26:26:30 m1.5 train, single-tooth carry discs with locking arc (R_a = C - R_L - 0.05), 26-pocket lock discs, position discs, slot disc O160 with STROBE/JUDGE/CLEAR tracks (26 slots each, angles from the ms table via `params.track_deg`) |
 | `parts/motor.py` | NEMA 34 body 86 x 86 x 147, shaft, HTD 5M 18T/72T pulleys, belt (tangent-path shell, 3.6 thick), torque limiter, U-fork sensor envelope |
 | `parts/frame.py` | 4040 profiles and 12 x 50 reference bars as rectangles, plinth 400 with toe recess, floor slab, panel 1800 x 420 |
@@ -51,7 +51,8 @@ Modelled as solids with the real positions: the whole Z stack of one drum statio
 the three-pin / V-groove index in its seated pose (pins tangent to the groove faces); the bayonet cam track with the cross pin in its
 end pocket; 104 contacts and 104 pads per drum; 12 slots (7-12 populated, 1-6 blanking plates 3 t); line shafts (segment A only,
 D6), mitres on the opposite side for the middle row (D7), three brackets at the slot boundaries 6|7, 8|9, 10|11; the complete drive
-module (front plate 360 x 400, plates A/B, F/I/C/M/S shafts, couplings, 26:26:30 train, both carries with locking arcs and 26-pocket
+module (front plate 360 x 400, plates A/B, F/I/C/M/S shafts, couplings, the drum-change brake on F (envelope O64 x 33 at u 59-92,
+`hardware/common/rotor-cartridge.md` 4.3), 26:26:30 train, both carries with locking arcs and 26-pocket
 lock discs, position discs, slot disc + sensor fork, NEMA 34 + HTD 5M belt + torque limiter, indicator column of three fixed drums);
 frame, plinth 400, panel, covers, shutter.
 
@@ -61,11 +62,11 @@ in the posts, gold plating (0.035 mm, embedded in the PCB face), letter ring and
 brackets' fixings, the drive module's mounting to the frame, the display, the common panel's interior, hinges and gas springs are not
 modelled. Ball tips are exactly tangent to the pad plane (compressed state, 9.0 working height).
 
-## Check results (`python check.py`, last run: 77 PASS, 0 FAIL, 6 OPEN)
+## Check results (`python check.py`, last run: 80 PASS, 0 FAIL, 6 OPEN)
 
 | Group | Result |
 |---|---|
-| Interference (boolean intersection volume, 682 bbox-overlapping pairs of 417 parts, 664 tested, the other 18 are the embedded pad/PCB pairs) | moving vs static 0, moving vs moving 0, static vs static 0; largest sliver 0.033 mm3 (tangent pin / V-groove faces); a negative self-test (drum shifted 1 mm onto the contacts) is detected |
+| Interference (boolean intersection volume, 683 bbox-overlapping pairs of 418 parts, 665 tested, the other 18 are the embedded pad/PCB pairs) | moving vs static 0, moving vs moving 0, static vs static 0; largest sliver 0.033 mm3 (tangent pin / V-groove faces); a negative self-test (drum shifted 1 mm onto the contacts) is detected |
 | Shaft centres | F-I 39, I-C 42, C-M 39, sum 120, M-S 120, all five on Z = -109; mesh radii F-I 39, I-C 42, carry 1 13 + 26 = 39, carry 2 81 + 39 = 120; belt length 450.0 (C = 103.6, motor axis 70 behind / 76.4 above F) |
 | Drum station | pad plane +27.000; contact ball top 27.000 (9.0 above the board); board +16.4 ... +18.0; board posts 16.4; flange +18 ... +23.6; disc +24 ... +27 (gap 0.4); pin bottoms 0.71 / 1.37 below the peak plane (spec 0.7 / 1.4); V-groove volume within 0.5 % of the analytic value; 104 contacts / 104 pads |
 | Pitch | drum pitch 120 vertical and horizontal, neighbouring drum bodies 20 apart, 18 drums, 6 blanking plates, plate gaps 4.0 |
@@ -73,6 +74,7 @@ modelled. Ball tips are exactly tangent to the pad plane (compressed state, 9.0 
 | Guards | front cover to fixed trim gaps 2.0 (4 sides), shutter gap 1.0, plate and blanking-plate gaps 4.0 (all <= 4); front cover to the nearest moving part (knob) 31 (>= 20); motor to rear cover 3.0, to top cover 7.6 |
 | Slot disc | STROBE r72 -0.94 ... +0.94 (base slot, calibrated by the sensor bracket), JUDGE r62 +1.73 ... +4.25, CLEAR r52 +4.88 ... +8.96 (deg from the pad centre; connector-face windows of layout 3.8 = `SLOT_STEPS`, motor steps of 0.03 deg) |
 | Slot timing | decision 0003 3.3 at 60 rpm with 0.5 ms tolerance margin: L1 +1.02, L2 (calibrated form, after the 0.5 ms calibration residual) +0.56, L3 +0.58, L4 +0.52, L5 +0.58, C6 +2.23 ms; stop zone CLEAR end ... next STROBE 44 steps (worst 19.9); k = 25 JUDGE contact end 305.50 deg (10.7 deg before carry 1), CLEAR slot end 308.96 deg. OPEN: L2 in its uncalibrated form (-0.44 ms; not applicable, the gear STROBE is calibrated) |
+| Drum-change brake on F | clearance to the carry-2 tooth sweep (tip R84 on M) 4.00 (>= 2); 1.0 to the F coupling and 1.0 to the end of the idler shaft I (a first placement at u 61-97 overlapped the I shaft stub by 105 mm3 and was moved); holding torque 4.0 > 2 x 1.5 N m (two drums slipping their index) |
 
 ## Open items: dimensions that do not close geometrically (reported by `check.py` as OPEN)
 

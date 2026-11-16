@@ -134,6 +134,8 @@ def build_drive(m):
     # --- couplings (F, M, S) in the bank-side chamber
     for k in ("F", "M", "S"):
         m.add(f"drive_coupling_{k}", line.coupling(Y[k], ux(U["coupling"][0])), g, "moving", "steel")
+    # --- drum-change brake on F (rotor-cartridge.md 3.3), flanged to plate A
+    m.add("drive_brake_F", line.f_brake(Y["F"], ux(P.BRAKE_U[0]), ux(P.BRAKE_U[1])), g, "static", "black")
     # --- 26:30 train (F, I, C)
     tg = gearing.train_gears()
     for k in ("F", "I", "C"):

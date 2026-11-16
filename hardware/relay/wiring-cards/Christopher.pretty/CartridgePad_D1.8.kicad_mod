@@ -1,0 +1,59 @@
+(footprint "CartridgePad_D1.8"
+	(version 20241229)
+	(generator "gen_cartridge.py")
+	(layer "F.Cu")
+	(descr "Hard-gold contact pad of the rotor cartridge (placed on the back side, facing the spring pins).")
+	(tags "cartridge contact pad")
+	(property "Reference" "REF**"
+		(at 0 -1.8 0)
+		(layer "F.Fab")
+		(uuid "41f0aabe-5d1f-541c-bdcc-166525a0756d")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(property "Value" "CartridgePad_D1.8"
+		(at 0 1.8 0)
+		(layer "F.Fab")
+		(uuid "f8698a6c-2902-5ff7-a953-5fa5c29570c9")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(attr smd)
+	(fp_circle
+		(center 0 0)
+		(end 0.9 0)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "58ff6ec4-42ba-53d1-b32b-aa093f65348b")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 1.1 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "6451abb8-9458-5120-bd04-d93d6bb66c91")
+	)
+	(pad "1" smd circle
+		(at 0 0)
+		(size 1.8 1.8)
+		(layers "F.Cu" "F.Mask")
+		(uuid "9f8f2e12-5dd9-54f2-9b4f-8cef92f4d636")
+	)
+	(embedded_fonts no)
+)

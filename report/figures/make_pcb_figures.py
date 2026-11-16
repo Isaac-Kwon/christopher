@@ -51,6 +51,9 @@ BOARDS = [
     ("relay-position-display", "hardware/relay/position-display/position_display.kicad_pcb"),
     # the dial's code tracks are copper (F.Cu): plot them too
     ("relay-offset-dial", "hardware/relay/offset-dial/offset_dial.kicad_pcb", "Edge.Cuts,F.Cu,F.Fab,F.SilkS,F.CrtYd,User.Drawings"),
+    # rotor cartridge arrangement: the socket shows both sides (pins front, D-subs back), the cartridge its back pads
+    ("relay-rotor-socket", "hardware/relay/wiring-cards/rotor_socket.kicad_pcb", "Edge.Cuts,F.Fab,F.SilkS,F.CrtYd,B.Fab,B.CrtYd,User.Drawings"),
+    ("relay-rotor-cartridge-i", "hardware/relay/wiring-cards/cart_I.kicad_pcb", "Edge.Cuts,F.SilkS,B.Cu,B.Fab,User.Drawings"),
 ]
 LAYERS = "Edge.Cuts,F.Fab,F.SilkS,F.CrtYd,User.Drawings"
 PERSONAL = re.compile(rb"(?i)c:[/\\]+users|/home/[a-z]|dropbox[/\\]")

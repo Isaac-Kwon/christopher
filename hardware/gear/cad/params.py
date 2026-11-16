@@ -153,6 +153,16 @@ BRACKET_X = (760.0, 1000.0, 1240.0)   # D7: plate bracket every two columns on t
 BRACKET_T = 16.0                  # D7: thickness <= 16 (+-8 around the boundary)
 BRACKET_Z = (-143.0, -75.0)       # (mod)
 COUPLING_OD, COUPLING_L = 40.0, 50.0  # D6
+# Drum-change brake on F (hardware/common/rotor-cartridge.md 3.3): spring-applied, electrically released, its coil fed
+# through the second NC contacts of the two front-cover switches -> engaged whenever the front cover is open, so the
+# fast row cannot be turned while visitors change drums (M and S are held by the locking arcs through C).
+# Envelope only (housing + armature + friction disc, bore 21 over the O20 shaft), held off plate A by three standoffs
+# (not modelled) because the idler shaft I starts at u 93, 4 before plate A, only 39 below F.
+BRAKE_U = (59.0, 92.0)            # (mod) drive-local u: between the F coupling (ends at 58) and the I shaft end (93)
+BRAKE_OD = 64.0                   # (mod) <= 2 x (120 - 84 - 2): clears the carry-2 tooth sweep (tip R84 on M) by >= 2
+BRAKE_BORE = 21.0                 # (mod) 0.5 radial clearance over the shaft (the keyed hub sits inside the envelope)
+BRAKE_TORQUE_NM = 4.0             # (est.) > two drums slipping their index together (2 x 1.5 N m, D2)
+INDEX_SLIP_NM = 1.5               # D2 / L3.1: torque at which a seated drum slips over the V grooves
 
 # ----------------------------------------------------------------------------------------
 # Drive module (L3.7, D4, D5, D8)

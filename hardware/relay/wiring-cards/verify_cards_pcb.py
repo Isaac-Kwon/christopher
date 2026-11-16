@@ -25,6 +25,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 import gen_cards as C  # noqa: E402
+import gen_cartridge as G  # noqa: E402  (stage / staged kicad-cli runs)
 import gen_cards_pcb as GP  # noqa: E402
 import ki_common as K  # noqa: E402
 import verify_cards as VC  # noqa: E402
@@ -85,18 +86,18 @@ def check_card(proj: str, kind: str, name: str, work: Path, shifter: dict, shift
     pcb = HERE / f"{proj}.kicad_pcb"
     text = pcb.read_text(encoding="utf8")
     errs: list[str] = []
-    nl = K.Netlist.export(HERE / f"{proj}.kicad_sch", work)
-    pads = {k: v for k, v in K.pcb_pad_nets(pcb, work).items() if k[1] != "SH"}
+    nl = G.export_netlist(HERE / f"{proj}.kicad_sch", work)
+    pads = {k: v for k, v in G.staged_pad_nets(pcb, work).items() if k[1] != "SH"}
     errs += K.compare_pcb(nl, pads, pcb)
     brd = parse_board(text)
     for ref, d in brd.items():
         if ref.startswith("J"):
             if d["pads"].get("SH") != ["/CHASSIS"] * 2:
                 errs.append(f"{ref}: shell pads {d['pads'].get('SH')} are not CHASSIS")
-    d = K.run_drc(pcb, work)
+    d = G.staged_drc(pcb, work)
     errs += [f"DRC {v['type']}: {v['description']}" for v in d["violations"][:5]]
     want = expected_ratsnest(text)
-    rn = K.ratsnest_count(pcb)
+    rn = K.ratsnest_count(d["staged"])
     if rn is not None and rn != want:
         errs.append(f"ratsnest {rn} != {want}")
     if len(d["unconnected"]) == 0:
@@ -137,7 +138,7 @@ def main() -> int:
 
     # negative tests on copies of rotor_I.kicad_pcb
     text = texts["rotor_I"]
-    nl = K.Netlist.export(HERE / "rotor_I.kicad_sch", work)
+    nl = G.export_netlist(HERE / "rotor_I.kicad_sch", work)
     neg = work / "cards_negative.kicad_pcb"
 
     def detect(title, t2, kind="nets"):

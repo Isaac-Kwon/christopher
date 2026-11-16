@@ -29,11 +29,24 @@ Coverage: all 60 Enigma I wheel orders with reflector B at --samples random posi
 a third of them), all 336 Navy/M3 three-rotor orders with B and C at a few positions each, and one wheel order
 exhaustively (17,576 positions).  Negative tests (a swapped ribbon, ribbons to the wrong slot, wrong/misplaced
 cards, a card upside down, a4 not reversed, wrong reflector, mutated card netlists) must all fail.
+
+CARTRIDGE ARRANGEMENT (hardware/common/rotor-cartridge.md, gen_cartridge.py): the three W slots of the stack stay
+empty; every stack jumper that went to a W card becomes a 1:1 lead from the same shifter connector to the socket
+board connector of the same function (bay b: J(4b+n) = W.Jn), and the cartridge in the bay closes the wiring.  The
+pin-to-pad MATING is derived from the two board files (rotor_socket.kicad_pcb, cart_<rotor>.kicad_pcb): the cartridge
+is placed by its keying holes on the bay's two dowels in each of the four axis-aligned orientations (as made, turned
+180 deg, turned over left-right, turned over top-bottom; a turned-over cartridge has its pads facing away); only the
+right orientation must fit, and its 106 pads must meet the 106 pins of the bay.  The composed unit (shifters, U,
+socket, three cartridges, 2 jumpers, 12 leads, mating) is traced like the card unit; the detect chain (ILOCK) must be
+closed exactly when all three bays hold a seated cartridge and all three lids are latched.  Negative tests: a
+cartridge forced in turned round, turned over, one row off, missing; a lid open; wrong cartridge; cartridges L and M
+exchanged; leads to the wrong bay or the wrong group; mutated cartridge / socket netlists.
 """
 from __future__ import annotations
 
 import argparse
 import itertools
+import math
 import random
 import re
 import shutil
@@ -44,6 +57,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 import gen_cards as C  # noqa: E402
+import gen_cartridge as G  # noqa: E402
 import ki_common as K  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -188,8 +202,10 @@ def load_types(work: Path) -> dict[str, CardType]:
         shutil.copyfile(f, sd / f.name)
     shutil.copyfile(SHIFTER_DIR / "shifter_board.kicad_pro", sd / "shifter_board.kicad_pro")
     types = {"shifter": CardType("shifter", export(sd / "shifter_board.kicad_sch", work))}
-    for proj, kind, name in C.all_cards():
-        types[proj] = CardType(proj, export(HERE / f"{proj}.kicad_sch", work))
+    for proj, kind, name in C.all_cards():     # staged copies: no .kicad_prl / lock files in the tracked folder
+        types[proj] = CardType(proj, G.export_netlist(HERE / f"{proj}.kicad_sch", work))
+    for proj in ["rotor_socket"] + [p for p, _ in G.cart_projects()]:
+        types[proj] = CardType(proj, G.export_netlist(HERE / f"{proj}.kicad_sch", work))
     return types
 
 
@@ -330,7 +346,10 @@ def dsub_sigma(pcb_text: str, ref: str = "J1") -> dict:
 class Unit:
     """cards: instance -> card type key; ribbons; leads = {'IN': (inst, conn), 'OUT': (inst, conn)}."""
 
-    def __init__(self, types: dict[str, CardType], cards: dict[str, str], ribbons: list[Ribbon], leads: dict):
+    def __init__(self, types: dict[str, CardType], cards: dict[str, str], ribbons: list[Ribbon], leads: dict,
+                 links=(), forbidden=()):
+        """links: extra node pairs (pin-to-pad mating of the cartridge arrangement); forbidden: nodes that no signal
+        line may reach besides the shifters' control pins (the socket's detect chain)."""
         self.types, self.cards, self.ribbons, self.leads = types, cards, ribbons, leads
         base = UF()
         for inst, key in cards.items():
@@ -340,13 +359,15 @@ class Unit:
         for rb in ribbons:
             for pa, pb in rb.pins():
                 base.union((rb.a[0], rb.a[1], str(pa)), (rb.b[0], rb.b[1], str(pb)))
+        for a, b in links:
+            base.union(a, b)
         for a in list(base.p):
             base.find(a)
         self.base = base
         self.shifters = [i for i, k in cards.items() if k == "shifter"]
         self.in_pins = [(leads["IN"][0], leads["IN"][1], str(i + 1)) for i in range(N)]
         self.out_pins = [(leads["OUT"][0], leads["OUT"][1], str(i + 1)) for i in range(N)]
-        self.j5 = [(s, "J5", str(p)) for s in self.shifters for p in range(1, 10)]
+        self.j5 = [(s, "J5", str(p)) for s in self.shifters for p in range(1, 10)] + list(forbidden)
 
     def simulate(self, controls: dict) -> list[str]:
         """Set the stage relays from the control values, trace IN -> OUT; return [] or the permutation read."""
@@ -475,6 +496,350 @@ def check_chassis(nl: K.Netlist) -> list[str]:
     if ch is None or set(nl.nets[ch]) != want:
         return ["CHASSIS net is not exactly H1-H4"]
     return []
+
+
+# ============================================================================= cartridge arrangement
+CART_INST = {"L": "C_L", "M": "C_M", "R": "C_R"}
+W_TO_GROUP = {v: k for k, v in G.GROUP_W.items()}          # W connector -> pad group (J3 -> OI, ...)
+ORIENTS = ("as made", "turned 180", "turned over L-R", "turned over T-B")
+
+
+def board_geometry(path: Path) -> dict:
+    """ref -> (x, y, layer, footprint, hole diameter or None) and the Edge.Cuts bounding box of a board file."""
+    text = path.read_text(encoding="utf8")
+    fps = {}
+    for m in re.finditer(r'\n\t\(footprint "([^"]+)"\n\t\t\(layer "([^"]+)"\)\n\t\t\(uuid "[^"]*"\)\n\t\t\(at ([-\d.]+) ([-\d.]+)', text):
+        s = m.start() + 1
+        blk = text[s:K.block_end(text, s)]
+        ref = re.search(r'\(property "Reference" "([^"]+)"', blk)[1]
+        hole = None
+        if "np_thru_hole" in blk:
+            hole = float(re.search(r'\(drill ([-\d.]+)\)', blk)[1])
+        fps[ref] = (float(m[3]), float(m[4]), m[2], m[1], hole)
+    xs, ys = [], []
+    for m in re.finditer(r'\(gr_line\n\t\t\(start ([-\d.]+) ([-\d.]+)\)\n\t\t\(end ([-\d.]+) ([-\d.]+)\)', text):
+        xs += [float(m[1]), float(m[3])]
+        ys += [float(m[2]), float(m[4])]
+    return {"fp": fps, "outline": (min(xs), min(ys), max(xs), max(ys))}
+
+
+def bay_geometry(sock: dict, bay: str) -> dict:
+    """Datum = midpoint of the bay's two dowel holes; pins (front side) and dowels relative to it."""
+    fp = sock["fp"]
+    dw = {ref[len(bay):]: (x, y, d) for ref, (x, y, _, _, d) in fp.items() if d and ref.startswith(bay) and "DW" in ref}
+    assert len(dw) == 2, (bay, dw)
+    ox = sum(v[0] for v in dw.values()) / 2
+    oy = sum(v[1] for v in dw.values()) / 2
+    pins = {ref[len(bay):]: (x - ox, y - oy) for ref, (x, y, layer, f, d) in fp.items()
+            if d is None and ref.startswith(bay) and f.endswith(G.FP_PIN)}
+    sides = {fp[bay + n][2] for n in pins}
+    return {"datum": (ox, oy), "pins": pins, "dowels": [(v[2], v[0] - ox, v[1] - oy) for v in dw.values()], "sides": sides}
+
+
+def cart_geometry(cart: dict) -> dict:
+    """Datum = centre of the board outline; pads (back side) and holes relative to it."""
+    x0, y0, x1, y1 = cart["outline"]
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    fp = cart["fp"]
+    pads = {ref: (x - cx, y - cy) for ref, (x, y, layer, f, d) in fp.items() if d is None and f.endswith(G.FP_PAD)}
+    holes = [(d, x - cx, y - cy) for ref, (x, y, _, _, d) in fp.items() if d and ref.startswith("K")]
+    sides = {fp[r][2] for r in pads}
+    return {"pads": pads, "holes": holes, "sides": sides, "size": (x1 - x0, y1 - y0)}
+
+
+def orient_xy(o: str, x: float, y: float) -> tuple[float, float]:
+    return {"as made": (x, y), "turned 180": (-x, -y), "turned over L-R": (-x, y), "turned over T-B": (x, -y)}[o]
+
+
+def key_fit(bay: dict, cart: dict, o: str, tol=0.05):
+    """Translation (dx, dy) of the cartridge datum that puts a hole on every dowel with hole >= dowel, or None.
+    The bay window admits the cartridge only upright, so only the four axis-aligned orientations exist."""
+    holes = [(d, *orient_xy(o, x, y)) for d, x, y in cart["holes"]]
+    (d0, x0, y0) = bay["dowels"][0]
+    for dh, hx, hy in holes:
+        tx, ty = x0 - hx, y0 - hy
+        ok = True
+        for dd, dx, dy in bay["dowels"]:
+            match = [h for h in holes if abs(h[1] + tx - dx) < tol and abs(h[2] + ty - dy) < tol]
+            if not match or match[0][0] < dd:
+                ok = False
+                break
+        if ok:
+            return tx, ty
+    return None
+
+
+def mating(bay: dict, cart: dict, o: str, shift=(0.0, 0.0), tol=0.3) -> dict:
+    """{pin name: pad ref} for the cartridge in orientation o, centred in the bay (+ shift).  A turned-over cartridge
+    has its pads facing away from the pins: no contact at all."""
+    if o.startswith("turned over"):
+        return {}
+    out = {}
+    for pn, (px, py) in bay["pins"].items():
+        hit = [r for r, (x, y) in cart["pads"].items()
+               if math.hypot(orient_xy(o, x, y)[0] + shift[0] - px, orient_xy(o, x, y)[1] + shift[1] - py) < tol]
+        assert len(hit) <= 1, (pn, hit)
+        if hit:
+            out[pn] = hit[0]
+    return out
+
+
+class CartGeo:
+    """Geometry of the socket bays and of every cartridge board, read from the board files."""
+
+    def __init__(self):
+        self.sock = board_geometry(HERE / "rotor_socket.kicad_pcb")
+        self.bays = {b: bay_geometry(self.sock, b) for b in G.BAYS}
+        self.carts = {p: cart_geometry(board_geometry(HERE / f"{p}.kicad_pcb")) for p, _ in G.cart_projects()}
+
+    def links(self, bay: str, cart_key: str, o="as made", shift=(0.0, 0.0)) -> list:
+        mt = mating(self.bays[bay], self.carts[cart_key], o, shift)
+        return [(("SOCK", bay + pn, "1"), (CART_INST[bay], pad, "1")) for pn, pad in mt.items()]
+
+
+def build_cart_unit(types, geo: CartGeo, rotors=("I", "II", "III"), reflector="B", *, carts=None, orient=None,
+                    shift=None, lead_map=None) -> Unit:
+    """carts: bay -> cartridge project (None = empty bay); orient / shift: bay -> orientation / forced offset;
+    lead_map: (W slot, W connector) -> (W slot, W connector) to plug a lead into another function's connector."""
+    pairs, _, _ = derive_ribbons(STACK)
+    rib = []
+    for p in pairs:
+        a, b = sorted(p)
+        w_end = [e for e in (a, b) if e[0] in G.W_SLOT.values()]
+        if not w_end:
+            rib.append(Ribbon(a, b))
+            continue
+        w = w_end[0]
+        other = b if w == a else a
+        slot, conn = (lead_map or {}).get(w, w)
+        bay = next(k for k, v in G.W_SLOT.items() if v == slot)
+        rib.append(Ribbon(other, ("SOCK", G.sock_conn(bay, W_TO_GROUP[conn]))))
+    carts = carts if carts is not None else {"L": f"cart_{rotors[0]}", "M": f"cart_{rotors[1]}", "R": f"cart_{rotors[2]}"}
+    cards = {"S1": "shifter", "S2": "shifter", "S3": "shifter", "S4": "shifter", "U": f"reflector_{reflector}",
+             "SOCK": "rotor_socket"}
+    links = []
+    for bay, key in carts.items():
+        if key:
+            cards[CART_INST[bay]] = key
+            links += geo.links(bay, key, (orient or {}).get(bay, "as made"), (shift or {}).get(bay, (0.0, 0.0)))
+    forbidden = [("SOCK", f"J{n}", p) for n in (13, 14, 15, 16) for p in ("1", "2")]
+    return Unit(types, cards, rib, {"IN": LAYOUT_LEADS["IN"], "OUT": LAYOUT_LEADS["OUT"]}, links, forbidden)
+
+
+def chain_closed(types, geo: CartGeo, carts: dict, orient=None, lids=None, shift=None) -> bool:
+    """ILOCK detect chain of one socket: J16.1 -> ... -> J16.2 through detect pins, cartridges and lid switches."""
+    uf = UF()
+
+    def add(inst, key):
+        for nodes in types[key].nl.nets.values():
+            for nd in nodes[1:]:
+                uf.union((inst,) + nodes[0], (inst,) + nd)
+    add("SOCK", "rotor_socket")
+    for bay, key in carts.items():
+        if key:
+            add(CART_INST[bay], key)
+            for a, b in geo.links(bay, key, (orient or {}).get(bay, "as made"), (shift or {}).get(bay, (0.0, 0.0))):
+                uf.union(a, b)
+    for b, bay in enumerate(G.BAYS):
+        if (lids or {}).get(bay, True):
+            uf.union(("SOCK", f"J{13 + b}", "1"), ("SOCK", f"J{13 + b}", "2"))
+    return uf.find(("SOCK", "J16", "1")) == uf.find(("SOCK", "J16", "2"))
+
+
+def check_cart_card(nl: K.Netlist, name: str) -> list[str]:
+    w = C.table("rotor", name)
+    winv = C.inverse(w)
+    nn, errs = nl.node_net, []
+    want_parts = {f"{g}{i + 1}" for g, _ in G.GROUPS for i in range(N)} | {d for d, _, _ in G.DETECT}
+    if set(nl.parts) != want_parts:
+        errs.append(f"parts differ: {sorted(set(nl.parts) ^ want_parts)[:6]}")
+    for i in range(N):
+        if nn.get((f"OI{i + 1}", "1")) is None or set(nl.nets[nn[(f"OI{i + 1}", "1")]]) != {(f"OI{i + 1}", "1"), (f"OO{w[i] + 1}", "1")}:
+            errs.append(f"outbound pad OI{i + 1} is not wired to OO{w[i] + 1} only")
+        if nn.get((f"RI{i + 1}", "1")) is None or set(nl.nets[nn[(f"RI{i + 1}", "1")]]) != {(f"RI{i + 1}", "1"), (f"RO{winv[i] + 1}", "1")}:
+            errs.append(f"return pad RI{i + 1} is not wired to RO{winv[i] + 1} only (W inverse)")
+    d = nn.get(("DT1", "1"))
+    if d is None or set(nl.nets[d]) != {("DT1", "1"), ("DT2", "1")}:
+        errs.append("detect pads DT1-DT2 are not a short of their own")
+    return errs
+
+
+def check_socket_card(nl: K.Netlist) -> list[str]:
+    nn, errs = nl.node_net, []
+    for bay in G.BAYS:
+        for grp, _ in G.GROUPS:
+            j = G.sock_conn(bay, grp)
+            for i in range(N):
+                pin = (G.pin_ref(bay, f"{grp}{i + 1}"), "1")
+                n = nn.get(pin)
+                if n is None or set(nl.nets[n]) != {pin, (j, str(i + 1))}:
+                    errs.append(f"pin {pin[0]} is not wired to {j} pin {i + 1} only")
+            for p in range(27, 38):
+                n = nn.get((j, str(p)))
+                if n is not None and len(nl.nets[n]) > 1:
+                    errs.append(f"{j} pin {p} is connected (must float, 0003 5.2)")
+    want = [{(G.pin_ref("L", "DT1"), "1"), ("J16", "1")}]
+    for b, bay in enumerate(G.BAYS):
+        want.append({(G.pin_ref(bay, "DT2"), "1"), (f"J{13 + b}", "1")})
+        nxt = (G.pin_ref(G.BAYS[b + 1], "DT1"), "1") if b < 2 else ("J16", "2")
+        want.append({(f"J{13 + b}", "2"), nxt})
+    for w in want:
+        n = nn.get(next(iter(w)))
+        if n is None or set(nl.nets[n]) != w:
+            errs.append(f"detect chain net {sorted(w)} differs")
+    ch = nn.get(("H1", "1"))
+    want_ch = {(f"H{k}", "1") for k in range(1, 5)} | {(f"J{k}", "SH") for k in range(1, 13)}
+    if ch is None or set(nl.nets[ch]) != want_ch:
+        errs.append("CHASSIS is not exactly H1-H4 + the twelve D-sub shells")
+    return errs
+
+
+def cartridge_section(types, texts, oracle, a) -> list[str]:
+    """Everything about the cartridge arrangement: geometry, cards, chain, unit composition, negative tests."""
+    errs: list[str] = []
+    geo = CartGeo()
+    print("CARTRIDGE ARRANGEMENT (rotor_socket + cart_<rotor>, W slots of the stack empty, 12 leads):")
+    # --- cards
+    e = check_socket_card(types["rotor_socket"].nl)
+    for p, name in G.cart_projects():
+        e += [f"{p}: {x}" for x in check_cart_card(types[p].nl, name)]
+    print(f"  card netlists (rotor_socket, 8 cartridges vs data/wirings/enigma.txt): {'OK' if not e else e[:3]}")
+    errs += e
+    # --- geometry: keys and mating from the board files
+    e = []
+    for p in geo.carts:
+        cg = geo.carts[p]
+        if cg["sides"] != {"B.Cu"}:
+            e.append(f"{p}: pads not all on the back ({cg['sides']})")
+        for bay in G.BAYS:
+            bg = geo.bays[bay]
+            if bg["sides"] != {"F.Cu"}:
+                e.append(f"bay {bay}: pins not all on the front")
+            fits = {o: key_fit(bg, cg, o) for o in ORIENTS}
+            if fits["as made"] is None or max(map(abs, fits["as made"])) > 0.05:
+                e.append(f"{p} in bay {bay}: the keys do not seat it centred ({fits['as made']})")
+            wrong = [o for o in ORIENTS[1:] if fits[o] is not None]
+            if wrong:
+                e.append(f"{p} in bay {bay}: also fits {wrong}")
+            mt = mating(bg, cg, "as made")
+            if len(mt) != len(bg["pins"]) or any(pn != pad for pn, pad in mt.items()):
+                e.append(f"{p} in bay {bay}: {len(mt)} of {len(bg['pins'])} pins meet their own pad")
+    nb = len(geo.bays["L"]["pins"])
+    print(f"  keys and mating from the board files: 8 cartridges x 3 bays, as made {nb}/{nb} pins on their own pad, "
+          f"turned 180 / turned over L-R / T-B: {'all blocked by the dowels' if not e else e[:3]}")
+    errs += e
+    # --- detect chain (ILOCK)
+    full = {"L": "cart_I", "M": "cart_II", "R": "cart_III"}
+    cases = [("all three seated, lids latched", dict(carts=full), True),
+             ("bay M empty", dict(carts=dict(full, M=None)), False),
+             ("lid of bay R open", dict(carts=full, lids={"R": False}), False),
+             ("bay L cartridge forced in turned 180 deg", dict(carts=full, orient={"L": "turned 180"}), False),
+             ("bay M cartridge turned over (pads facing out)", dict(carts=full, orient={"M": "turned over L-R"}), False),
+             ("bay R cartridge one row (2.54) low", dict(carts=full, shift={"R": (0.0, 2.54)}), False)]
+    e = []
+    for title, kw, want in cases:
+        got = chain_closed(types, geo, **kw)
+        if got != want:
+            e.append(f"chain {title}: {'closed' if got else 'open'}")
+    print(f"  detect chain J16.1-J16.2: closed only with three seated cartridges and three latched lids "
+          f"({len(cases)} cases): {'OK' if not e else e}")
+    errs += e
+    # --- pin 1: only the two S4-U jumpers are left in the stack; the 12 leads are long free ribbons
+    pairs, _, _ = derive_ribbons(STACK)
+    jumpers = [p for p in pairs if not any(x[0] in G.W_SLOT.values() for x in p)]
+    ends = board_pin1_ends()
+    bad = [p for p in map(sorted, jumpers) if ends[(_key(p[0][0], "s4"), p[0][1])] != ends[(_key(p[1][0], "s4"), p[1][1])]]
+    print(f"  stack jumpers left: {len(jumpers)} ({', '.join(f'{a[0]}.{a[1]}-{b[0]}.{b[1]}' for a, b in map(sorted, jumpers))}), "
+          f"pin 1 {'aligned' if not bad else bad}; leads: {len(pairs) - len(jumpers)} (1:1, no pin-1 constraint)")
+    errs += [f"pin 1 (cartridge): {x}" for x in bad]
+    # --- composition
+    rng = random.Random(20261116)
+    enigma_i = [("B",) + t for t in itertools.permutations(("I", "II", "III", "IV", "V"), 3)]
+    tot = bad_n = 0
+    t1 = time.time()
+    for order in enigma_i:
+        unit = build_cart_unit(types, geo, order[1:], order[0])
+        pos = [(0, 0, 0, 0), (25, 25, 25, 0)] + [(rng.randrange(N), rng.randrange(N), rng.randrange(N),
+                                                 rng.randrange(N) if rng.random() < 1 / 3 else 0) for _ in range(a.samples - 2)]
+        n, fails, _ = check_positions(unit, order, pos, oracle, port_check=False)
+        tot += n
+        bad_n += len(fails)
+        errs += fails[:2]
+    print(f"  Enigma I: 60 wheel orders x {a.samples} positions = {tot} traces: "
+          f"{'all equal to the scrambler' if not bad_n else f'{bad_n} FAIL'} [{time.time() - t1:.0f} s]")
+    if not a.quick:
+        tot = bad_n = 0
+        t1 = time.time()
+        orders = [(rf,) + t for rf in ("B", "C") for t in itertools.permutations(C.ROTORS, 3)]
+        for order in orders:
+            unit = build_cart_unit(types, geo, order[1:], order[0])
+            pos = [(rng.randrange(N), rng.randrange(N), rng.randrange(N), rng.randrange(N)) for _ in range(2)]
+            n, fails, _ = check_positions(unit, order, pos, oracle, port_check=False)
+            tot += n
+            bad_n += len(fails)
+            errs += fails[:2]
+        print(f"  all 3-rotor orders of I..VIII, reflectors B and C: {len(orders)} x 2 positions = {tot} traces: "
+              f"{'all equal' if not bad_n else f'{bad_n} FAIL'} [{time.time() - t1:.0f} s]")
+        order = tuple(a.exhaustive.split()) if a.exhaustive.strip().lower() != "all" else ("B", "II", "IV", "V")
+        unit = build_cart_unit(types, geo, order[1:], order[0])
+        t1 = time.time()
+        n, fails, _ = check_positions(unit, order, ((l, m, r, 0) for l in range(N) for m in range(N) for r in range(N)),
+                                      oracle, port_check=False)
+        print(f"  exhaustive {' '.join(order)}: {n} positions x 26 lines: "
+              f"{'all equal to the scrambler' if not fails else f'{len(fails)} FAIL'} [{time.time() - t1:.0f} s]")
+        errs += fails[:3]
+    # --- negative tests
+    rotors, refl = ("I", "II", "III"), "B"
+    order = order_of(rotors, refl)
+    pos = [(0, 0, 0, 0), (1, 0, 0, 0)] + [(rng.randrange(N), rng.randrange(N), rng.randrange(N), 0) for _ in range(60)]
+    full = {"L": "cart_I", "M": "cart_II", "R": "cart_III"}
+
+    def lead_swap(x, y):
+        return {x: y, y: x}
+    tests = [
+        ("cartridge M forced in turned 180 deg (past the keys)", dict(orient={"M": "turned 180"})),
+        ("cartridge L turned over (pads facing out)", dict(orient={"L": "turned over L-R"})),
+        ("cartridge R one row (2.54 mm) low (past the keys)", dict(shift={"R": (0.0, 2.54)})),
+        ("bay M empty", dict(carts=dict(full, M=None))),
+        ("wrong cartridge: IV in bay M instead of II", dict(carts=dict(full, M="cart_IV"))),
+        ("cartridges of bays L and M exchanged", dict(carts=dict(full, L="cart_II", M="cart_I"))),
+        ("leads of W_L and W_M outbound-in exchanged (lead into the wrong bay)",
+         dict(lead_map=lead_swap(("W_L", "J3"), ("W_M", "J3")))),
+        ("bay M outbound-in and return-in leads exchanged", dict(lead_map=lead_swap(("W_M", "J3"), ("W_M", "J4")))),
+        ("bay R outbound-out and return-out leads exchanged", dict(lead_map=lead_swap(("W_R", "J1"), ("W_R", "J2")))),
+    ]
+    for title, kw in tests:
+        u = build_cart_unit(types, geo, rotors, refl, **kw)
+        n, fails, _ = check_positions(u, order, pos, oracle, port_check=False)
+        print(f"  negative test {'detected' if fails else 'MISSED  '}: {title} ({len(fails)}/{n} positions differ)")
+        if not fails:
+            errs.append(f"negative test missed (cartridge): {title}")
+
+    def mutated(proj, ra, rb, check):
+        t = dict(types)
+        t[proj] = CardType(proj, K.Netlist(swap_refs(texts[proj], ra, rb)))
+        u = build_cart_unit(t, geo, rotors, refl)
+        n, fails, _ = check_positions(u, order, pos[:30], oracle, port_check=False)
+        ce = check(t[proj].nl)
+        print(f"  negative test {'detected' if fails and ce else 'MISSED  '}: {proj} netlist, {ra} <-> {rb} exchanged "
+              f"({len(fails)}/{n} positions differ, {len(ce)} card-check errors)")
+        if not (fails and ce):
+            errs.append(f"negative test missed (cartridge): {proj} {ra}<->{rb}")
+    mutated("cart_II", "OI1", "OI2", lambda nl: check_cart_card(nl, "II"))
+    mutated("cart_III", "RO25", "RO26", lambda nl: check_cart_card(nl, "III"))
+    mutated("rotor_socket", "MOO3", "MOO4", check_socket_card)
+    return errs
+
+
+def swap_refs(text: str, ra: str, rb: str) -> str:
+    """Negative-test helper: exchange the nets of two single-pin parts (the node entries of ra and rb) in a netlist text."""
+    i = text.index("(nets")
+    head, nets = text[:i], text[i:]
+    pat = lambda r: re.compile(r'\(ref "%s"\)' % re.escape(r))
+    nets, na = pat(ra).subn('(ref "@@A@@")', nets)
+    nets, nb = pat(rb).subn('(ref "@@B@@")', nets)
+    assert na == 1 and nb == 1, (ra, rb, na, nb)
+    return head + nets.replace('(ref "@@A@@")', f'(ref "{rb}")').replace('(ref "@@B@@")', f'(ref "{ra}")')
 
 
 # ============================================================================= main
@@ -758,6 +1123,9 @@ def main() -> int:
     # --- 6. negative tests
     print("negative tests (each mutated unit must differ from the scrambler of the intended wheel order):")
     allerr += run_negative_tests(types, texts, work, oracle)
+
+    # --- 7. the visitor cartridge arrangement (hardware/common/rotor-cartridge.md)
+    allerr += cartridge_section(types, texts, oracle, a)
 
     print(f"[{time.time() - t0:.0f} s]  RESULT:", "PASS" if not allerr else f"FAIL {allerr[:5]}")
     return 1 if allerr else 0

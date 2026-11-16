@@ -172,6 +172,17 @@ def checks_drive(model, tab):
     pl = pn["pulley_large"]
     gap = math.hypot(P.SHAFTS['F'] - P.SHAFTS['C'], 0) - 10.0 - (motor.pulley_radius(P.HTD_T_LARGE) + P.BELT_T)
     tab.add("belt/pulley to C shaft surface", "> 0 (layout 71 > 59.3)", f"{gap:.2f}", gap > 0)
+    # drum-change brake on F (rotor-cartridge.md 3.3)
+    br = bb(pn["drive_brake_F"])
+    c2tip = P.CARRY2_M * P.CARRY2_TOOTH_EQ_T / 2 + P.CARRY2_M
+    clr = (P.SHAFTS["F"] - P.SHAFTS["M"]) - c2tip - P.BRAKE_OD / 2
+    tab.add("F brake to carry-2 tooth sweep (tip R84 on M)", ">= 2", f"{clr:.2f}", clr >= 2.0)
+    cpl = bb(pn["drive_coupling_F"])
+    ish = bb(pn["drive_shaft_I"])
+    tab.add("F brake between the F coupling and the I shaft end (bank-side chamber)", ">= 1 / >= 1",
+            f"{br.xmin - cpl.xmax:.1f} / {ish.xmin - br.xmax:.1f}", br.xmin - cpl.xmax >= 1.0 and ish.xmin - br.xmax >= 1.0)
+    tab.add("F brake holding torque vs two drums slipping their index", f"> 2 x {P.INDEX_SLIP_NM}",
+            f"{P.BRAKE_TORQUE_NM:.1f} N m", P.BRAKE_TORQUE_NM > 2 * P.INDEX_SLIP_NM)
 
 
 D_ON, D_OFF = (2.5, 4.0), (1.5, 4.0)    # decision 0003 3.1: timing-relay delays (ms), range

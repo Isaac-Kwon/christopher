@@ -14,6 +14,11 @@ def coupling(y, x0):
     return tube(P.COUPLING_OD / 2, P.LINE_D / 2, (x0, y, P.Z_LINE), (x0 + P.COUPLING_L, y, P.Z_LINE))
 
 
+def f_brake(y, x0, x1):
+    """Spring-applied (power-off) brake on the fast line shaft F: envelope O BRAKE_OD x (x1 - x0), bore BRAKE_BORE."""
+    return tube(P.BRAKE_OD / 2, P.BRAKE_BORE / 2, (x0, y, P.Z_LINE), (x1, y, P.Z_LINE))
+
+
 def bracket(xc):
     """Vertical plate bracket 16 t on a slot boundary, Y 910 ... 1307 (between the rails), Z -143 ... -75,
     with three O42 bearing bores (one per line shaft)."""

@@ -1,0 +1,59 @@
+(footprint "SpringPin_SMD_D1.6_P2.54"
+	(version 20241229)
+	(generator "gen_cartridge.py")
+	(layer "F.Cu")
+	(descr "Surface-mount spring-loaded pin on a 2.54 mm grid (rotor cartridge socket, hardware/common/rotor-cartridge.md). Pad and body diameter ASSUMED: confirm with the datasheet of the chosen pin.")
+	(tags "spring pin pogo cartridge")
+	(property "Reference" "REF**"
+		(at 0 -1.8 0)
+		(layer "F.Fab")
+		(uuid "9b69d2e1-1b22-5c58-988b-ce7485f14e3c")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(property "Value" "SpringPin_SMD_D1.6_P2.54"
+		(at 0 1.8 0)
+		(layer "F.Fab")
+		(uuid "d64cbde2-b7ad-596b-9d3a-fa789a3e0b99")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(attr smd)
+	(fp_circle
+		(center 0 0)
+		(end 0.75 0)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "2b6eef69-7474-51bb-bc40-69c5bebcfc2f")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 1 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "75da4fcb-1858-535f-b6a2-725b8571b9f4")
+	)
+	(pad "1" smd circle
+		(at 0 0)
+		(size 1.6 1.6)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(uuid "93b868ee-ab2c-53a7-842f-eb3ffcf3988f")
+	)
+	(embedded_fonts no)
+)
