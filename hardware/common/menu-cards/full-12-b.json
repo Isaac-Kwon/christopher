@@ -269,7 +269,7 @@
     ],
     "false_stops": 1,
     "false_stops_true_order_full_run": 1,
-    "false_stops_all_60_orders_full_run": 53
+    "false_stops_all_120_orders_full_run": 53
   },
   "key": {
     "model": "enigma-i",

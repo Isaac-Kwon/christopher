@@ -194,8 +194,8 @@ def back(rec: dict) -> str:
 유닛 & 링크 & IN 글자 & OUT 글자 & 드럼 오프셋 & 오른쪽 드럼 \\ \midrule
 {chr(10).join(rows)}
 \bottomrule\end{{tabular}}\end{{center}}
-{{\small 드럼 오프셋은 정지값 기준 상대값이다 (왼쪽 \mono{{A}}, 가운데 \mono{{A}}, 오른쪽 링크번호$-1$ 칸 앞).
-즉 첫 링크는 \mono{{AAA}}, 둘째는 \mono{{AAB}} 처럼 오른쪽 드럼만 한 칸씩 앞선다.}}\par
+{{\small 드럼 오프셋은 정지값 기준 상대값이다 (왼쪽 \mono{{A}}, 가운데 \mono{{A}}, 오른쪽은 그 링크의 크립 위치만큼 앞선 글자).
+즉 크립 위치가 $+0$이면 \mono{{AAA}}, $+2$이면 \mono{{AAC}} 처럼 오른쪽 드럼만 앞선다. 표의 드럼 오프셋 칸을 그대로 맞추면 된다.}}\par
 \sect{{테스트 레지스터}}
 {{\small 테스트 글자 \mono{{{m['test_letter']}}} 의 26선 케이블을 테스트 레지스터에 꽂고, 시험 선 플러그를 입력 선 \mono{{{m['input_wire']}}} 에 꽂는다.}}\par
 \sect{{정지 기록}}

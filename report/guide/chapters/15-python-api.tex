@@ -1,0 +1,294 @@
+\chapter{파이썬에서 쓰기: \texorpdfstring{\code{christopher}}{christopher} 패키지}\label{ch:15-python-api}
+\begingroup\setlength{\emergencystretch}{3em}% long identifiers: allow looser lines in this chapter only
+
+앞의 다섯 장은 Rust 코어를 읽었다. 실제로 이 코어를 가장 많이 부르는 것은 Python이다. 노트북, 메뉴 카드
+생성기(\ref{ch:32-menu-cards}장), FPGA 호스트(\ref{ch:31-fpga-host}장), 회로 시험의 기준 벡터가 모두 Python에서
+코어를 부른다. 이 장은 그 사이의 두 층, Rust 함수를 Python에 내놓는 \code{crates/christopher-py}와 조작자의
+언어로 감싸는 \code{python/christopher}를 읽는다.
+
+\section{왜 두 언어인가}\label{sec:py-why}
+
+\Why 두 언어는 서로 잘하는 것이 다르다. Rust는 컴파일해서 돌리므로 빠르고, 자료형을 컴파일 때 검사하므로 큰
+계산의 기반이 되기에 알맞다. M4의 위치 6억 1천만 곳을 도는 일(\ref{sec:s-count}절)은 이쪽이어야 한다. Python은
+한 줄씩 해 보며 결과를 바로 보는 데 알맞고, 그림을 그리거나 파일을 다루거나 하드웨어와 이야기하는 라이브러리가
+많다. 그래서 계산은 Rust에 한 벌만 두고, 그것을 쓰는 일은 Python에서 한다.
+
+\General 과학 계산에서 흔한 구조다. 수치 계산 라이브러리 NumPy는 겉은 Python이지만 행렬 곱셈은 C나 포트란으로
+짠 코드가 한다. 사용자는 Python의 편리함을 누리고, 시간이 걸리는 부분은 컴파일된 코드가 맡는다.
+
+\Ours 더 중요한 이유는 \emph{기준이 하나}라는 것이다. 에니그마의 배선표를 파일 하나에만 두는 것(\ref{ch:rust-enigma}장)과
+같은 생각이다. 메뉴 카드가 예상하는 정지, FPGA 엔진과 대조할 정지, 회로 시험의 답안지가 모두 같은 Rust 코드에서
+나온다. Python으로 봄베를 다시 짰다면 두 구현이 어긋날 수 있고, 그러면 무엇이 기준인지 말할 수 없게 된다.
+그림~\ref{fig:g-py-layers}가 층의 구조다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkg,minimum width=112mm,minimum height=9mm,font=\footnotesize] (core) at (0,0) {Rust 코어 \code{christopher-core}: \code{enigma}, \code{menu}, \code{bombe}, \code{check}, \code{search}};
+  \node[blkn,minimum width=112mm,minimum height=9mm,font=\footnotesize] (bind) at (0,1.3) {바인딩 \code{christopher-py} (PyO3) $\to$ 확장 모듈 \code{christopher.\_core}: 함수 10개, 클래스 1개};
+  \node[blkb,minimum width=112mm,minimum height=9mm,font=\footnotesize] (py) at (0,2.6) {Python 패키지 \code{christopher}: \code{Enigma}, \code{Menu}, \code{Bombe}, \code{Stop}, \code{Solution}, \code{search}};
+  \foreach \x/\lab in {-4.9/노트북, -2.45/메뉴 카드, 0/FPGA 호스트, 2.45/RTL 벡터, 4.9/시험} {
+    \node[blko,minimum width=21mm,minimum height=8mm,font=\footnotesize] at (\x,4.0) {\lab};
+    \draw[->] (\x,3.6) -- (\x,3.05);
+  }
+  \draw[<->] (bind) -- (core);
+  \draw[<->] (py) -- (bind);
+  \node[note,anchor=west] at (0.15,0.65) {Rust 자료형};
+  \node[note,anchor=west] at (0.15,1.95) {튜플, 정수, 글자열};
+\end{tikzpicture}
+\caption{코어 하나를 여러 곳이 쓴다. 가운데 층은 일부러 단순하게 두었다.}
+\label{fig:g-py-layers}
+\end{figure}
+
+\section{경계는 튜플로}\label{sec:py-wire}
+
+PyO3는 Rust 함수에 표시를 붙여 Python에서 부를 수 있게 해 주는 라이브러리다. \code{\#[pyfunction]}을 붙인 함수는
+Python의 함수가 되고, \code{\#[pyclass]}를 붙인 구조체는 Python의 클래스가 된다. 인자와 반환값은 PyO3가 자동으로
+바꿔 준다. Rust의 \code{u8}과 \code{usize}는 Python의 \code{int}로, \code{String}은 \code{str}로, \code{Vec}은
+\code{list}로, 튜플은 튜플로, \code{Option}은 값 또는 \code{None}으로.
+
+바인딩 파일의 머리 주석이 설계를 한 문단으로 밝힌다.
+
+\begin{lstlisting}[language=Rust,caption={\code{christopher-py/src/lib.rs}: 머리 주석과 경계의 자료형.},label={lst:py-wire}]
+//! The binding layer is deliberately dumb: letters cross the boundary as `str` (or `u8` 0..26 inside
+//! tuples) and every structure is a plain tuple. `python/christopher` turns those into the
+//! operator-facing classes. Only the Enigma is a stateful class. Long computations (bombe runs,
+//! search, checking) release the GIL with `Python::detach`.
+
+type MenuT = (usize, String, Vec<(u8, u8, u16)>, u8, u8);
+type OrderT = (String, Option<String>, [String; 3]);
+type PosT = (u8, u8, u8, u8);
+type StopT = (PosT, u32);
+\end{lstlisting}
+
+메뉴는 (크립 위치, 크립, 선의 목록, 테스트 글자, 입력 선)의 튜플이고 선은 (평문, 암호문, 크립 위치)다. 로터 순서는
+(반사판, 그리스 로터 또는 없음, 로터 셋의 이름), 드럼 위치는 코어 위치 네 개, 정지는 (위치, 테스트 레지스터)다.
+
+\Why 경계를 튜플로 두는 이유는 두 가지다. 첫째, PyO3가 튜플과 정수를 그대로 바꿔 주므로 바인딩에 손으로 짠 변환이
+거의 없다. 둘째, 사용자가 만지는 클래스(\code{Menu}, \code{Stop})는 순수 Python이므로, 출력 형식을 고치거나 편의
+기능을 더할 때 Rust를 다시 컴파일할 필요가 없다. 상태를 가진 것은 에니그마 하나뿐이다. 에니그마는 글자를 칠
+때마다 로터가 움직이므로 그 상태를 Rust 쪽 객체가 들고 있어야 한다. 봄베 구동은 메뉴와 로터 순서를 받아 정지를
+돌려주는 함수여서 상태가 필요 없다.
+
+\paragraph{경계에서 검사한다.} Python에서는 무엇이든 넘어올 수 있다. 정수 30을 글자라고 넘길 수도 있다. 그래서
+튜플을 Rust 구조체로 바꾸는 곳에서 값을 검사한다.
+
+\begin{lstlisting}[language=Rust,caption={\code{christopher-py/src/lib.rs}: 메뉴 튜플을 받을 때의 검사.},label={lst:py-menu-from}]
+fn menu_from_py(m: &MenuT) -> PyResult<Menu> {
+    let crib = alphabet::parse_letters(&m.1).map_err(err)?;
+    let mut edges = Vec::with_capacity(m.2.len());
+    for &(plain, cipher, pos) in &m.2 {
+        if plain >= 26 || cipher >= 26 || plain == cipher {
+            return Err(PyValueError::new_err(format!("invalid menu edge ({plain}, {cipher})")));
+        }
+        edges.push(Edge { plain, cipher, pos });
+    }
+    ...
+}
+
+fn err(e: Error) -> PyErr {
+    PyValueError::new_err(e.to_string())
+}
+\end{lstlisting}
+
+Rust 코어 안에서는 글자가 0--25라는 것을 믿고 배열의 칸 번호로 쓴다. 그 믿음이 깨지면 배열 밖을 읽게 된다(Rust는
+이때 프로그램을 멈춘다). 그래서 바깥에서 들어오는 값은 문 앞에서 한 번 걸러야 한다. \code{plain == cipher}를 막는
+것은 에니그마가 글자를 자기 자신으로 암호화하지 않기 때문이다(\ref{ch:rust-menu}장). 그런 선은 크립에서 나올 수 없다.
+
+\Ours 오류는 모두 Python의 \code{ValueError} 하나로 나온다. 코어의 오류 두 가지(해석 오류 \code{Parse}와 설정
+오류 \code{Config})는 \code{err}가 바꾸고, Python 쪽에서 글자를 해석하다 생긴 오류도 \code{ValueError}다. 사용자는
+``설정이 잘못되었다''를 한 종류의 예외로 잡으면 된다. 같은 로터를 두 번 쓰거나, Enigma~I에 로터 VI를 끼우거나,
+링에 27을 쓰거나, 플러그보드에 \texttt{AB AC}를 쓰면 모두 이 예외가 나는지를 시험
+\code{test\_bad\_settings\_\allowbreak raise\_value\_error}가 본다.
+
+\paragraph{계산하는 동안 GIL을 놓는다.} Python 인터프리터에는 GIL(global interpreter lock)이라는 자물쇠가 있어서,
+한 순간에 Python 코드를 실행하는 스레드는 하나뿐이다. 봄베 구동처럼 몇 초에서 몇 분 걸리는 Rust 함수가 이
+자물쇠를 쥔 채 돌면, 그동안 같은 프로그램의 다른 Python 스레드(예를 들어 화면을 그리는 스레드)가 모두 멈춘다.
+
+\begin{lstlisting}[language=Rust,numbers=none]
+let results = py.detach(|| search::run_orders(&menu, &orders, &opts, parallel));
+\end{lstlisting}
+
+\code{py.detach}는 ``이 계산 동안 자물쇠를 놓는다''는 뜻이다. 놓을 수 있는 것은 계산이 Python 객체를 하나도
+만지지 않기 때문이다. 입력은 이미 Rust 구조체로 바꿔 두었고, 결과는 계산이 끝난 뒤 자물쇠를 다시 쥐고 튜플로
+바꾼다. 계산 안에서 코어를 여럿 쓰는 것은 Rust의 병렬 처리(\ref{ch:14-rust-search}장)가 하므로 GIL과 무관하다.
+
+\section{조작자의 말로: \texorpdfstring{\code{python/christopher}}{python/christopher}}\label{sec:py-classes}
+
+패키지의 클래스는 실제 조작 순서를 따른다. 패키지 문서의 첫 문단이 그 순서다. ``크립으로 \code{Menu}를 만들고,
+\code{Bombe}에 꽂고(\code{plug\_up}), 로터 순서를 돌리고(\code{run}), \code{Stop}의 목록을 읽고, 정지마다 체킹해
+\code{Solution}을 얻는다. \code{search}는 이 모두를 한 번에 한다.''
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    call/.style={font=\scriptsize\ttfamily,text=cgray,midway,above}]
+  \node[blkn,minimum width=19mm] (ct) at (0,0) {암호문\\크립, 위치};
+  \node[blkb,minimum width=19mm] (menu) at (3.0,0) {\code{Menu}};
+  \node[blkb,minimum width=19mm] (bombe) at (6.0,0) {\code{Bombe}};
+  \node[blko,minimum width=19mm] (stop) at (9.0,0) {\code{Stop}\\{\scriptsize 목록}};
+  \node[blkg,minimum width=19mm] (sol) at (12.0,0) {\code{Solution}};
+  \draw[->] (ct) -- node[call] {from\_crib} (menu);
+  \draw[->] (menu) -- node[call] {plug\_up} (bombe);
+  \draw[->] (bombe) -- node[call] {run} (stop);
+  \draw[->] (stop) -- node[call] {check} (sol);
+  \node[note,anchor=north,align=center] at (3.0,-0.65) {\code{select}, \code{subset}\\\code{with\_test}};
+  \draw[->,cblue,dashed] (ct.south) .. controls (3,-1.6) and (9,-1.6) .. node[below,note,text=cblue] {\code{search}: 메뉴부터 체킹까지 한 번에} (sol.south);
+  \node[note,anchor=north] at (9.0,-0.65) {\code{trace}};
+  \node[note,anchor=north] at (12.0,-0.65) {\code{enigma()}};
+\end{tikzpicture}
+\caption{패키지의 흐름. 점선은 같은 일을 한 번에 하는 \code{search}다.}
+\label{fig:g-py-flow}
+\end{figure}
+
+몇 가지 설계가 눈에 띈다.
+
+\begin{itemize}
+\item \textbf{정지는 자기 봄베를 안다.} \code{Stop}은 만든 \code{Bombe}를 숨은 필드로 들고 있어서
+\code{stop.check()}와 \code{stop.trace()}를 바로 부를 수 있다. 조작자가 정지 전표 한 장을 들고 체킹 머신으로
+가던 모습이다. 정지 전표에는 메뉴를 다시 적지 않았다.
+\item \textbf{드럼 위치는 글자로 보인다.} 코어는 위치를 (그리스, 왼쪽, 가운데, 오른쪽)의 수로 주지만,
+\code{Stop.position}은 \texttt{"ETD"} 같은 글자다(M4이면 네 글자). 정지 전표에 적던 것이 드럼의 글자였다.
+수는 숨은 필드 \code{\_pos}에 남겨 두어 다시 코어에 넘길 때 쓴다.
+\item \textbf{스테커 후보의 규칙이 한곳에 있다.} Python의 \code{Stop.stecker\_\allowbreak candidates}는 Rust 쪽의
+같은 이름의 메서드와 같은 규칙이다. 통전된 선이 하나뿐이면 그 선, 아니면 꺼진 선 전부다.
+\item \textbf{해는 바로 쓸 수 있다.} \code{Solution.enigma()}는 복원한 키로 맞춘 \code{Enigma}를 돌려준다.
+노트북은 이것으로 암호문을 처음부터 복호화해 원래 평문과 같은지 확인한다.
+\end{itemize}
+
+\paragraph{설정값을 받는 법.} 에니그마의 링 설정과 창 글자는 키 표에 글자로도, 숫자로도 적혀 있었다. 그래서
+\code{\_text.letters}는 \texttt{"BUL"}, \texttt{"B U L"}, \texttt{"02 21 12"}, \code{[2, 21, 12]},
+\code{["B", "U", "L"]}을 모두 같은 \texttt{"BUL"}로 바꾼다. 숫자는 기계의 눈금처럼 1부터 센다(\texttt{A}=1).
+안쪽에서는 \texttt{A}=0이므로 바꾸는 곳은 \code{letter}의 한 줄 \code{return value - 1}뿐이다. 사람이 보는
+번호와 계산이 쓰는 번호를 경계에서 한 번만 바꾸면, 안쪽 코드는 한 가지 약속만 알면 된다.
+
+\section{부분 메뉴, 테스트 글자, 조각 구동}\label{sec:py-exhibit}
+
+전시용으로 더한 세 기능은 Python에서 이렇게 보인다.
+
+\begin{lstlisting}[language=Python,caption={\code{menu.py}: 부분 메뉴와 테스트 글자 바꾸기.},label={lst:py-subset}]
+def subset(self, positions) -> "Menu":
+    """Sub-menu of the edges at the given crib positions (0-based, as in :attr:`Edge.pos`).
+    Keeps the crib and offset, so stops found with it can still be checked."""
+    return Menu(_core.menu_subset(self._raw, [int(k) for k in positions]), self.ciphertext)
+
+def with_test(self, test_letter: str, input_wire: str | None = None) -> "Menu":
+    """Same menu with another test letter (it must be a menu letter) and input wire."""
+    t = letter(test_letter)
+    if chr(A + t) not in self.letters:
+        raise ValueError(f"test letter {test_letter!r} is not in the menu ({self.letters})")
+    offset, crib, edges, _, wire = self._raw
+    w = wire if input_wire is None else letter(input_wire)
+    return Menu((offset, crib, edges, t, w), self.ciphertext)
+\end{lstlisting}
+
+\code{subset}은 코어의 \code{Menu::subset}(\ref{sec:s-subset}절)을 그대로 부른다. 새 \code{Menu}에 암호문을
+넘겨주는 것을 눈여겨볼 만하다. 체킹에는 암호문 전체가 필요하므로 메뉴가 그것을 함께 들고 다닌다.
+
+\code{with\_test}에 해당하는 Rust 함수는 없다. 메뉴의 튜플에서 테스트 글자와 입력 선 자리만 바꿔 새 튜플을 만들면
+되기 때문이다. 검사는 하나다. 테스트 글자는 메뉴에 있는 글자여야 한다. 메뉴에 없는 글자의 케이블에는 스크램블러가
+하나도 이어져 있지 않다. 그런 케이블을 테스트 레지스터에 꽂는 것은 메뉴를 잘못 읽은 것이므로 여기서 막는다.
+
+\Why 테스트 글자를 바꾸는 이유는 전시 카드에 있다. 카드는 ``테스트 글자 \texttt{D}의 케이블을 테스트 레지스터에
+꽂는다''처럼 꽂을 자리를 인쇄해 둔다(\ref{ch:32-menu-cards}장). 소프트웨어가 예상한 정지와 실물이 낸 정지를
+비교하려면, 소프트웨어도 정확히 그 글자와 그 입력 선으로 돌아야 한다. 원리로는 메뉴의 어느 글자를 테스트 글자로
+삼아도 맞는 위치에서 정지하지만(\ref{sec:propagate}절의 논증은 테스트 글자가 어느 것이든 성립한다), 거짓 정지는
+글자에 따라 달라질 수 있다. 시험
+\code{test\_with\_test\_letter}는 글자가 바뀌고 선은 그대로인지, 메뉴에 없는 글자를 주면 \code{ValueError}가 나는지
+본다.
+
+\paragraph{조각 구동.} \code{Bombe.run}과 \code{search}는 \code{fixed\_right}를 받는다(\ref{sec:s-slice}절).
+
+\begin{lstlisting}[language=Python,caption={\code{bombe.py}: 느린 드럼의 위치를 글자나 수로 받는다.},label={lst:py-fixed}]
+def _core_offset(value: str | int | None) -> int | None:
+    """A drum core given as a letter ("X") or an offset (23)."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return letter(value)
+    if not 0 <= int(value) < 26:
+        raise ValueError(f"drum offset must be 0..25, got {value}")
+    return int(value)
+\end{lstlisting}
+
+글자 \texttt{"X"}로도, 코어 위치 23으로도 줄 수 있다. 여기서 수는 1부터 세는 눈금이 아니라 0부터 세는 코어
+위치다. 정지의 드럼 글자를 그대로 넘기는 것이 가장 흔한 쓰임이어서, 메뉴 카드 생성기는 정답 위치의 셋째 글자를
+그대로 넘긴다. 바인딩도 26 이상이면 한 번 더 거른다(\code{check\_right}). 시험
+\code{test\_slice\_run\_fixed\_right\_drum}은 \ref{sec:s-slice}절의 Rust 시험과 같은 것을 Python에서 본다.
+
+\begin{lstlisting}[language=Python,caption={\code{tests/test\_python\_api.py}: 조각 구동(일부).},label={lst:py-slice-test}]
+full = bombe.run("B III-V-II")
+true = [s for s in full if s.check()]
+right = true[0].position[-1]
+sliced = bombe.run("B III-V-II", fixed_right=right)
+assert bombe.positions_tested == 676
+assert [s.position for s in sliced] == [s.position for s in full if s.position[-1] == right]
+\end{lstlisting}
+
+전체 구동의 정지 가운데 체킹을 통과하는 것(참인 정지)을 찾고, 그 드럼 글자의 마지막 글자(오른쪽 드럼)로 조각을
+돌린다. 시험한 위치가 676이고, 조각의 정지가 전체 정지 가운데 오른쪽 드럼이 같은 것과 순서까지 같아야 한다.
+
+\section{회로 시험의 답안지: \texorpdfstring{\code{export\_vectors}}{export\_vectors}}\label{sec:py-vectors}
+
+회로를 시험하려면 ``이 위치에서 676가닥이 어떻게 되어야 하는가''라는 답이 필요하다. \code{vectors.py}의
+\code{export\_vectors}가 그 답을 파일로 쓴다. 한 줄에 위치 하나씩, JSON 객체 하나다.
+
+\begin{lstlisting}[numbers=none]
+{"wheel_order": "B II-IV-V", "position": [g, l, m, r], "edges": [[plain, cipher, pos], ...],
+ "test_letter": t, "input_wire": w, "live": [26 ints], "stop": bool}
+\end{lstlisting}
+
+\code{live}는 \code{Bombe.trace}의 결과, 곧 조기 종료 없이 끝까지 퍼뜨린 676비트다. 위치를 따로 주지 않으면
+그 로터 순서의 정지 전부와 정지가 아닌 위치 64곳을 무작위로 골라 쓴다.
+
+\Why 정지가 아닌 위치도 넣는 데에는 이유가 있다. 회로가 늘 ``정지''라고 답하는 고장이 있다고 하자. 정지인
+위치만 시험하면 이 고장을 잡지 못한다. 시험의 답안지에는 ``예''와 ``아니오''가 둘 다 있어야 한다. 무작위로 고르되
+씨앗(\code{seed})을 고정해 두므로, 같은 인자로 다시 만들면 같은 파일이 나온다. 파일이 바뀌면 코드가 바뀐 것이다.
+
+\General 계산기를 시험할 때 $2+2$만 넣어 보지 않는다. 답이 0인 것, 음수인 것, 자리올림이 있는 것을 섞는다. 같은
+시험지를 내년에도 쓸 수 있도록 문제 목록은 적어 둔다.
+
+\Ours 이 파일들이 \code{data/vectors/rtl/}에 있고(\code{rtl/tb/export\_vectors.py}가 같은 형식을 넓혀 만든다),
+기준 RTL의 \code{bombe\_core} 시험과 FPGA 엔진의 스냅숏 시험(\ref{ch:31-fpga-host}장)이 이것과 대조한다. 시험
+\code{test\_export\_vectors}는 \code{sample=5}로 파일을 써서, 줄 수가 정지 수 $+5$이고 \code{"stop"}이 참인 줄이
+정확히 정지 수만큼인지 본다.
+
+\section{노트북으로 따라가기}\label{sec:py-notebook}
+
+\code{notebooks/01\_crib\_to\_plaintext.ipynb}는 이 패키지로 봄베 조작의 전 과정을 따라 하는 예제다. 실행 결과가
+노트북에 저장되어 있어서 열기만 해도 읽을 수 있다. 각 절이 부르는 API와 확인하는 것을 표로 정리한다. 결과의
+해석(정지 157회, 링 설정이 \texttt{AAC}로 나오는 이유 등)은 \ref{ch:rust-menu}--\ref{ch:rust-check}장에서
+다루었으므로 되풀이하지 않는다.
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{30mm}>{\raggedright\arraybackslash}p{40mm}>{\raggedright\arraybackslash}X}
+\toprule
+노트북의 절 & 부르는 것 & 확인하는 것 \\
+\midrule
+1. 에니그마 & \code{Enigma(...).encrypt}, \code{reset}, \code{positions} & 상호성(같은 키로 다시 치면 평문), 121글자 중 같은 자리 같은 글자 0개, 이중 스테핑 \texttt{ADU}$\to$\texttt{BFX} \\
+2. 크립 정렬 & \code{possible\_offsets} & 106곳 중 60곳이 남음, 실제 위치 28이 그 안에 있음 \\
+3. 메뉴 & \code{Menu.from\_crib}, \code{select(14)}, \code{components} & 선 16개의 메뉴, 떨어진 덩어리 \texttt{FO}, \texttt{NS}, 다듬은 메뉴(선 14, 루프 1) \\
+4. 봄베 & \code{Bombe.plug\_up}, \code{run("all")}, \code{trace(matrix=True)} & 120 순서, 2,109,120 위치, 정지 목록, 대각선 보드를 끄면 17,576곳 전부 정지, 676가닥의 그림 \\
+5. 체킹 & \code{Stop.check}, \code{Solution.enigma} & 정지 하나만 통과, 복원한 키로 전문 전체 복호화 \\
+6. 넘어감 & \code{search}(넘어감 가설 켬) & 가설 없이 정지 0회, 가설로 해 1개 \\
+7. M4 & \code{search(model="m4", ...)}, 1945년 실제 전문 & 로터 순서 6개로 키 복원, 실제 U보트 전문의 키 전체 복원 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\Ours 노트북은 결과를 눈으로 보여 주는 것에 그치지 않는다. 중요한 곳마다 \code{assert}가 있다. 상호성
+(\code{enigma.reset().decrypt(CIPHER) == PLAIN}), 복원한 키의 복호문(\code{found.enigma().decrypt(CIPHER) ==
+PLAIN})이 그렇다. 노트북을 다시 실행해서 끝까지 가면 그 자체로 시험 하나를 통과한 것이다. 시간이 찍힌
+출력(``0.32초에 탐색'' 등)은 실행한 컴퓨터에 따라 다르다.
+
+\begin{keybox}[title={이 장의 정리}]
+\begin{itemize}
+\item 계산은 Rust에 한 벌, 쓰는 일은 Python에서. 기준이 하나여야 여러 구현을 대조할 수 있다.
+\item 경계는 튜플과 정수로 단순하게 두고, 들어오는 값은 경계에서 검사한다. 오류는 \code{ValueError} 하나로.
+\item 긴 계산은 GIL을 놓고 돈다. 계산이 Python 객체를 만지지 않으므로 놓을 수 있다.
+\item 사람이 보는 표기(1부터 세는 숫자, 드럼 글자)와 계산의 표기(0부터 세는 수)는 경계에서 한 번만 바꾼다.
+\item 시험의 답안지에는 정지인 위치와 아닌 위치가 둘 다 들어간다.
+\end{itemize}
+\end{keybox}
+\endgroup

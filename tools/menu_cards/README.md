@@ -21,7 +21,7 @@ python -m menu_cards build                      # the default set: 4 slice + 2 f
 python -m menu_cards build --only slice-6-a     # one of them
 python -m menu_cards find --name my-card --mode slice --edges 6 --letters 4 --false-max 1 --seed 5
 python -m menu_cards card ../hardware/common/menu-cards/slice-6-a.json   # rebuild one PDF
-python -m menu_cards verify ../hardware/common/menu-cards/*.json         # re-verify records
+python -m menu_cards verify ../hardware/common/menu-cards/{full,slice}-*.json  # re-verify records (not index.json)
 ```
 
 * JSON records go to `hardware/common/menu-cards/` (committed). PDFs, `.tex` and LaTeX logs go to
@@ -38,7 +38,7 @@ python -m menu_cards verify ../hardware/common/menu-cards/*.json         # re-ve
 * `full`: all 17,576 positions of the wheel order printed on the card.
 
 Both records also store the false-stop count of a full run of the true wheel order and of a full run
-over all 60 wheel orders (the visitor does not do the latter on the exhibit machines).
+over all 120 Enigma I wheel orders (60 rotor orders x reflectors B and C; the visitor does not do the latter on the exhibit machines).
 
 ## Constraints the generator enforces
 

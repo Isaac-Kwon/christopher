@@ -97,7 +97,7 @@ def make_record(c: Candidate, ev: dict, seed: int) -> dict:
             expected_stops=stops,
             false_stops=ev["false_in_mode"],
             false_stops_true_order_full_run=ev["false_full_order"],
-            false_stops_all_60_orders_full_run=ev["false_all_orders"],
+            false_stops_all_120_orders_full_run=ev["false_all_orders"],
         ),
         key=dict(
             model=engine.MODEL, rotors=list(key["rotors"]), reflector=key["reflector"],

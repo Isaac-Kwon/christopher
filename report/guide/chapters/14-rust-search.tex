@@ -1,0 +1,316 @@
+\chapter{일을 나누고 모으기: \texorpdfstring{\code{search}}{search}와 조각 구동}\label{ch:14-rust-search}
+\begingroup\setlength{\emergencystretch}{3em}% long identifiers: allow looser lines in this chapter only
+
+\ref{ch:rust-check}장의 마지막 절에서 \code{search}가 일을 나눠 컴퓨터의 처리 장치 코어에 나눠 준다는 것을
+보았다. 이 장은 그 둘레를 읽는다. 일이 모두 얼마나 많은지, 어떤 단위로 자르는지, 잘라서 돌린 결과를 어떻게
+원래 순서대로 모으는지. 그리고 전시를 위해 더한 두 가지 도구, 느린 드럼 하나를 세워 둔 채 도는 \emph{조각
+구동}(\code{fixed\_right})과 정한 선만 골라 메뉴를 만드는 \code{Menu::subset}을 본다. 파일은
+\code{search.rs}(126줄)와 \code{bombe.rs}, \code{menu.rs}의 일부다.
+
+\section{일의 양을 센다}\label{sec:s-count}
+
+봄베의 일은 ``드럼 위치 하나에서 전류를 퍼뜨리고 테스트 레지스터를 본다''(\ref{sec:propagate}절)의 반복이다.
+몇 번 반복하는지는 서로 무관한 선택들의 곱이다.
+
+\begin{center}
+\small
+\begin{tabular}{lrrr}
+\toprule
+기종 & 로터 순서 & 순서당 위치 & 전체 위치 \\
+\midrule
+Enigma~I & 60 $\times$ 반사판 2 = 120 & $26^3 = 17{,}576$ & 2,109,120 \\
+M3 & 336 $\times$ 2 = 672 & $26^3 = 17{,}576$ & 11,811,072 \\
+M4 & 336 $\times$ 2 $\times$ 그리스 로터 2 = 1,344 & $26^4 = 456{,}976$ & 614,175,744 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+로터 순서의 수는 \code{WheelOrder::all}이 만드는 목록의 길이이고(주석에 ``Enigma I: 60 × 2, M3: 336 × 2,
+M4: 336 × 2 × 2''라고 적혀 있다), 순서당 위치는 \code{run\_slice}의 네 겹 반복문(코드~\ref{lst:run})이 도는
+횟수다. 넘어감 가설(\code{turnover\_hypotheses})을 켜면 여기에 메뉴 구간의 길이가 한 번 더 곱해진다. 가설
+``넘어감 없음''에 더해, 메뉴가 쓰는 크립 위치의 가장 작은 값 다음부터 가장 큰 값까지 각 위치마다 가설 하나를
+세우기 때문이다.
+
+\begin{lstlisting}[language=Rust,caption={\code{search.rs}: 넘어감 가설의 목록.},label={lst:s-turnovers}]
+let mut turnovers: Vec<Option<u16>> = vec![None];
+if opts.turnover_hypotheses {
+    let lo = menu.edges.iter().map(|e| e.pos).min().unwrap_or(0);
+    let hi = menu.edges.iter().map(|e| e.pos).max().unwrap_or(0);
+    turnovers.extend((lo + 1..=hi).map(Some));
+}
+\end{lstlisting}
+
+가설은 \code{None} 하나와 \code{lo+1}부터 \code{hi}까지이므로 모두 $\mathit{hi}-\mathit{lo}+1$개, 곧 메뉴의
+구간 길이(\code{Menu::span})다. 넘어감이 \code{lo}에서 일어났다는 가설은 따로 세우지 않는다. 그 경우는 메뉴의
+모든 선이 넘어간 뒤의 위치를 쓰므로, 가운데 드럼이 한 칸 다른 ``넘어감 없음''과 같기 때문이다. 노트북의 예에서는
+구간이 20인 메뉴로 위치 17,576곳이 351,520곳으로 늘었다.
+
+\Why 위치 하나의 일은 얼마나 큰가. 전류의 확산에서 선 하나는 많아야 한 번 목록에 들어가고, 꺼낼 때마다 그
+케이블에 이어진 스크램블러 수만큼 표를 읽는다(\ref{sec:propagate}절). 그러므로 위치 하나의 일은
+``선 676가닥 $\times$ (케이블당 연결 수 $+1$)''을 넘지 않는다. 틀린 위치에서는 테스트 레지스터가 금세
+가득 차서 그보다 훨씬 일찍 끝난다(조기 종료). 스크램블러 표는 가운데 로터의 반복마다 26개를 새로 만들므로,
+3로터 기종의 로터 순서 하나에 표를 만드는 일은 $26^2 = 676$번이고 위치 하나당으로 나누면 표 하나 꼴이다.
+
+\General 다이얼이 세 개 달린 자물쇠는 $10^3$가지를 하나씩 돌려 보면 언젠가 열린다. 다이얼이 하나 늘 때마다
+일은 열 배가 된다. 봄베도 같아서, M4의 그리스 로터 하나가 일을 26배로 만든다. 그래도 봄베가 해 볼 만한 것은
+가장 큰 다이얼을 돌리지 않기 때문이다. 플러그보드의 경우의 수(케이블 10개일 때 약 $1.5\times10^{14}$,
+노트북의 표)는 대입하지 않고 전류의 추론으로 지운다(\ref{sec:bombe-one-page}절).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \draw[cgray,rounded corners=2pt] (0,0) rectangle (12.4,4.6);
+  \node[anchor=north west,font=\small\ttfamily] at (0.15,4.5) {for g in greeks};
+  \node[anchor=north east,note] at (12.25,4.5) {M4만 26번, 아니면 1번};
+  \draw[cgray,rounded corners=2pt] (0.4,0.25) rectangle (12.0,3.95);
+  \node[anchor=north west,font=\small\ttfamily] at (0.55,3.85) {for l in 0..26};
+  \draw[cblue,rounded corners=2pt,fill=cbluebg!40] (0.8,0.5) rectangle (11.6,3.3);
+  \node[anchor=north west,font=\small\ttfamily] at (0.95,3.2) {for m in 0..26};
+  \node[blkb,anchor=north west,minimum width=40mm] at (1.0,2.75) {표 26개 만들기\\{\scriptsize \code{Plugged::tables}}};
+  \node[note,anchor=north west,text=cblue] at (1.0,1.4) {로터 순서당 676번};
+  \draw[corange,rounded corners=2pt,fill=corangebg!50] (5.6,0.7) rectangle (11.4,2.85);
+  \node[anchor=north west,font=\small\ttfamily] at (5.75,2.75) {for r in rights};
+  \node[blko,anchor=north west,minimum width=50mm] at (5.85,2.3) {\code{propagate} + 판정\\{\scriptsize 로터 순서당 17,576번}};
+  \node[note,anchor=north west,text=corange] at (5.85,1.15) {\code{fixed\_right}이면 1번};
+\end{tikzpicture}
+\caption{\code{run\_slice}의 반복문과 그 안의 일. 표는 가운데 로터가 바뀔 때만 만들고, 확산은 위치마다
+한다. 조각 구동은 가장 안쪽 반복을 한 번으로 줄인다(\ref{sec:s-slice}절).}
+\label{fig:g-s-loops}
+\end{figure}
+
+\section{일을 자르는 단위}\label{sec:s-tasks}
+
+\begin{lstlisting}[language=Rust,caption={\code{search.rs}: 그리스 로터 조각과 일의 목록.},label={lst:s-tasks}]
+/// Greek-wheel slices of one wheel order: 26 for M4, a single whole-order slice otherwise.
+fn slices(order: &WheelOrder) -> Vec<Option<u8>> {
+    if order.greek.is_some() {
+        (0..26).map(Some).collect()
+    } else {
+        vec![None]
+    }
+}
+
+let tasks: Vec<(usize, Option<u16>, Option<u8>)> = orders
+    .iter()
+    .enumerate()
+    .flat_map(|(i, o)| {
+        let turnovers = &turnovers;
+        slices(o).into_iter().flat_map(move |g| turnovers.iter().map(move |&t| (i, t, g)))
+    })
+    .collect();
+\end{lstlisting}
+
+일 하나는 (로터 순서의 번호 \code{i}, 넘어감 가설 \code{t}, 그리스 로터 위치 \code{g})의 세 값으로
+정해진다. \code{flat\_map}은 ``원소마다 목록을 만들어 이어 붙인다''는 뜻이다. 로터 순서마다 그리스 로터
+조각의 목록을 만들고, 조각마다 넘어감 가설의 목록을 만들어 모두 한 줄로 늘어놓는다.
+
+\Why 왜 로터 순서 하나를 통째로 일 하나로 삼지 않는가. 파일 첫머리의 주석이 이유를 적고 있다. ``네 로터 기종의
+로터 순서 몇 개만 돌려도 모든 코어가 바쁘도록''. 노트북처럼 M4 로터 순서를 6개만 돌리면 일이 6개뿐이어서,
+스레드 24개 가운데 18개가 논다. 그리스 로터 위치로 26조각을 내면 일이 156개가 되어 모든 코어에 고루 돌아간다.
+Enigma~I는 로터 순서가 120개여서 자르지 않아도 충분하다. 반대로 너무 잘게 자르면 일을 나눠 주고 거두는 수고가
+일 자체보다 커진다. 그리스 로터 한 위치(17,576 위치)는 그 수고를 무시할 만큼 크다.
+
+\General 손님이 여럿인 식탁에서 피자를 자르는 것과 같다. 두 조각으로 자르면 나머지 손님이 기다리고, 백 조각으로
+자르면 자르는 데 시간이 다 간다. 일꾼 수보다 넉넉히 많되, 한 조각이 나눠 주는 수고보다 충분히 큰 단위가 좋다.
+
+\Ours \code{run\_slice}의 넷째 인자 \code{greek}가 이 조각을 받는다(\code{Some(g)}이면 그리스 로터 위치
+\code{g}의 $26^3$ 위치만 돈다). 같은 함수를 조각 하나에도, 로터 순서 전체에도 쓴다. 넘어감 가설도 조각과 같은
+방식으로 일을 늘린다. 가설마다 표가 다르므로 가설끼리도 서로 독립이다.
+
+\section{순서를 지키며 모은다}\label{sec:s-gather}
+
+봄베만 돌리고 체킹은 하지 않는 \code{run\_orders}가 모으는 방법을 잘 보여 준다. Python의
+\code{Bombe.run}이 부르는 함수가 이것이다(\ref{ch:15-python-api}장).
+
+\begin{lstlisting}[language=Rust,caption={\code{search.rs}: 로터 순서별 결과로 모은다.},label={lst:s-runorders}]
+pub fn run_orders(menu: &Menu, orders: &[WheelOrder], opts: &BombeOptions, parallel: bool) -> Vec<RunResult> {
+    let plugged = Plugged::new(menu);
+    let tasks: Vec<(usize, Option<u8>)> =
+        orders.iter().enumerate().flat_map(|(i, o)| slices(o).into_iter().map(move |g| (i, g))).collect();
+    let parts = par_map(&tasks, parallel, |&(i, g)| (i, run_slice(&plugged, &orders[i], opts, g)));
+    let mut out: Vec<RunResult> = orders.iter().map(|_| RunResult { stops: Vec::new(), positions: 0 }).collect();
+    for (i, r) in parts {
+        out[i].positions += r.positions;
+        out[i].stops.extend(r.stops);
+    }
+    out
+}
+\end{lstlisting}
+
+일은 아무 순서로나 끝난다. 어느 코어가 먼저 끝낼지는 알 수 없다. 그런데 \code{par\_map}의 결과
+\code{parts}는 \emph{일의 목록과 같은 순서}로 나온다. 병렬 처리 라이브러리(rayon)의 \code{par\_iter().map(...)
+.collect()}는 끝난 순서가 아니라 원래 자리에 결과를 넣기 때문이다. 그래서 4--7행이 조각들을 차례로 이어 붙이면
+그리스 로터 0의 정지, 1의 정지, \ldots{} 순으로 쌓이고, 이것은 한 스레드에서 \code{run\_slice(\ldots, None)}을
+돌린 결과와 원소 하나하나까지 같다.
+
+\Why 정지의 \emph{집합}만 맞으면 될 것 같지만 이 프로젝트에서는 순서가 중요하다. 기준 RTL과 FPGA 엔진의 시험은
+정지 목록을 순서까지 비교한다(\ref{sec:e-verify}절). 소프트웨어가 병렬로 돌았다는 이유로 순서가 흔들리면 그
+비교를 할 수 없다. 병렬화는 빠르게 하는 수단일 뿐 답을 바꾸면 안 된다는 원칙을 순서까지 지킨 것이다.
+
+\General 시험지를 여러 채점자가 나눠 매기더라도, 성적표는 번호 순으로 정리해 돌려준다. 누가 먼저 끝냈는지는
+성적표에 드러나지 않는다.
+
+\Ours \code{search}는 같은 방식으로 모으되 두 가지를 더한다(코드~\ref{lst:s-search-tail}). 하나는 일 안에서
+곧바로 체킹을 하는 것이다(\ref{ch:rust-check}장의 코드). 체킹도 정지마다 독립이므로 같은 일꾼이 이어서 하면 두
+번째 분배가 필요 없다. 다른 하나는 해를 독일어 점수 순으로 정렬하는 것이다. 해는 사람이 읽을 것이므로 가장
+그럴듯한 것이 먼저 오게 한다.
+
+\begin{lstlisting}[language=Rust,caption={\code{search.rs}: 모은 뒤의 정리.},label={lst:s-search-tail}]
+// The bombe cannot tell Enigma I from M3 when only rotors I-V are used; report the model asked for.
+if opts.model == Model::M3 {
+    for s in &mut report.solutions {
+        if s.key.model == Model::EnigmaI {
+            s.key.model = Model::M3;
+        }
+    }
+}
+report.solutions.sort_by(|a, b| b.score.total_cmp(&a.score));
+\end{lstlisting}
+
+M3에 관한 세 줄은 봄베의 원리에서 나온다. 로터 I--V와 반사판 B, C만 쓴 키는 Enigma~I로도 M3로도 똑같이
+암호화한다. 체킹은 해를 만들 때 로터의 이름으로 기종을 추정하므로(\code{model\_of}) Enigma~I라고 적는다.
+사용자가 M3를 찾았으면 그 이름으로 돌려준다. 계산이 아니라 표기의 문제다.
+
+\section{조각 구동: 느린 드럼을 세워 둔다}\label{sec:s-slice}
+
+\begin{lstlisting}[language=Rust,caption={\code{bombe.rs}: \code{run\_slice}의 가장 안쪽 반복과 그 범위.},label={lst:s-rights}]
+let rights = match opts.fixed_right {
+    Some(r) => r % N as u8..r % N as u8 + 1,
+    None => 0..N as u8,
+};
+for r in rights {
+    positions += 1;
+    ...
+}
+\end{lstlisting}
+
+\code{BombeOptions}에 \code{fixed\_right: Option<u8>}을 두었다. 값이 있으면 오른쪽 로터의 코어 위치를 그 값
+하나로 고정하고, 그리스, 왼쪽, 가운데 로터만 돈다. 3로터 기종에서는 $26\times26 = 676$ 위치다. 바뀐 코드는
+\code{rights}의 범위를 정하는 네 줄뿐이다.
+
+\paragraph{왜 오른쪽인가.} 모델에서 오른쪽 로터는 가장 안쪽 반복, 곧 가장 빨리 도는 드럼이다(\ref{ch:rust-bombe}장의
+``실제 기계와 다른 점''). 그런데 실제 봄베와 이 프로젝트의 두 실물(릴레이식, 기어식)은 에니그마의 \emph{왼쪽}
+로터에 해당하는 드럼을 가장 빨리 돌리고, 오른쪽 로터에 해당하는 드럼을 가장 느리게 돌린다. 느린 드럼은
+위치 676개마다 한 칸 움직인다. 그러므로 ``오른쪽 코어를 고정한 676 위치''는 실물 기계에서는 \emph{느린 드럼이
+한 자리에 서 있는 동안의 한 바퀴}, 전체 구동의 $1/26$이다. 빠른 드럼을 고정할 수는 없다. 빠른 드럼이 한 바퀴
+돌아야 가운데 드럼이 한 칸 가는 자리올림의 출발점이기 때문이다(\code{hardware/common/design-brief.md} 5.2절).
+
+\Why 전시에서 이 조각이 필요한 이유는 시간이다. 설계한 릴레이식 봄베는 위치 하나에 63밀리초가 걸려 전체
+17,576 위치에 18.5분이 걸리지만, 676 위치는 43초다(같은 문서 5.1절). 관람객이 카드를 고르고 배선하고 정지를
+읽는 실습 한 번이 약 7--8분이 되는 것은 이 덕분이다. 조각이 정답 위치를 품도록, 카드가 느린 드럼의 글자를
+알려 준다(\ref{ch:32-menu-cards}장).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % pseudo-3D cube: x = middle, y = left, depth = right
+  \coordinate (A) at (0,0); \coordinate (B) at (3.0,0); \coordinate (C) at (3.0,3.0); \coordinate (D) at (0,3.0);
+  \coordinate (E) at (1.5,0.9); \coordinate (F) at (4.5,0.9); \coordinate (G) at (4.5,3.9); \coordinate (H) at (1.5,3.9);
+  \draw[cgray] (A) -- (B) -- (C) -- (D) -- cycle;
+  \draw[cgray] (B) -- (F) -- (G) -- (C); \draw[cgray] (D) -- (H) -- (G);
+  \draw[cgray,dashed] (A) -- (E) -- (F); \draw[cgray,dashed] (E) -- (H);
+  % the slice at depth t
+  \fill[corange,opacity=0.35] ($(A)!0.55!(E)$) -- ($(B)!0.55!(F)$) -- ($(C)!0.55!(G)$) -- ($(D)!0.55!(H)$) -- cycle;
+  \draw[corange,line width=1pt] ($(A)!0.55!(E)$) -- ($(B)!0.55!(F)$) -- ($(C)!0.55!(G)$) -- ($(D)!0.55!(H)$) -- cycle;
+  \node[note,anchor=north] at ($(A)!0.5!(B)$) {가운데 $m$ (26)};
+  \node[note,anchor=east] at ($(A)!0.5!(D)$) {왼쪽 $l$ (26)};
+  \node[note,anchor=north west] at ($(B)!0.5!(F)$) {오른쪽 $r$ (26)};
+  \node[note,text=corange,anchor=west] at ($(C)!0.55!(G)+(0.2,0.1)$) {$r$ 고정: $26\times26=676$};
+  \begin{scope}[xshift=8.2cm]
+    \node[blkn,minimum width=44mm,align=left,anchor=west] (full) at (0,2.4) {전체 구동: 17,576 위치\\{\scriptsize 릴레이식 63\,ms/위치이면 18.5분}};
+    \node[blko,minimum width=44mm,align=left,anchor=west] (sl) at (0,0.9) {조각 구동: 676 위치\\{\scriptsize 같은 속도로 43초}};
+  \end{scope}
+\end{tikzpicture}
+\caption{드럼 위치의 공간 $26^3$과 조각 하나. 실물 기계에서 오른쪽 로터의 드럼은 가장 느린 드럼이므로, 조각은
+그 드럼이 한 자리에 서 있는 동안의 구동이다. 시간은 \code{hardware/common/design-brief.md} 5.1절의 설계값이다.}
+\label{fig:g-s-slice}
+\end{figure}
+
+\paragraph{조각의 답은 전체의 답의 일부다.} 조각 구동의 정지 목록은 전체 구동의 정지 목록에서 오른쪽 코어가
+그 값인 것만 골라낸 것과 \emph{순서까지} 같다. 시험이 정확히 이것을 확인한다.
+
+\begin{lstlisting}[language=Rust,caption={\code{tests/search.rs}: 조각 구동의 시험(일부).},label={lst:s-slice-test}]
+let full = run(&sub, &order, &BombeOptions::default());
+let slice = run(&sub, &order, &BombeOptions { fixed_right: Some(c[2]), ..Default::default() });
+assert_eq!(slice.positions, 676);
+let expected: Vec<_> = full.stops.iter().filter(|s| s.position.right == c[2]).cloned().collect();
+assert_eq!(slice.stops, expected);
+assert!(slice.stops.iter().any(|s| [s.position.left, s.position.middle] == [c[0], c[1]]));
+\end{lstlisting}
+
+\Why 이것이 성립하는 근거는 위치끼리 아무것도 주고받지 않는다는 데 있다. \code{propagate}는 위치마다 상태를
+0에서 새로 시작하고(\code{let mut live = [0u32; N]}), 그 위치의 표만 읽는다. 앞 위치의 결과가 다음 위치에 남지
+않으므로 위치 몇 개를 건너뛰어도 나머지 위치의 판정은 바뀌지 않는다. 반복의 순서는 그대로이므로 남은 정지의
+순서도 그대로다.
+
+\General 반 전체의 시험지 가운데 3반 학생 것만 채점해도 3반 학생의 점수는 전체를 채점할 때와 같다. 시험지끼리
+서로 영향을 주지 않기 때문이다. 반대로 상대 평가였다면 일부만 채점한 점수는 달라진다.
+
+\Ours 조각 구동에서는 \ref{sec:s-count}절의 ``표 하나를 26 위치가 나눠 쓴다''가 사라진다. 가운데 로터마다
+표 26개를 만들지만 그 표를 쓰는 위치는 하나뿐이다(선마다 $(r+k) \bmod 26$번째 표를 읽으므로, 읽는 표는 많아야
+선의 수만큼이다). 위치당 일은 늘지만 위치가 676개뿐이어서 상관없다. 빠르게 하는 것보다
+코드를 하나로 두는 쪽을 택했다. FPGA 엔진의 레지스터 맵에는 이 선택이 없다(표~\ref{tab:g-e-regmap}). 엔진은
+17,576 위치를 몇 밀리초에 돌므로 조각으로 나눌 이유가 없고, 조각 구동은 실물 두 대를 위한 것이다.
+
+\section{정한 선으로 메뉴 만들기: \texorpdfstring{\code{Menu::subset}}{Menu::subset}}\label{sec:s-subset}
+
+\ref{ch:rust-menu}장의 \code{select}는 선을 탐욕법으로 \emph{골라 준다}. 전시 카드처럼 어떤 선을 쓸지 이미
+정해져 있을 때는 그 선들을 \emph{지정해서} 메뉴를 만들어야 한다. 그 일을 하는 것이 \code{subset}이다.
+
+\begin{lstlisting}[language=Rust,caption={\code{menu.rs}: 크립 위치로 고른 부분 메뉴.},label={lst:s-subset}]
+pub fn subset(&self, positions: &[u16]) -> Result<Menu> {
+    let edges: Vec<Edge> = self.edges.iter().copied().filter(|e| positions.contains(&e.pos)).collect();
+    if let Some(&p) = positions.iter().find(|&&p| !self.edges.iter().any(|e| e.pos == p)) {
+        return Err(Error::Config(format!("crib position {p} is not in the menu")));
+    }
+    if edges.is_empty() {
+        return Err(Error::Config("empty sub-menu".into()));
+    }
+    let mut menu = Menu { offset: self.offset, crib: self.crib.clone(), edges, test_letter: 0, input_wire: 0 };
+    menu.choose_test_letter();
+    Ok(menu)
+}
+\end{lstlisting}
+
+선은 크립 위치(\code{pos})로 지정한다. 한 크립 위치에는 선이 하나뿐이므로 위치가 선의 이름 노릇을 한다.
+2행은 지정한 위치의 선만 남기고, 3--5행은 메뉴에 없는 위치를 지정하면 오류로 돌려준다. 조용히 무시하면 사용자가
+선이 하나 빠진 메뉴를 그런 줄 모르고 돌리게 된다. 9행이 이 함수의 요점이다.
+
+\Why 부분 메뉴가 원래의 크립(\code{crib})과 그 위치(\code{offset})를 그대로 가져가는 이유는 체킹 때문이다.
+체킹의 2단계는 메뉴의 선만이 아니라 \emph{크립의 모든 글자}를 암호문과 대조한다(\ref{ch:rust-check}장).
+선 6개짜리 부분 메뉴로 봄베를 돌렸더라도 정지를 검증할 때는 나머지 크립 글자가 모두 쓸모 있다. 반대로 손으로
+선을 적어 만드는 \code{Menu::from\_edges}는 크립을 모르므로 \code{offset}을 0, 크립을 빈 글자로 채워 두고,
+그런 메뉴의 정지는 체킹할 수 없다.
+
+\Ours 테스트 글자는 부분 메뉴에서 다시 고른다(\code{choose\_test\_letter}: 가장 큰 덩어리 안에서 연결이 가장
+많은 글자, 입력 선은 \texttt{A}이되 테스트 글자가 \texttt{A}이면 \texttt{B}). 원래 메뉴의 테스트 글자가 부분
+메뉴에서는 연결이 하나뿐이거나 아예 없을 수 있기 때문이다. 테스트 글자를 사람이 따로 정하는 일은 Python 쪽의
+\code{Menu.with\_test}가 맡는다(\ref{ch:15-python-api}장). \code{subset}을 쓰는 곳은 둘이다. 조각 구동의
+시험(코드~\ref{lst:s-slice-test})이 선 10개 메뉴에서 앞의 8개를 골라 쓰고, 메뉴 카드 생성기가 미리 정한 크립
+위치들로 카드의 메뉴를 만든다(\ref{ch:32-menu-cards}장).
+
+\section{정지 하나는 어떻게 검증되는가}\label{sec:s-check}
+
+조각 구동과 부분 메뉴는 \emph{어느 위치를 돌지}와 \emph{어느 선을 걸지}만 바꾼다. 위치 하나를 판정하고
+검증하는 방법은 그대로다. 체킹의 1단계는 정지의 위치 하나에서 전류를 다시 흘리는데, 이때 넘기는 선택이
+다음과 같다.
+
+\begin{lstlisting}[language=Rust,numbers=none]
+let opts = BombeOptions { diagonal_board: diagonal, turnover_at: stop.turnover_at, fixed_right: None };
+\end{lstlisting}
+
+\code{fixed\_right}는 \code{None}이다. 체킹은 반복문을 돌지 않고 \code{trace}로 위치 하나만 보므로 조각 구동인지
+아닌지가 의미가 없다. 반면 넘어감 가설은 정지에 실려 온 값을 그대로 쓴다. 가설에 따라 선마다 쓰는 표가 달라지기
+때문이다. 정지(\code{Stop})가 위치와 테스트 레지스터 말고도 로터 순서와 넘어감 가설을 함께 들고 다니는 이유가
+이것이다. 정지 하나만 있으면 그 위치를 다시 만들 수 있다.
+
+\begin{keybox}[title={이 장의 정리}]
+\begin{itemize}
+\item 일의 양은 서로 독립인 선택의 곱이다. 로터 순서 $\times$ 위치 $\times$ 넘어감 가설. 플러그보드는 곱하지 않는다.
+\item 일은 코어 수보다 넉넉히 많게, 그러나 나눠 주는 수고보다 크게 자른다. M4는 그리스 로터 위치로 26조각을 낸다.
+\item 병렬로 돌려도 결과는 원래 순서로 모은다. 다른 구현과 정지 목록을 순서까지 비교하기 위해서다.
+\item 위치끼리 상태를 주고받지 않으므로, 느린 드럼 하나를 세운 조각 구동의 정지는 전체 구동의 정지를 거른 것과 같다.
+\item 부분 메뉴는 크립을 그대로 가져가서 체킹할 수 있다.
+\end{itemize}
+\end{keybox}
+\endgroup

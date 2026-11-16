@@ -41,7 +41,7 @@ def run_one(spec: Spec, seed: int, workers: int, json_dir: Path, pdf_dir: Path |
     print(f"  {rec['mode']} {rec['menu']['n_edges']}e/{rec['menu']['n_letters']}l/{rec['menu']['loops']}loops  "
           f"order {rec['wheel_order']['text']}  true stop {rec['true_stop']['drums_core_letters']}  "
           f"false stops: mode {r['false_stops']}, true order full {r['false_stops_true_order_full_run']}, "
-          f"all 60 orders {r['false_stops_all_60_orders_full_run']}  ({rec['search_seconds']} s, {rec['attempts']} attempts)")
+          f"all 120 orders {r['false_stops_all_120_orders_full_run']}  ({rec['search_seconds']} s, {rec['attempts']} attempts)")
     return rec
 
 
