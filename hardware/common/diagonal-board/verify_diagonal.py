@@ -21,7 +21,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import ki_common as K
+sys.dont_write_bytecode = True
+import ki_common as K  # noqa: E402
+from gen_diagonal_pcb import export_netlist_text  # noqa: E402  (kicad-cli helper only; net names are not used)
 
 HERE = Path(__file__).resolve().parent
 NAMES = ["d1", "d2", "d3", "d4", "d5"]
@@ -156,11 +158,7 @@ def main() -> int:
     a = ap.parse_args()
     work = Path(a.build_dir) if a.build_dir else K.default_build_dir("diagonal-board")
     work.mkdir(parents=True, exist_ok=True)
-    texts = []
-    for n in NAMES:
-        out = work / f"{n}.net"
-        K.run_cli("sch", "export", "netlist", "--format", "kicadsexpr", "-o", str(out), str(HERE / f"{n}.kicad_sch"))
-        texts.append(out.read_text(encoding="utf8"))
+    texts = [export_netlist_text(HERE / f"{n}.kicad_sch", work) for n in NAMES]   # kicad-cli on a staged copy, timeout
     nls = [K.Netlist(t) for t in texts]
     print("netlists:", ", ".join(f"{n}: {len(nl.parts)} parts / {len(nl.nets)} nets" for n, nl in zip(NAMES, nls)))
     stats: dict = {}

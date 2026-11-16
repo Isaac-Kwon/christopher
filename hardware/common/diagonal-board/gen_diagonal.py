@@ -7,8 +7,8 @@ D4 = J K W X, D5 = L M Y Z.  Every letter has two 26-line jacks (male D-sub 37, 
 27-29 = 0 V reference tied HERE on the common side, shell = CHASSIS), wired in parallel.
 The diagonal link: wire w of letter c  <->  wire c of letter w (325 links, own wire c of letter c unlinked).
 
-Between boards: 3 x 64-pin IDC headers per boundary (XRn on the right edge of board k, XLn on the left
-edge of board k+1), ribbon pin p <-> pin p of the same index n.  A link {X, Y} crossing a boundary takes
+Between boards: 3 x 64-pin IDC headers per boundary (XRn on the right edge of board k, XLn in the gap between
+jack columns 1 and 2 of board k+1: gen_diagonal_pcb.py), ribbon pin p <-> pin p of the same index n.  A link {X, Y} crossing a boundary takes
 the next free junction pin in the sorted list of the crossing links; links passing over a board connect
 its left and right header pins.  Junction connector 3 pins 61-64 carry the 0 V reference.
 
@@ -19,7 +19,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import ki_common as K
+sys.dont_write_bytecode = True
+import ki_common as K  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 N = 26
@@ -140,8 +141,9 @@ def build_sheet(k: int) -> K.Sheet:
                     nets[str(p)] = "GND"
             x = hx0 + pos * 62.0
             other = f"D{b + 2}" if is_right else f"D{b + 1}"
+            where = "right edge" if is_right else "gap between jack columns 1 and 2"
             sh.part(S_IDC, x, hy, f"{tag}{conn}", f"{tag}{conn}_{other}", FP_IDC, nets, "",
-                    f"Junction ribbon {conn} of 3 to board {other} ({'right' if is_right else 'left'} edge): 64-way flat cable 1:1",
+                    f"Junction ribbon {conn} of 3 to board {other} ({where}): 64-way flat cable 1:1",
                     length=5.08)
             pos += 1
     # 0 V terminal on D1, chassis RC, mounting holes

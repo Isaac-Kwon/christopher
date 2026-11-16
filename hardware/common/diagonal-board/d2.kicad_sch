@@ -13866,7 +13866,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "Junction ribbon 1 of 3 to board D1 (left edge): 64-way flat cable 1:1"
+		(property "Description" "Junction ribbon 1 of 3 to board D1 (gap between jack columns 1 and 2): 64-way flat cable 1:1"
 			(at 40.64 398.78 0)
 			(hide yes)
 			(effects
@@ -15404,7 +15404,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "Junction ribbon 2 of 3 to board D1 (left edge): 64-way flat cable 1:1"
+		(property "Description" "Junction ribbon 2 of 3 to board D1 (gap between jack columns 1 and 2): 64-way flat cable 1:1"
 			(at 101.6 398.78 0)
 			(hide yes)
 			(effects
@@ -16814,7 +16814,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "Junction ribbon 3 of 3 to board D1 (left edge): 64-way flat cable 1:1"
+		(property "Description" "Junction ribbon 3 of 3 to board D1 (gap between jack columns 1 and 2): 64-way flat cable 1:1"
 			(at 165.1 398.78 0)
 			(hide yes)
 			(effects
