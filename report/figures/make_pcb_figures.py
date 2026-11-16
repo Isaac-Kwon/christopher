@@ -1,6 +1,6 @@
 """Export PCB placement drawings (unrouted boards) for the report appendix.
 
-    python report/figures/make_pcb_figures.py
+    python report/figures/make_pcb_figures.py [NAME ...]   # optional: only these outputs
 
 For each placed board, writes report/figures/generated/pcb_<name>.pdf: board outline, footprint
 courtyards, fabrication outlines and silkscreen of the front side, as one vector page. Boards that
@@ -48,6 +48,9 @@ BOARDS = [
     ("shifter-board-s4", "hardware/relay/shifter-board/shifter_board_s4.kicad_pcb"),
     ("relay-sequencer", "hardware/relay/sequencer/sequencer.kicad_pcb"),
     ("gear-control-board", "hardware/gear/control-board/control_board.kicad_pcb"),
+    ("relay-position-display", "hardware/relay/position-display/position_display.kicad_pcb"),
+    # the dial's code tracks are copper (F.Cu): plot them too
+    ("relay-offset-dial", "hardware/relay/offset-dial/offset_dial.kicad_pcb", "Edge.Cuts,F.Cu,F.Fab,F.SilkS,F.CrtYd,User.Drawings"),
 ]
 LAYERS = "Edge.Cuts,F.Fab,F.SilkS,F.CrtYd,User.Drawings"
 PERSONAL = re.compile(rb"(?i)c:[/\\]+users|/home/[a-z]|dropbox[/\\]")
@@ -66,14 +69,19 @@ def kicad_cli() -> str:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     cli = kicad_cli()
-    for name, rel in BOARDS:
+    only = set(sys.argv[1:])
+    for entry in BOARDS:
+        name, rel = entry[0], entry[1]
+        layers = entry[2] if len(entry) > 2 else LAYERS
+        if only and name not in only:
+            continue
         pcb = ROOT / rel
         if not pcb.exists():
             print(f"skip {name}: {rel} not found")
             continue
         pdf = OUT / f"pcb_{name}.pdf"
         raw = OUT / f"pcb_{name}.uncropped.pdf"
-        subprocess.run([cli, "pcb", "export", "pdf", "--mode-single", "--layers", LAYERS,
+        subprocess.run([cli, "pcb", "export", "pdf", "--mode-single", "--layers", layers,
                         "--exclude-value", "--output", str(raw), str(pcb)],
                        check=True, capture_output=True, cwd=pcb.parent)
         # The plot keeps the drawing-sheet size; crop to the board (TeX Live's pdfcrop).

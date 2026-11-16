@@ -1,6 +1,6 @@
 """Export the project's KiCad schematics to PDF for the report appendix.
 
-    python report/figures/make_schematic_figures.py
+    python report/figures/make_schematic_figures.py [NAME ...]   # optional: only these outputs
 
 Writes report/figures/generated/sch_<name>.pdf (all sheets, vector) with kicad-cli. Projects that
 do not exist yet (boards still being designed) are skipped. Absolute paths are stripped from the
@@ -48,6 +48,8 @@ SCHEMATICS = [
     ("patch-panel", "hardware/common/patch-panel/patch_panel.kicad_sch"),
     ("relay-sequencer", "hardware/relay/sequencer/sequencer.kicad_sch"),
     ("gear-control-board", "hardware/gear/control-board/control_board.kicad_sch"),
+    ("relay-position-display", "hardware/relay/position-display/position_display.kicad_sch"),
+    ("relay-offset-dial", "hardware/relay/offset-dial/offset_dial.kicad_sch"),
 ]
 
 PERSONAL = re.compile(rb"(?i)c:[/\\]+users|/home/[a-z]|dropbox[/\\]")
@@ -66,7 +68,10 @@ def kicad_cli() -> str:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     cli = kicad_cli()
+    only = set(sys.argv[1:])
     for name, rel in SCHEMATICS:
+        if only and name not in only:
+            continue
         sch = ROOT / rel
         if not sch.exists():
             print(f"skip {name}: {rel} not found")
