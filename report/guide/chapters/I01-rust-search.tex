@@ -1,8 +1,8 @@
 \chapter{일을 나누고 모으기: \texorpdfstring{\code{search}}{search}와 조각 구동}\label{ch:14-rust-search}
 \begingroup\setlength{\emergencystretch}{3em}% long identifiers: allow looser lines in this chapter only
 
-\ref{ch:rust-check}장의 마지막 절에서 \code{search}가 일을 나눠 컴퓨터의 처리 장치 코어에 나눠 준다는 것을
-보았다. 이 장은 그 둘레를 읽는다. 일이 모두 얼마나 많은지, 어떤 단위로 자르는지, 잘라서 돌린 결과를 어떻게
+이 부는 기계를 실제로 부리는 소프트웨어를 읽는다. B부의 마지막 장(\ref{ch:rust-check}장) 끝 절에서
+\code{search}가 일을 나눠 컴퓨터의 처리 장치 코어에 나눠 준다는 것을 보았다. 이 장은 그 둘레를 읽는다. 일이 모두 얼마나 많은지, 어떤 단위로 자르는지, 잘라서 돌린 결과를 어떻게
 원래 순서대로 모으는지. 그리고 전시를 위해 더한 두 가지 도구, 느린 드럼 하나를 세워 둔 채 도는 \emph{조각
 구동}(\code{fixed\_right})과 정한 선만 골라 메뉴를 만드는 \code{Menu::subset}을 본다. 파일은
 \code{search.rs}(126줄)와 \code{bombe.rs}, \code{menu.rs}의 일부다.
@@ -54,7 +54,7 @@ if opts.turnover_hypotheses {
 \General 다이얼이 세 개 달린 자물쇠는 $10^3$가지를 하나씩 돌려 보면 언젠가 열린다. 다이얼이 하나 늘 때마다
 일은 열 배가 된다. 봄베도 같아서, M4의 그리스 로터 하나가 일을 26배로 만든다. 그래도 봄베가 해 볼 만한 것은
 가장 큰 다이얼을 돌리지 않기 때문이다. 플러그보드의 경우의 수(케이블 10개일 때 약 $1.5\times10^{14}$,
-노트북의 표)는 대입하지 않고 전류의 추론으로 지운다(\ref{sec:bombe-one-page}절).
+노트북의 표)는 대입하지 않고 전류의 추론으로 지운다(\ref{sec:f-register}절).
 
 \begin{figure}[ht]
 \centering
@@ -190,7 +190,8 @@ for r in rights {
 
 \paragraph{왜 오른쪽인가.} 모델에서 오른쪽 로터는 가장 안쪽 반복, 곧 가장 빨리 도는 드럼이다(\ref{ch:rust-bombe}장의
 ``실제 기계와 다른 점''). 그런데 실제 봄베와 이 프로젝트의 두 실물(릴레이식, 기어식)은 에니그마의 \emph{왼쪽}
-로터에 해당하는 드럼을 가장 빨리 돌리고, 오른쪽 로터에 해당하는 드럼을 가장 느리게 돌린다. 느린 드럼은
+로터에 해당하는 드럼을 가장 빨리 돌리고, 오른쪽 로터에 해당하는 드럼을 가장 느리게 돌린다(\ref{ch:50-gear-mechanics}장,
+\ref{ch:relay-machine}장). 느린 드럼은
 위치 676개마다 한 칸 움직인다. 그러므로 ``오른쪽 코어를 고정한 676 위치''는 실물 기계에서는 \emph{느린 드럼이
 한 자리에 서 있는 동안의 한 바퀴}, 전체 구동의 $1/26$이다. 빠른 드럼을 고정할 수는 없다. 빠른 드럼이 한 바퀴
 돌아야 가운데 드럼이 한 칸 가는 자리올림의 출발점이기 때문이다(\code{hardware/common/design-brief.md} 5.2절).

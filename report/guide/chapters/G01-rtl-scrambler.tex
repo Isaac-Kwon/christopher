@@ -1,19 +1,22 @@
 \chapter{배선표와 스크램블러: \texorpdfstring{\code{wirings\_pkg}, \code{scrambler}}{wirings\_pkg, scrambler}}\label{ch:rtl-scrambler}
 
-G부는 B부의 모델을 회로로 옮긴 기준 RTL(\code{rtl/src})을 읽는다. 파일은 네 개다.
+F부에서는 FPGA의 개념을 릴레이 회로에서 출발해 보았고, 코드는 조각으로만 보았다. G부는 그 코드를 처음부터
+끝까지 읽는다. 이 장부터 세 장은 B부의 Rust 모델을 회로로 옮긴 기준 RTL(\code{rtl/src})이고, 마지막 두
+장(\ref{ch:fpga-engine}장, \ref{ch:fpga-array}장)은 칩에 올리는 FPGA 엔진이다. 기준 RTL의 파일은 네 개다.
+마지막 열은 E부의 릴레이식에서 같은 일을 하던 것이다.
 
 \begin{center}
 \small
-\begin{tabular}{lll}
+\begin{tabularx}{\linewidth}{l>{\raggedright\arraybackslash}Xl>{\raggedright\arraybackslash}X}
 \toprule
-파일 & 하는 일 & Rust에서는 \\
+파일 & 하는 일 & Rust에서는 & 릴레이식에서는 \\
 \midrule
-\code{wirings\_pkg.sv} & 배선표와 로터 통과 함수 & \code{wiring}, \code{through} \\
-\code{scrambler.sv} & 드럼 한 벌의 치환표 (조합 논리) & \code{WheelOrder::scrambler} \\
-\code{bombe\_core.sv} & 한 드럼 위치의 판정 & \code{Plugged::propagate} \\
-\code{bombe\_sweep.sv} & 모든 위치를 돌며 정지를 내보냄 & \code{run\_slice} \\
+\code{wirings\_pkg.sv} & 배선표와 로터 통과 함수 & \code{wiring}, \code{through} & 배선 카드의 구리 \\
+\code{scrambler.sv} & 드럼 한 벌의 치환표 (조합 논리) & \code{WheelOrder::scrambler} & 유닛의 시프터와 배선 카드 \\
+\code{bombe\_core.sv} & 한 드럼 위치의 판정 & \code{Plugged::propagate} & 메뉴 배선망과 테스트 레지스터 \\
+\code{bombe\_sweep.sv} & 모든 위치를 돌며 정지를 내보냄 & \code{run\_slice} & 계수기와 순서기 \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{center}
 
 기준 RTL은 시뮬레이션용이다(\ref{sec:sim-vs-synth}절). 칩에 올리는 것이 아니라 ``클럭 단위로 본 올바른
@@ -156,9 +159,10 @@ module scrambler (
 260:1 선택 회로(5비트)에 덧셈과 뺄셈이다. 합성하면 LUT 19,717개다. \code{bombe\_core}는 이것을 메뉴의
 선마다 하나씩 둔다.
 
-\Ours 실제 봄베와 견주면 이 모듈은 드럼 세 개 한 벌이다. 다만 실제 드럼은 전선으로 되어 있어 26가닥의
-전류를 양방향으로 그대로 통과시키지만, 이 모듈은 ``어느 글자가 어느 글자로 가는가''라는 \emph{표}를 내놓는다.
-전류를 실제로 옮기는 일은 다음 장의 전파 논리가 이 표를 보고 한다.
+\Ours 실물 기계와 견주면 이 모듈은 기어식의 드럼 세 개 한 벌(\ref{sec:gm-drum}절), 릴레이식의 시프터 보드와
+배선 카드를 겹친 유닛 하나(\ref{sec:relay-shifter}절)다. 다만 두 기계의 유닛은 26가닥의 전류를 양방향으로
+그대로 통과시키지만, 이 모듈은 ``어느 글자가 어느 글자로 가는가''라는 \emph{표}를 내놓는다. 전류를 실제로
+옮기는 일은 다음 장의 전파 논리가 이 표를 보고 한다.
 
 \paragraph{이 모듈의 시험.} 테스트벤치는 무작위로 고른 로터 순서와 위치 3,000건에 대해 26글자의 출력을
 Python으로 쓴 참조 계산과 비교한다. 여기에 오른쪽 로터의 모든 위치, 그리고 \texttt{AAAAA}가 \texttt{BDZGO}가

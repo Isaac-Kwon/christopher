@@ -1,7 +1,10 @@
 \chapter{드럼 구동과 시험: \texorpdfstring{\code{bombe\_sweep}}{bombe\_sweep}, 테스트벤치}\label{ch:rtl-sweep}
 
 \code{bombe\_core}는 위치 하나를 판정한다. \code{bombe\_sweep}은 그것을 모든 드럼 위치에 대해 차례로 구동하고
-정지를 내보낸다. 실제 기계의 드럼 구동 기구와 정지 릴레이에 해당하고, Rust의 \code{run\_slice}에 해당한다.
+정지를 내보낸다. Rust의 \code{run\_slice}에 해당한다. 실물 기계에서는 기어식의 기어열과 슬롯 원판
+(\ref{sec:gm-train}절, \ref{sec:t-gear}절), 릴레이식의 위치 계수기와 순서기(\ref{sec:relay-counter}절,
+\ref{ch:relay-sequencer}장)가 하던 일이고, 정지를 붙드는 것은 두 기계가 함께 쓰는 테스트 레지스터의 정지
+릴레이다(\ref{sec:t-register}절).
 
 \section{위치 계수기: 26진 자리올림}
 
@@ -36,7 +39,9 @@ end
 자리마다 넘어가는 값이 다를 뿐(60, 60, 24) 구조는 같다.
 
 \Ours 실제 봄베의 자리올림은 기계 장치였다. 빠른 드럼이 한 바퀴 돌 때마다 캠과 걸쇠가 다음 단의 드럼을
-한 칸 밀었다~\cite[70--73]{us6812report1944}. 여기서는 그것이 \code{if (r == 5'd25)}다. 이 모듈의 자리 순서는
+한 칸 밀었다~\cite[70--73]{us6812report1944}. 기어식은 같은 일을 한 이빨 기어와 잠금 원호로
+하고(\ref{sec:gm-carry}절), 릴레이식은 계수기 자리의 올림 사슬로 한다(\ref{sec:relay-counter}절). 여기서는
+그것이 \code{if (r == 5'd25)}다. 이 모듈의 자리 순서는
 Rust 모델과 같게(오른쪽이 가장 빨리) 맞췄다. 정지 목록을 순서까지 비교하기 위해서다.
 
 \section{제어: 상태 셋}
@@ -120,13 +125,14 @@ assign stop_register = core_register;
 핸드셰이크의 규칙(``넘어갈 때까지 값을 바꾸지 않는다'')이 따로 애쓰지 않아도 지켜지는 구조다.
 
 \Ours 실제 봄베도 정지하면 그 자리에 섰다. 조작자가 지시 드럼과 릴레이 표시를 읽어 전표에 적고 다시
-출발시킬 때까지 기다렸다~\cite[49]{us6812report1944}. \code{EMIT} 상태가 그 멈춤이고 \code{stop\_ready}가
+출발시킬 때까지 기다렸다~\cite[49]{us6812report1944}. 이 프로젝트의 실물 두 기계도 정지 릴레이가 정지를 붙들고
+조작자의 해제 버튼을 기다린다(\ref{sec:handshake}절). \code{EMIT} 상태가 그 멈춤이고 \code{stop\_ready}가
 다시 출발시키는 조작이다.
 
 \section{테스트벤치}
 
-시험은 \code{rtl/tb}에 있고 Python으로 쓰여 있다. \code{cocotb}라는 도구가 Python 함수와 시뮬레이터 안의
-회로를 이어 준다. 테스트벤치의 구조는 단순하다(코드~\ref{lst:tb}는 그 꼴을 보이기 위한 요약이다).
+시험은 \code{rtl/tb}에 있고, \ref{ch:verify}장에서 본 대로 \code{cocotb}로 회로를 구동하는 Python이다.
+테스트벤치의 구조는 단순하다(코드~\ref{lst:tb}는 그 꼴을 보이기 위한 요약이다).
 
 \begin{lstlisting}[language=Python,caption={스윕 시험의 꼴(요약. 실제 코드는 \code{rtl/tb/cocotb\_sweep.py}).},label={lst:tb}]
 expected = bombe.run(order)              # stop list from the Rust core
@@ -161,21 +167,24 @@ assert got == expected                   # same stops, same order
 앞 40개 정지다. 스크램블러와 코어의 시험은 다른 시뮬레이터(Icarus Verilog)에서도 통과한다. 두 시뮬레이터에서
 같은 결과가 나온다는 것은 코드가 특정 도구의 해석에 기대고 있지 않다는 근거다.
 
-\section{G부의 정리}
+\section{기준 RTL의 정리}
+
+기준 RTL 세 장의 내용을 실물 기계, Rust 코어와 나란히 놓는다. 다음 두 장은 같은 동작을 칩에 맞는 구조로 다시
+쓴 FPGA 엔진이다.
 
 \begin{center}
 \small
-\begin{tabularx}{\linewidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
 \toprule
-실제 봄베 & Rust 코어 & 기준 RTL \\
+실물 기계 (기어식, 릴레이식) & Rust 코어 & 기준 RTL \\
 \midrule
-드럼 한 벌 & \code{scramblers}의 표 & \code{scrambler} (조합 논리) \\
+드럼 한 벌, 시프터 유닛 하나 & \code{scramblers}의 표 & \code{scrambler} (조합 논리) \\
 676가닥의 전선 & \code{[u32; 26]} & 676비트 레지스터 \code{live\_q} \\
 전류의 확산 (즉시) & 작업 목록으로 한 가닥씩 & 클럭마다 전체를 한 걸음씩 \\
-대각선 보드 (영구 배선) & 대칭 짝을 목록에 추가 & 고정된 전선 연결과 OR \\
-테스트 레지스터의 릴레이 & \code{reg != FULL} & \code{test\_q != FULL} \\
-드럼 구동과 자리올림 & 네 겹 반복문 & 26진 계수기와 상태 기계 \\
-정지하고 조작자를 기다림 & 정지 목록에 추가 & \code{EMIT} 상태와 valid/ready \\
+대각선 보드 (고정 배선) & 대칭 짝을 목록에 추가 & 고정된 전선 연결과 OR \\
+테스트 레지스터의 감지 릴레이 26개 & \code{reg != FULL} & \code{test\_q != FULL} \\
+기어열과 한 이빨 기어, 계수기와 순서기 & 네 겹 반복문 & 26진 계수기와 상태 기계 \\
+정지 릴레이가 붙들고 해제 버튼을 기다림 & 정지 목록에 추가 & \code{EMIT} 상태와 valid/ready \\
 \bottomrule
 \end{tabularx}
 \end{center}

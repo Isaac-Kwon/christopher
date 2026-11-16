@@ -1,7 +1,7 @@
 \chapter{FPGA 보드와 이야기하기: 호스트와 전시 화면}\label{ch:31-fpga-host}
 \begingroup\setlength{\emergencystretch}{3em}% long identifiers: allow looser lines in this chapter only
 
-\ref{ch:fpga-array}장은 엔진의 레지스터 버스와 레지스터 맵, 그리고 버스를 칩 밖으로 내보내는 두 브리지를
+G부의 마지막 장(\ref{ch:fpga-array}장)은 엔진의 레지스터 버스와 레지스터 맵, 그리고 버스를 칩 밖으로 내보내는 두 브리지를
 보드 쪽에서 보았다. 이 장은 반대편, PC(또는 PYNQ 보드의 ARM)에서 도는 Python 프로그램 \code{rtl/fpga/host}의
 \code{bombe\_fpga} 패키지를 읽는다. 하는 일은 셋이다. 엔진에 구동을 맡기고 정지를 거둔다. 그 정지를 Rust 코어의
 답과 대조한다. 그리고 전시에서 관람객이 보는 화면을 그린다.
