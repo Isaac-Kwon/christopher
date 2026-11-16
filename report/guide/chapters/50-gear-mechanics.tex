@@ -1,0 +1,646 @@
+\chapter{기어식 기계의 원리}\label{ch:50-gear-mechanics}
+
+5부의 릴레이식 봄베에는 도는 것이 없었다. 로터의 회전을 접점으로 흉내 냈다(\ref{sec:relay-shifter}절). 이 부의
+기어식 봄베는 전시의 최종 목표이고, 1940년대의 실물처럼 드럼이 실제로 돈다. 드럼이 돌면 풀어야 할 문제가
+넷 생긴다.
+
+\begin{enumerate}
+\item 도는 드럼 안의 배선에 전기를 어떻게 넣고 빼는가(드럼 기판과 접점 보드).
+\item 드럼 수십 개를 어떻게 함께, 정확한 각도로 돌리는가(기어열과 정렬).
+\item 빠른 드럼이 한 바퀴 돌 때 가운데 드럼을 한 칸 넘기는 일, 곧 \emph{자리올림}을 기어만으로 어떻게 하는가.
+\item 관람객이 드럼을 빼고 끼우는 동안 기계의 상태를 어떻게 지키는가(브레이크와 인덱스).
+\end{enumerate}
+
+이 장은 이 넷을 차례로 다룬다. 판정에 쓰는 시각(슬롯 원판)은 \ref{sec:t-gear}절에서 이미 보았으므로 짧게만
+다시 짚는다. 치수는 저장소의 \code{hardware/gear/layout.md}, \code{concept.md}, 결정 0002에서 가져왔고, 문서가
+``추정''이라고 적은 값은 여기서도 추정이라고 적는다. 시제품(G.1, G.2)에서 실측하기 전의 값이다.
+
+\section{드럼: 손으로 끼우는 스크램블러}\label{sec:gm-drum}
+
+\Why 에니그마의 로터는 고정된 배선이 든 원판이다. 원판의 한쪽 면에 26개의 접점이 있고 반대쪽 면에 26개가 있으며,
+안의 전선이 한쪽의 $i$번 접점을 반대쪽의 $W[i]$번 접점에 잇는다. 원판이 $o$칸 돌아가 있으면 들어오는 글자는
+$o$칸 밀린 자리에서 배선을 만나고, 나갈 때 다시 $o$칸 되돌려진다. \ref{sec:through}절의 \code{through} 함수가
+``들어갈 때 더하고, 표를 읽고, 나올 때 뺀다''로 계산한 것이 바로 이 물리적 사실이다.
+
+봄베의 드럼은 이 로터를 한 면으로 접은 것이다. 드럼의 앞면 하나에 동심원 네 줄로 26개씩, 모두 104개의 접점이
+있다. 두 줄은 들어가는 길(입력 쪽 링과 반사판 쪽 링), 두 줄은 돌아오는 길이다. 같은 로터 배선이 드럼 안에 두
+벌 들어 있는 셈이다~\cite{ellsbury1998bombe}. 접점을 한 면에 모은 까닭은 드럼을 기계 앞에서 손으로 끼우고 빼기
+위해서다. 드럼 뒤쪽 한 면만 기계의 접점판에 닿으면 되므로 드럼은 축에 꽂기만 하면 된다.
+
+\General 오래된 라디오의 \term{로터리 스위치}{rotary switch}가 같은 원리다. 손잡이를 돌리면 가운데의 와이퍼가
+둘레에 늘어선 고정 접점 가운데 하나에 닿는다. 봄베의 드럼은 이것을 104개 동시에 하는 로터리 스위치이고,
+접점 쌍 사이에 로터 배선이 끼어 있는 것이다.
+
+\Ours 이 프로젝트의 드럼은 \emph{인쇄 회로 기판 한 장}이다(\code{hardware/gear/drum-pcb}). 지름 96~mm, 두께
+1.6~mm, 4층이고 부품은 하나도 없다. 앞면(F.Cu)에 패드 104개가 반지름 22, 29, 36, 43~mm의 네 링에 있고, 안쪽 두
+층이 패드끼리를 잇는다(그림~\ref{fig:gm-drum}). 링의 역할과 배선 규칙은 한 줄이다.
+
+\begin{lstlisting}[numbers=none,caption={\code{drum-pcb/README.md}: 배선 규칙. $W$는 \code{data/wirings/enigma.txt}의 로터 배선표.},label={lst:gm-drumrule}]
+    copy A:  pad 4<i>  <->  pad 3<W[i]>        (outer <-> 3rd ring)
+    copy B:  pad 1<i>  <->  pad 2<W[i]>        (inner <-> 2nd ring)
+\end{lstlisting}
+
+링 4와 링 1이 입력 쪽, 링 3과 링 2가 반사판 쪽이다. 로터 I이면 $W[\mathrm{A}] = \mathrm{E}$이므로 패드 4A와 3E가,
+1A와 2E가 이어진다. 돌아오는 전류는 링 2에서 링 1로 같은 배선을 거꾸로 지나므로 $W^{-1}$이 저절로 된다. 두 벌의
+방향이 같아서 드럼은 위·가운데·아래 어느 자리에 꽂아도 같은 기판으로 된다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % ---- (가) 패드 면
+  \begin{scope}
+    \def\s{0.055}
+    \fill[cgreen!25] (0,0) circle (48*\s);
+    \draw[cgreen!70!black] (0,0) circle (48*\s);
+    \fill[white] (0,0) circle (4.3*\s);
+    \draw[cgray,dashed] (0,0) circle (17*\s);
+    \foreach \rr/\ww in {22/2.66,29/3.50,36/4.35,43/5.20} {
+      \foreach \i in {0,...,25} {
+        \pgfmathsetmacro{\a}{90-\i*360/26}
+        \fill[corange!80,rotate=\a] ({\rr*\s-0.099},{-\ww*\s/2}) rectangle ++(0.198,{\ww*\s});
+      }
+    }
+    \foreach \i/\L in {0/A,1/B,2/C,3/D,4/E,5/F,6/G,7/H,8/I,9/J,10/K,11/L,12/M,13/N,14/O,15/P,16/Q,17/R,18/S,19/T,20/U,21/V,22/W,23/X,24/Y,25/Z} {
+      \pgfmathsetmacro{\a}{90-\i*360/26}
+      \node[font=\tiny\ttfamily] at (\a:{52*\s}) {\L};
+    }
+    % 강조: 4A-3E (A벌), 1A-2E (B벌)
+    \fill[cred] ({90}:{43*\s}) circle (2.2pt);
+    \fill[cred] ({90-4*360/26}:{36*\s}) circle (2.2pt);
+    \draw[cred,line width=1pt,dashed] (90:{43*\s}) .. controls (75:{46*\s}) and (45:{40*\s}) .. ({90-4*360/26}:{36*\s});
+    \fill[cblue] (90:{22*\s}) circle (2.2pt);
+    \fill[cblue] ({90-4*360/26}:{29*\s}) circle (2.2pt);
+    \draw[cblue,line width=1pt,dashed] (90:{22*\s}) .. controls (70:{24*\s}) and (45:{26*\s}) .. ({90-4*360/26}:{29*\s});
+    \node[font=\footnotesize\bfseries] at (0,-3.35) {(가) 패드 면 (접점 보드 쪽에서 봄)};
+    \node[note,anchor=west,text=cred] at (3.1,1.7) {4A--3E\\(A벌, 가는 길)};
+    \node[note,anchor=west,text=cblue] at (3.1,0.6) {1A--2E\\(B벌, 오는 길)};
+    \node[note,anchor=west] at (3.1,-0.6) {점선 원 $r = 17$:\\인덱스 원판 자리};
+  \end{scope}
+  % ---- (나) 옆에서 본 접촉
+  \begin{scope}[xshift=8.6cm,yshift=-0.4cm]
+    \draw[shaft] (0,-1.8) -- (0,2.6);
+    \fill[cgreen!25,draw=cgreen!70!black] (-2.6,1.2) rectangle (2.6,1.45);
+    \foreach \x in {-2.36,-1.97,-1.6,-1.21,1.21,1.6,1.97,2.36} \fill[corange] (\x-0.08,1.15) rectangle (\x+0.08,1.2);
+    \fill[cgreen!45,draw=cgreen!70!black] (-2.9,-0.6) rectangle (2.9,-0.4);
+    \foreach \x in {-2.36,-1.97,-1.6,-1.21,1.21,1.6,1.97,2.36} {
+      \fill[cgray!40] (\x-0.1,-0.4) rectangle (\x+0.1,0.75);
+      \fill[corange!60!black] (\x,0.95) circle (0.11);
+    }
+    \draw[<->] (3.1,-0.4) -- node[right,font=\scriptsize] {9.0 mm} (3.1,1.06);
+    \node[note,anchor=west] at (-2.6,1.85) {드럼 기판 (축과 함께 돈다)};
+    \node[note,anchor=west] at (-2.9,-0.95) {접점 보드 (서 있다)};
+    \node[note,anchor=north] at (0,-1.25) {구르는 공 끝의 스프링 접점 104개};
+    \node[font=\footnotesize\bfseries] at (0,-2.95) {(나) 옆에서 본 접촉};
+  \end{scope}
+\end{tikzpicture}
+\caption{드럼 기판(로터 I). (가) 패드 104개가 네 링에 있다. 글자는 패드 쪽에서 보아 시계 방향이고 A가 12시다.
+빨간 점선과 파란 점선은 안쪽 층을 지나는 연결 두 개의 예다. (나) 기계 쪽의 스프링 접점이 아래에서 패드를 누른다.
+접점은 서 있고 드럼이 그 위를 돈다.}
+\label{fig:gm-drum}
+\end{figure}
+
+\paragraph{드럼이 $o$칸 돌아가 있으면.} 접점 보드의 접점은 26자리 $j = 0,\ldots,25$에 고정되어 있다. 드럼이 기준
+표시에 글자 $o$를 보이고 있으면 자리 $j$의 접점은 패드 $(j + o) \bmod 26$에 닿는다. 그러면 입력 쪽 접점 $j$에서
+들어간 전류는 패드 $j+o$로 들어가 반사판 쪽 패드 $W[j+o]$로 나오고, 그 패드는 접점 $W[j+o] - o$ 위에 있다. 곧
+\[
+  j \;\longmapsto\; W[j+o] - o \pmod{26}
+\]
+이고, Rust 코어의 로터 함수(\ref{sec:through}절)와 글자 하나 다르지 않다. 기판 생성기가 배선표에서 기판을 만들고,
+따로 짠 검증기가 기판 파일에서 연결을 다시 읽어 배선표와 대조하는 것은 릴레이 보드와 같은 방식이다
+(\ref{ch:boardverify}장).
+
+\paragraph{왜 전선이 아니라 기판인가.} 1940년대의 드럼은 104개의 연결을 대부분 전선으로, 일부를 구리 ``8자'' 링크로
+만들었다~\cite{bombe-rebuild-drums}. 드럼이 30--60개 필요한 이 프로젝트에서 손으로 납땜하면 오배선이 생기고
+검사가 어렵다. 기판은 배선표에서 생성되므로 틀릴 곳이 생성기 한 곳뿐이다. 그 대가로 지켜야 할 규칙이 하나 생겼다.
+패드 면의 가운데(반지름 18~mm 안)에는 비아도, 구리도, 인쇄도 두지 않는다. 그 자리에 축과 드럼을 맞추는 인덱스
+원판(지름 34~mm, \ref{sec:gm-brake}절)이 얹히기 때문이다. 검증기 \code{verify\_drum.py}가 이 금지 영역을 검사한다.
+
+\section{접점 보드: 서 있는 쪽에 스프링을}\label{sec:gm-contact}
+
+\Why 도는 것과 서 있는 것 사이에 전기를 건네려면 한쪽은 단단한 면, 다른 쪽은 그 면을 누르는 스프링이어야 한다.
+실물 봄베는 드럼에 브러시를, 기계 앞면에 평평한 접점판을 두었다~\cite{us6812report1944}. 이 프로젝트는 반대로 한다.
+\emph{기계에 스프링 접점, 드럼에 패드}다. 관람객이 드럼을 만지고 떨어뜨릴 수 있으므로 드럼은 튼튼하고 단순한 평판이어야
+하고, 닳는 부품(스프링 접점)은 기계 쪽에 두어 정비하는 사람이 바꾸게 한다. 1942년 미 해군의 봄베 계획도 휠에
+세그먼트, 기계에 교체형 브러시였다~\cite{desch1942memo}.
+
+\General 볼펜의 끝을 떠올리면 된다. 볼펜은 종이 위를 \emph{미끄러지지} 않고 작은 공이 \emph{구른다}. 미끄러지면
+닳고 걸리지만 구르면 마찰이 작다. 흔한 스프링 핀(포고 핀)은 위아래로 눌리는 용도로만 수명이 적혀 있고, 옆으로
+끌리는 용도에는 근거가 없다.
+
+\Ours 접점은 Mill-Max의 Omniball 7845-0이다~\cite{millmax-7845}. 끝이 지름 3.96~mm의 구르는 공이고, 제조사가
+``옆으로 미끄러지거나 구르는 접촉''용이라고 적은 계열이다(결정 0002의 3절). 자유 높이 9.75~mm에서 0.76~mm 눌러
+9.0~mm에서 쓴다. 전체 행정은 1.52~mm여서 패드 면의 흔들림, 접점 길이의 공차, 보드와 기둥의 공차를 모두 더한
+최악($\pm0.6$~mm)까지 받는다. 접점 하나가 약 72~gf로 누르므로 104개가 드럼을 약 73~N(공칭)으로 밀어낸다. 이 힘은
+드럼을 축에 붙드는 노브가 받는다(\ref{sec:gm-brake}절).
+
+접점 보드는 드럼 자리마다 한 장(110 × 110~mm)이고 세 자리가 같은 설계다. 처음 개념 설계는 열마다 세로로 긴 보드 한
+장을 두려 했으나, 닳는 것은 빠른 행뿐이므로 자리마다 나누면 갈아 끼울 소모품이 3분의 1로 준다. 보드의 링마다 26핀
+헤더가 하나씩 있고, 보드 사이는 26가닥 리본 케이블로 잇는다. 한 열(스크램블러 하나)은 리본 여덟 개로 이어진다
+(그림~\ref{fig:gm-column}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    st/.style={draw,fill=clight,rounded corners=2pt,minimum width=34mm,minimum height=12mm,align=center,font=\footnotesize},
+    pt/.style={font=\scriptsize\ttfamily,fill=white,inner sep=1pt}]
+  \foreach \y/\n/\lab in {0/b/{아래 = 느린 드럼\\(에니그마 오른쪽 로터)},2.4/m/{가운데 드럼},4.8/t/{위 = 빠른 드럼\\(에니그마 왼쪽 로터)}} {
+    \node[st] (\n) at (0,\y) {\lab};
+    \node[pt] (\n4) at (-1.3,\y-0.6) {R4};
+    \node[pt] (\n3) at (-1.3,\y+0.6) {R3};
+    \node[pt] (\n2) at (1.3,\y+0.6) {R2};
+    \node[pt] (\n1) at (1.3,\y-0.6) {R1};
+  }
+  \node[blko,font=\footnotesize] (rf) at (0,6.6) {반사판 카드 (B 또는 C)};
+  \node[font=\footnotesize] (in) at (-1.3,-1.6) {\code{IN} 잭};
+  \node[font=\footnotesize] (out) at (1.3,-1.6) {\code{OUT} 잭};
+  \draw[->,cred,line width=1pt] (in) -- (b4);
+  \draw[->,cred,line width=1pt] (b3) -- (m4);
+  \draw[->,cred,line width=1pt] (m3) -- (t4);
+  \draw[->,cred,line width=1pt] (t3) -- (t3 |- rf.south);
+  \draw[->,cblue,line width=1pt] (rf.south -| t2) -- (t2);
+  \draw[->,cblue,line width=1pt] (t1) -- (m2);
+  \draw[->,cblue,line width=1pt] (m1) -- (b2);
+  \draw[->,cblue,line width=1pt] (b1) -- (out);
+  \node[note,anchor=west,align=left] at (2.6,2.4) {빨강: 가는 길(드럼 안에서 R4 $\to$ R3, 배선 $W$)\\
+    파랑: 오는 길(드럼 안에서 R2 $\to$ R1, 배선 $W^{-1}$)\\
+    화살표 하나 = 26가닥 리본 하나, 한 열에 여덟 개\\[2mm]
+    R$r$ = 반지름 22 / 29 / 36 / 43~mm의 링 1--4};
+\end{tikzpicture}
+\caption{열 하나(스크램블러 하나)의 배선. 케이블은 아래(느린) 드럼 쪽에, 반사판은 위(빠른) 드럼 쪽에 있다.
+에니그마의 전류 순서(입력 $\to$ 오른쪽 $\to$ 가운데 $\to$ 왼쪽 $\to$ 반사판)를 따른 것이다.}
+\label{fig:gm-column}
+\end{figure}
+
+\paragraph{같은 순서가 반대로 보인다.} 드럼 기판은 글자를 \emph{패드 쪽에서 보아} 시계 방향으로 놓는다. 접점
+보드는 그 패드 면을 마주 보므로, 같은 물리적 순서가 보드의 앞면에서는 \emph{반시계} 방향으로 보인다. 그래서 접점
+보드 생성기는 접점 자리를 반시계 방향으로 번호 매긴다. 두 문서가 서로 다른 방향을 적고 있는데 둘 다 옳은 것이다.
+거울에 비친 시계가 거꾸로 도는 것과 같다. 이런 방향의 혼동은 말로만 따져서는 틀리기 쉽다. 그래서 열 검증기
+\code{verify\_column.py}는 접점 보드, 리본, 반사판 카드의 기판 파일을 실제로 이어 붙여 에니그마 스크램블러와 비교하고,
+보드를 거울상으로 뒤집은 것을 음성 시험으로 넣는다. 로터 순서 60가지 × 17,576위치, 모두 1,054,560가지가 Rust 코어와
+같았다(\code{contact-board/README.md}).
+
+\section{정렬: 패드 위에 확실히 얹히는 각도}\label{sec:gm-align}
+
+\Why 접점은 패드 위에 \emph{완전히} 얹혀 있을 때만 믿을 수 있다. 패드 가장자리에 걸친 순간에는 접촉이 튀거나
+이웃 패드와의 틈에 빠질 수 있다. 그래서 판정의 시험 전압(\code{STROBE})은 접점이 패드 위에 완전히 얹힌 구간의
+\emph{가운데}에서만 건다. 남은 양쪽이 기계의 오차를 받는 여유다.
+
+수를 넣어 보자. 안쪽 링(반지름 22~mm)의 글자 간격은 13.846°이고 패드는 그 50\%인 6.92° 폭이다. 접점 끝이 패드에
+닿는 자리의 폭을 약 1~mm(안쪽 링에서 2.6°)로 잡으면, 접점 끝 전체가 패드 위에 있는 \term{완전 접촉}{full contact}
+구간은 약 4.3°다. 그 가운데 50\%를 \code{STROBE}의 창으로 쓰면 창은 약 2.15° 폭이고, 빠른 드럼이 패드 가운데에서
+$\pm 1.1°$까지 어긋나도 창이 완전 접촉 구간 안에 남는다(그림~\ref{fig:gm-window}). 빠른 드럼 60~rpm에서 4.3°는
+약 12~ms, 창은 6~ms다. 그림~\ref{fig:t-slots}의 ``완전 접촉 $-3 \ldots +9$~ms''와 ``\code{STROBE} 접점 면
+$0 \ldots 6$~ms''가 이것이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1.15cm,y=1cm]
+  \draw[->] (-5.2,0) -- (5.4,0) node[right,font=\scriptsize] {각도 (°)};
+  \foreach \t in {-4,-2,0,2,4} \draw (\t,0.06) -- (\t,-0.06) node[below,font=\tiny] {\t};
+  \fill[corange!70] (-3.46,0.25) rectangle (3.46,0.6);
+  \node[font=\scriptsize] at (0,0.42) {패드 (6.92°)};
+  % ghost contacts at the limits
+  \foreach \c in {-2.16,2.16} {
+    \fill[cgray!50] (\c-1.3,0.65) rectangle (\c+1.3,0.85);
+  }
+  \node[note,anchor=south] at (-2.16,0.85) {접점 끝 2.6°\\(완전 접촉의 왼쪽 끝)};
+  \node[note,anchor=south] at (2.16,0.85) {(오른쪽 끝)};
+  \fill[cgreenbg] (-2.16,-0.75) rectangle (2.16,-0.5);
+  \node[font=\scriptsize,text=cgreen] at (0,-0.62) {완전 접촉 약 4.3° (60 rpm에서 12~ms)};
+  \fill[cbluebg] (-1.08,-1.25) rectangle (1.08,-1.0);
+  \node[font=\scriptsize,text=cblue] at (0,-1.12) {\code{STROBE} 창 = 가운데 50\%};
+  \draw[<->,cred] (1.08,-1.45) -- node[below,font=\scriptsize,text=cred] {허용 $+1.1°$} (2.16,-1.45);
+  \draw[<->,cred] (-2.16,-1.45) -- node[below,font=\scriptsize,text=cred] {$-1.1°$} (-1.08,-1.45);
+\end{tikzpicture}
+\caption{안쪽 링의 패드 하나를 펴서 그린 것. 완전 접촉 구간은 패드 폭에서 접점 끝의 폭을 뺀 것이고, 창을 그
+가운데 절반에 두면 양쪽에 1.1°씩 여유가 남는다. 구르는 공 끝은 닿는 자국이 더 작아 완전 접촉이 약 6.5°로
+넓을 것으로 보지만(추정) 실측 전에는 이 여유를 셈에 넣지 않는다.}
+\label{fig:gm-window}
+\end{figure}
+
+\General 오차를 쌓아서 셈하는 것을 \term{공차 누적}{tolerance stack-up}이라 한다. 종이 한 장의 두께가 0.1~mm $\pm$
+0.01이면 100장을 쌓은 높이의 오차는 얼마일까. 모든 장이 동시에 가장 두꺼울 때를 가정하면 $\pm 1$~mm(\term{단순 합}{worst
+case})다. 각 장의 오차가 서로 무관하게 흩어진다고 보면 대부분 서로 상쇄되어 $\pm 0.01 \times \sqrt{100} = \pm 0.1$~mm
+근처(\term{제곱합의 제곱근}{root sum square})다. 단순 합은 안전하지만 비관적이고, 제곱합은 현실적이지만 운에 기댄다.
+안전이 걸린 곳은 단순 합으로 맞추고 제곱합은 참고로 본다.
+
+\Ours 빠른 드럼의 정렬 예산은 표~\ref{tab:gm-budget}이다. 단순 합 1.02°로 허용 1.1° 안에 들어가지만 여유가 0.1°뿐이다.
+\code{layout.md}는 이곳을 ``이 설계에서 가장 빠듯한 곳''이라 적고 G.2 시제품의 측정 항목으로 남겼다. 다행히 백래시와
+비틀림은 마찰의 방향이 늘 같아 대부분 \emph{일정한 치우침}이고, 일정한 치우침은 조립할 때 각도를 맞추면서 뺄 수 있다.
+
+\begin{table}[ht]
+\centering
+\caption{빠른 드럼의 정렬 예산(\code{layout.md} 3.6절). ``계산''은 문서의 산술, ``추정''은 시제품에서 확인할 값.}
+\label{tab:gm-budget}
+\small
+\begin{tabular}{lrl}
+\toprule
+원인 & 최악 & 근거 \\
+\midrule
+라인 축의 비틀림(12열) & 0.24° & 계산 \\
+마이터 기어의 백래시 0.05--0.10~mm & 0.23° & 계산 \\
+인덱스(핀과 홈)와 드럼 조립 지그 & 0.10° & 추정 \\
+접점의 위치 오차 $\pm$0.1~mm (반지름 22) & 0.26° & 계산 \\
+접점 보드의 위치 핀 & 0.04° & 계산 \\
+패드 패턴 & 0.05° & 추정 \\
+슬롯 원판과 센서(보정 뒤) & 0.10° & 추정 \\
+\midrule
+합: 단순 합 / 제곱합의 제곱근 & 1.02° / 0.45° & 허용 $\pm$1.1° \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+가운데와 느린 드럼은 사정이 다르다. 이 드럼들은 \code{STROBE} 동안 서 있으므로 창이 완전 접촉 구간의 어디에 있든
+상관없고, 허용이 구간 전체의 절반인 $\pm 2.1°$다. 정적인 항목에 자리올림 잠금의 유격 0.42°(\ref{sec:gm-carry}절)를
+더해도 단순 합 1.34°다.
+
+\paragraph{왜 기어를 줄줄이 잇지 않는가.} 한 행의 드럼 여섯 개(12유닛이면 열두 개)를 함께 돌리는 가장 쉬운 방법은
+드럼 축마다 평기어를 달고 사이에 아이들 기어를 끼워 줄줄이 잇는 것이다. 모든 기어가 보여 전시물답다. 그러나 기어가
+맞물리는 곳마다 백래시(이 사이의 틈)가 있고, 줄의 끝으로 갈수록 그것이 쌓인다. 맞물림 하나에 약 0.19°(백래시
+0.1~mm, 피치 반지름 30~mm, 계산), 열 하나에 맞물림이 둘이므로 여섯 열이면 약 1.9°로 허용 1.1°를 넘는다. 그래서 행마다
+기계 폭 방향으로 긴 지름 20~mm의 \term{라인 축}{line shaft}을 하나 두고, 드럼 축마다 1:1 \term{마이터 기어}{mitre
+gear}(직각으로 맞물리는 베벨 기어)로 직접 받는다. 모든 드럼이 같은 축에서 받으므로 백래시가 쌓이지 않는다.
+양동이를 사람에서 사람으로 건네면 흘리는 물이 쌓이지만, 모두가 같은 수도관에서 받으면 쌓이지 않는 것과 같다.
+
+긴 축은 대신 비튼다. 축 끝에 토크 $T$가 걸리면 길이 $L$의 축은 $\theta = TL/(GJ)$만큼 비틀린다($G$는 강의 전단 탄성
+계수, $J$는 단면의 극관성 모멘트로 지름의 네제곱에 비례한다). 드럼마다 마찰 토크가 고르게 걸리므로 끝 열의 비틀림은
+그 절반인 $TL/(2GJ)$다. 12열(드럼당 0.6~N·m, 1.44~m)에서 지름 20~mm는 0.24°, 12~mm였다면 1.8°다(계산). 축을 굵게 한
+이유다. 그리고 6유닛 단계에서는 구동부에 \emph{가까운} 7--12번 자리부터 채운다. 토크가 축의 짧은 쪽만 지나므로
+비틀림이 0.06°로 준다(결정 0002의 6절). 왼쪽 절반이 비어 대칭은 깨지지만, 예산이 빠듯한 곳에서는 겉모습보다 예산을
+택했다.
+
+\section{기어열: 모터에서 세 줄의 축까지}\label{sec:gm-train}
+
+\Why 봄베의 세 행은 서로 다른 빠르기로 돈다. 위의 빠른 행은 쉬지 않고 돌고(에니그마의 왼쪽 로터), 가운데 행은 빠른
+행이 한 바퀴 돌 때 한 칸, 아래의 느린 행은 가운데 행이 한 바퀴 돌 때 한 칸 간다. 모터는 하나이므로 이 관계를
+모두 기어가 만든다. 기어 두 개가 맞물리면 이의 수의 비가 회전수의 반비례가 된다. 이가 26개인 기어가 한 바퀴 돌면
+이가 30개인 상대 기어는 26/30바퀴 돈다.
+
+\General 자전거의 변속이 같은 원리다. 앞 체인링 이 40개, 뒤 스프로킷 이 20개이면 페달 한 바퀴에 바퀴가 두 바퀴
+돈다. 두 기어 사이에 기어를 하나 더 끼우면(\term{아이들 기어}{idler gear}) 비는 그대로이고 도는 방향만 바뀐다.
+아이들 기어의 이 수는 앞에서 곱해지고 뒤에서 나뉘어 지워지기 때문이다.
+
+\Ours 구동부(\code{layout.md} 3.7절)에는 기계 폭 방향의 축이 다섯 개 있다. 빠른 라인 축 F, 아이들 축 I, 주기 축 C,
+가운데 라인 축 M, 느린 라인 축 S다. 모터(폐루프 스테퍼)는 타이밍 벨트(HTD 5M, 18잇수 : 72잇수, 4:1)로 F를 돌린다.
+그 뒤는 이렇다(그림~\ref{fig:gm-train}).
+
+\begin{itemize}
+\item F의 26잇수 $\to$ I의 26잇수 $\to$ C의 30잇수(모듈 1.5). F:C = 26:30이다. C가 한 바퀴 도는 동안 빠른 드럼은
+30칸을 간다. 빠른 드럼 60~rpm에서 C는 52~rpm이고, 한 위치(빠른 드럼 한 칸)는 38.46~ms다.
+\item C $\to$ M: 자리올림 1. C의 한 이빨 기어가 M의 26잇수 기어를 C 한 바퀴에 한 이씩 넘긴다(\ref{sec:gm-carry}절).
+\item M $\to$ S: 자리올림 2. M의 한 이빨 기어가 S를 M 한 바퀴에 한 이씩 넘긴다.
+\item 세 라인 축 $\to$ 드럼 축: 마이터 기어 25:25(1:1).
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \def\s{0.021}
+  \newcommand{\gmaxes}{\foreach \yy in {120,81,39,0,-120} {\fill[cgray] (0,\yy*\s) circle (1.6pt);}}
+  % (가) 26:30
+  \begin{scope}
+    \gmaxes
+    \foreach \yy/\rr in {120/19.5,81/19.5,39/22.5} \draw[cblue,fill=cbluebg,fill opacity=0.6] (0,\yy*\s) circle (\rr*\s);
+    \foreach \nn/\yy/\tz in {F/120/26,I/81/26,C/39/30} \node[font=\scriptsize,anchor=west] at (0.55,\yy*\s) {\nn: \tz잇수};
+    \node[font=\scriptsize,anchor=west,text=cgray] at (0.55,0) {M};
+    \node[font=\scriptsize,anchor=west,text=cgray] at (0.55,-120*\s) {S};
+    \node[font=\footnotesize\bfseries] at (0.6,-3.75) {(가) 26 : 26 : 30};
+  \end{scope}
+  % (나) carry 1
+  \begin{scope}[xshift=4.6cm]
+    \gmaxes
+    \draw[corange,fill=corangebg,fill opacity=0.6] (0,0) circle (26*\s);
+    \draw[corange,line width=0.8pt] (0,39*\s) circle (13*\s);
+    \fill[corange] (-0.06,{26*\s}) rectangle (0.06,{26*\s-0.1});
+    \node[font=\scriptsize,anchor=west] at (0.55,39*\s) {C: 한 이빨(13잇수 상당)};
+    \node[font=\scriptsize,anchor=west] at (0.62,-0.15) {M: 26잇수};
+    \node[font=\scriptsize,anchor=west,text=cgray] at (0.55,120*\s) {F};
+    \node[font=\scriptsize,anchor=west,text=cgray] at (0.55,-120*\s) {S};
+    \node[font=\footnotesize\bfseries] at (0.6,-3.75) {(나) 자리올림 1: C $\to$ M};
+  \end{scope}
+  % (다) carry 2
+  \begin{scope}[xshift=10.0cm]
+    \gmaxes
+    \draw[cgreen,line width=0.8pt,dashed] (0,0) circle (81*\s);
+    \fill[cgreen] (-0.07,{-81*\s}) rectangle (0.07,{-81*\s-0.1});
+    \draw[cgreen,fill=cgreenbg,fill opacity=0.6] (0,-120*\s) circle (39*\s);
+    \node[font=\scriptsize,anchor=west,align=left] at (0.1,0.45) {M: 한 이빨\\(54잇수 상당)};
+    \node[font=\scriptsize,anchor=west] at (0.9,-120*\s) {S: 26잇수};
+    \node[font=\scriptsize,anchor=west,text=cgray] at (0.55,120*\s) {F};
+    \node[font=\footnotesize\bfseries] at (0.6,-3.75) {(다) 자리올림 2: M $\to$ S};
+  \end{scope}
+  \draw[<->] (-1.0,120*\s) -- node[left,font=\scriptsize] {120} (-1.0,0);
+  \draw[<->] (-1.0,0) -- node[left,font=\scriptsize] {120} (-1.0,-120*\s);
+\end{tikzpicture}
+\caption{구동부의 축 다섯 개를 옆에서 본 것(축척, 원은 피치원). 다섯 축은 한 수직선 위에 있고 F--I--C--M의 축간
+거리가 $39 + 42 + 39 = 120$~mm로 행 피치와 같다. 세 그림은 같은 축을 서로 다른 평면(기계 폭 방향의 다른 자리)에서
+본 것이다. 한 이빨 기어의 이는 위치를 나타낸 작은 사각형이다.}
+\label{fig:gm-train}
+\end{figure}
+
+축의 자리에 작은 산수가 있다. 기어 한 쌍의 축간 거리는 모듈 × (이 수의 합) ÷ 2다. F--I는 $1.5 \times 52 / 2 = 39$,
+I--C는 $1.5 \times 56 / 2 = 42$, C--M은 자리올림 1의 기어(모듈 2, 13 + 26)로 39다. 합이 120~mm로 행 사이의 거리와
+같아서 F와 M이 각각 빠른 행과 가운데 행의 라인 축과 같은 높이에 온다. 구동부의 다섯 축이 라인 축의 평면 하나에 들어가는
+것이다. 아이들 I가 있는 이유도 여기 있다. F와 C를 직접 물리면 축간 거리가 $1.5 \times 56 / 2 = 42$로 고정되어 높이가
+맞지 않는다. I가 끼면 거리를 39와 42로 나눌 수 있다. 방향은 F($+$) $\to$ I($-$) $\to$ C($+$) $\to$ M($-$) $\to$ S($+$)로
+번갈아 바뀌고, 가운데 행만 라인 축의 마이터를 드럼 축의 반대쪽에 달아 세 행의 드럼이 모두 관람객 쪽에서 보아
+시계 방향으로 가게 한다.
+
+\paragraph{모터의 크기.} 드럼 하나의 마찰 토크는 0.2--0.6~N·m로 추정한다(접점 104개의 힘 × 마찰 계수 × 평균 반지름).
+빠른 행 12개면 F에 2.4--7.2~N·m가 연속으로 걸린다. 가장 힘든 순간은 676위치에 한 번, 두 자리올림이 겹칠 때다. 느린
+행을 넘기는 토크가 가운데 축을 거쳐 F로 오고, 자리올림 2는 느린 행을 가운데 행보다 54/26 = 2.08배 빠르게 돌리므로
+\[
+  7.2 + \bigl(7.2 + 7.2 \times \tfrac{54}{26}\bigr) \times \tfrac{13}{26} \times \tfrac{26}{30} \approx 16.8~\text{N·m}
+\]
+가 F에 걸린다(최악, 계산). 처음 개념 설계는 이 순간을 빼고 셌다. 결정 0002는 이 값으로 모터를 86~mm 각(NEMA 34)
+8.5~N·m급 폐루프 스테퍼로 키우고, 4:1 벨트, 모터 전용 48~V 전원으로 정했다~\cite{leadshine-csm23485}. 같은 순간에
+자리올림 1의 이에는 약 852~N이 걸리므로 그 기어는 황동이 아니라 강(S45C)으로 한다.
+
+\section{자리올림: 한 이빨 기어와 잠금 원호}\label{sec:gm-carry}
+
+\Why 자동차의 기계식 주행 거리계를 생각하자. 각 자리의 숫자 바퀴에는 이가 하나뿐인 작은 기어가 붙어 있다. 일의
+자리 바퀴가 9에서 0으로 넘어가는 동안에만 그 이빨이 십의 자리 바퀴를 한 칸 밀고, 나머지 동안에는 십의 자리 바퀴를
+건드리지 않는다. 회전 운동을 ``가끔 한 칸''이라는 운동으로 바꾸는 것이다. 봄베의 자리올림이 바로 이것이다.
+빠른 드럼이 한 바퀴 돌 때마다 가운데 드럼이 한 칸, 가운데 드럼이 한 바퀴 돌 때마다 느린 드럼이 한 칸이다.
+
+그런데 주행 거리계와 다른 점이 하나 있다. 빠른 드럼은 \emph{멈추지 않는다}. 가운데 드럼을 한 칸 넘기는 데는 시간이
+들고, 그동안 가운데 드럼의 접점은 패드 사이에 걸려 있어 판정을 할 수 없다. 빠른 드럼의 이웃한 두 글자 사이의 짧은
+틈에 자리올림과 판정을 함께 끼워 넣을 수는 없다. 실물 봄베의 해법은 한 주기를 26칸보다 길게 잡는 것이었다.
+30칸 가운데 26칸에서 판정하고 4칸 동안 자리올림을 하는 ``30-point'' 기종, 26칸 + 13칸의 ``39-point'' 기종이
+있었다~\cite{jackson-bh09,jackson-bh11,us6812report1944}. 이 프로젝트는 30칸을 택했다.
+
+\General 영화 영사기는 필름을 한 칸씩 끊어 보내야 한다. 그 일을 하는 \term{제네바 기구}{Geneva drive}는 핀이 하나
+달린 원판이 홈이 파인 십자 바퀴를 한 바퀴에 한 칸씩 돌리고, 나머지 동안에는 원판의 볼록한 원호가 십자 바퀴의
+오목한 면에 얹혀 바퀴가 돌지 못하게 잠근다. 기계식 시계의 날짜판도 비슷하다. \emph{넘기는 부분}과 \emph{잠그는
+부분}이 한 몸이라는 것이 핵심이다.
+
+\Ours 주기 축 C의 둘레를 30칸으로 나누면 한 칸이 12°다. 칸 $k = 0, \ldots, 25$는 판정하는 칸이고(슬롯 원판에 슬롯이
+있다), $k = 26, \ldots, 29$의 네 칸(48°)이 자리올림 구간이다(그림~\ref{fig:gm-cycle}). C에는 이빨이 하나뿐인 기어가
+있다. 이빨은 13잇수 기어(피치원 지름 26~mm)의 이 하나에 해당하고, 둘레의 나머지는 반지름 11.95~mm의 \term{잠금
+원호}{locking arc}다. M에는 26잇수 기어와 그 옆에 오목한 자리 26개가 파인 \term{잠금 원판}{lock disc}(반지름 27~mm)이
+있다(그림~\ref{fig:gm-carry}).
+
+\begin{itemize}
+\item 이빨이 물리는 동안 C가 $360°/13 = 27.7°$ 돌고, 그동안 M이 이 하나, 곧 $360°/26 = 13.846°$를 간다. 27.7°는
+자리올림 구간 48° 안에 넉넉히 들어간다. 맞물림을 빈 네 칸의 한가운데인 330°에 두면 316.2°--343.8°다.
+\item 이빨이 물려 있지 않은 동안에는 C의 잠금 원호가 M의 오목한 자리에 얹혀 M이 돌지 못한다. 그래서 가운데 드럼은
+판정하는 26칸 내내 정확한 자리에 서 있다.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \def\s{0.06}
+  % driven: lock disc R27 with 26 pockets, centre (0,0)
+  \fill[cgreenbg,draw=cgreen] (0,0) circle (27*\s);
+  \foreach \i in {0,...,25} \fill[white] ({90+\i*360/26}:{27*\s}) circle (2.8*\s);
+  \foreach \i in {0,...,25} \draw[cgreen] ({90+\i*360/26}:{27*\s}) ++({90+\i*360/26+90}:{2.8*\s}) arc ({90+\i*360/26+90}:{90+\i*360/26+270}:{2.8*\s});
+  \fill[white,draw=cgray] (0,0) circle (10*\s);
+  \node[font=\scriptsize] at (0,0) {M};
+  % driver: arc disc R_a ~12 at (0, 39) with one tooth region
+  \begin{scope}[shift={(0,{39*\s})}]
+    \draw[corange,line width=1.2pt,fill=corangebg] (120:{12*\s}) arc (120:420:{12*\s}) -- (0,0) -- cycle;
+    \fill[corange] (-0.12,{12*\s-0.05}) -- (0.12,{12*\s-0.05}) -- (0.08,{12*\s+0.37}) -- (-0.08,{12*\s+0.37}) -- cycle;
+    \node[font=\scriptsize] at (0,-0.2) {C};
+  \end{scope}
+  \node[note,anchor=west,text=corange,align=left] at (1.2,2.75) {한 이빨: 맞물리는 동안\\M을 13.846° 넘긴다};
+  \node[note,anchor=west,text=corange,align=left] at (1.2,1.95) {잠금 원호(반지름 11.95):\\나머지 동안 M을 붙든다};
+  \node[note,anchor=west,text=cgreen,align=left] at (1.9,0.2) {잠금 원판(반지름 27)\\오목한 자리 26개};
+  \node[note,anchor=west,align=left] at (1.9,-1.1) {틈 0.05~mm $\Rightarrow$ 유격 $\pm$0.33°\\(자리올림 2는 $\pm$0.42°)};
+  % odometer sketch on the left
+  \begin{scope}[xshift=-6.2cm,yshift=0.6cm]
+    \foreach \x/\d in {0/3,1.1/9} {
+      \draw[fill=white] (\x,0) rectangle ++(0.9,1.3);
+      \node[font=\Large\ttfamily] at (\x+0.45,0.65) {\d};
+    }
+    \node[note] at (0.45,-0.35) {십의 자리}; \node[note] at (1.55,-0.35) {일의 자리};
+    \draw[->,corange,line width=1pt] (1.35,1.55) to[bend right=40] node[above,font=\scriptsize,text=corange] {9$\to$0일 때만 한 칸} (0.55,1.55);
+    \node[font=\footnotesize\bfseries] at (1.0,-1.2) {주행 거리계};
+  \end{scope}
+\end{tikzpicture}
+\caption{자리올림의 원리(개념도, 축척은 대략). 왼쪽: 주행 거리계는 아랫자리가 넘어갈 때만 윗자리를 한 칸 민다.
+오른쪽: 자리올림 1. 실제로는 이빨과 26잇수 기어가 한 평면에, 잠금 원호와 잠금 원판이 그 옆의 다른 평면에 있다.}
+\label{fig:gm-carry}
+\end{figure}
+
+\paragraph{둘째 자리올림은 왜 큰가.} 같은 방법으로 M이 S를 넘기면 될 것 같지만 문제가 있다. M은 연속으로 돌지 않고
+자리올림 1 때마다 13.846°씩만 걷는다. S를 넘기는 이빨은 M의 \emph{한 걸음 안에서} 일을 마쳐야 한다. 13잇수 상당의
+이빨이면 M이 27.7° 돌아야 하므로 M의 두 걸음에 걸친다. 걸음 사이에 M이 서 있는 동안 S가 반쯤 넘어간 채 멈춰
+버린다. 그래서 자리올림 2의 이빨은 54잇수 상당(모듈 3, 피치원 지름 162~mm)으로 크게 만든다. M이 $360°/54 = 6.67°$
+도는 동안 S가 한 이를 가므로 한 걸음 안에 끝난다. 그 대가로 S는 M보다 2.08배 빠르게 돌려지고, 그것이
+\ref{sec:gm-train}절의 16.8~N·m가 나온 이유다. 축간 거리는 $3 \times (54 + 26)/2 = 120$~mm로 역시 행 피치와 같다.
+
+\paragraph{보조 디텐트를 달지 않는 이유.} 개념 설계는 넘겨진 행에 26칸 스프링 \term{디텐트}{detent}(볼펜을 딸깍
+고정하듯 정해진 자리에 스프링이 걸리는 장치)를 달아 정위치를 잡으려 했다. 계산해 보니 드럼 12개의 마찰(2.4--7.2~N·m)을
+이기고 중심을 잡으려면 디텐트가 반지름 30~mm에서 80--240~N으로 눌러야 했다. 그보다 약한 디텐트는 위치를 정하지
+못한다. 거꾸로 마찰이 브레이크 노릇을 한다. 넘긴 뒤 관성으로 더 가는 각도는 운동 에너지 ÷ 마찰 토크로 가운데 행
+0.09--0.26°, 느린 행 0.4--1.15°이고(계산), 그 뒤를 잠금 원호가 받는다. 그래서 결정 0002의 8절은 디텐트를 빼고 위치를
+잠금 원호에 맡겼다. 원호와 원판 사이의 틈은 반지름 방향 0.05~mm이고, 이 틈이 허락하는 흔들림(유격)이 $\pm0.33°$
+(자리올림 1), $\pm0.42°$(자리올림 2)다. 마찰의 방향이 늘 같으므로 실제로 서는 자리는 유격의 한쪽으로 일정하게
+치우치고, 그 치우침은 조립 때 뺀다.
+
+\paragraph{30칸 주기가 만드는 순서.} 주기 축이 한 바퀴 도는 동안 F는 30칸을 간다. 그래서 주기 축의 $Q$번째 회전,
+$k$번째 칸에서 빠른 드럼이 보이는 글자는 $k$가 아니라
+\[
+  l = (30Q + k) \bmod 26 = (4m + k) \bmod 26 \qquad (m = Q \bmod 26)
+\]
+이다. 주기마다 빠른 드럼의 시작 글자가 네 칸씩 밀린다(그림~\ref{fig:gm-cycle} 아래). 한 주기 안에서는 $k$가 0부터 25까지
+이어지므로 $l$도 26글자를 한 번씩 모두 지나고, 676번의 회전에서 17,576위치가 하나도 빠짐없이 한 번씩 시험된다. 다만
+시험하는 \emph{순서}가 단순한 26진 계수가 아니다. 실물의 30-point 기종도 그랬다~\cite{jackson-bh09}. 이 사실은 제어
+보드가 위치를 세고, 마지막 위치를 알고, 처음 자리로 돌아가는 방법을 모두 바꾼다(\ref{ch:52-gear-control}장). 기계가
+시험하는 순서는 $n = 26Q + k$로 세고, 기계 밖으로 내보내는 위치 값은 드럼의 실제 글자 $(l, m, r)$이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \def\R{2.0}
+  \foreach \k in {0,...,29} {
+    \pgfmathsetmacro{\a}{90-12*\k}
+    \pgfmathsetmacro{\b}{90-12*\k-6}
+    \pgfmathsetmacro{\c}{90-12*\k+6}
+    \ifnum\k<26
+      \fill[cbluebg,draw=cblue!60] (0,0) -- (\b:\R) arc (\b:\c:\R) -- cycle;
+    \else
+      \fill[corangebg,draw=corange] (0,0) -- (\b:\R) arc (\b:\c:\R) -- cycle;
+    \fi
+  }
+  \fill[white] (0,0) circle (0.9);
+  \node[font=\scriptsize,align=center] at (0,0) {주기 축\\한 바퀴\\= 30칸};
+  \foreach \k in {0,1,2,25,26,27,28,29} {
+    \pgfmathsetmacro{\a}{90-12*\k}
+    \node[font=\tiny] at (\a:{\R-0.35}) {\k};
+  }
+  \draw[corange,line width=1.6pt] ({90-316.2}:{\R+0.18}) arc ({90-316.2}:{90-343.8}:{\R+0.18});
+  \node[font=\scriptsize,text=corange,anchor=south east] at ({90-330}:{\R+0.3}) {자리올림 1: 316°--344°};
+  \node[font=\scriptsize,text=cblue,anchor=west] at (-15:{\R+0.25}) {$k = 0 \ldots 25$: 판정 (슬롯 있음)};
+  % strip of fast drum letters
+  \begin{scope}[xshift=-5.6cm,yshift=-3.4cm]
+    \def\w{0.375}
+    \node[font=\scriptsize,anchor=east] at (-0.1,0.45) {$k$};
+    \node[font=\scriptsize,anchor=east] at (-0.1,0) {$Q = 0$};
+    \node[font=\scriptsize,anchor=east] at (-0.1,-0.45) {$Q = 1$};
+    \foreach \k in {0,...,29} {
+      \pgfmathtruncatemacro{\ca}{mod(\k,26)+65}
+      \pgfmathtruncatemacro{\cb}{mod(\k+4,26)+65}
+      \ifnum\k<26 \def\fc{cbluebg}\else\def\fc{corangebg}\fi
+      \draw[fill=\fc] (\k*\w,-0.2) rectangle ++(\w,0.4);
+      \draw[fill=\fc] (\k*\w,-0.65) rectangle ++(\w,0.4);
+      \node[font=\tiny\ttfamily] at (\k*\w+\w/2,0) {\char\ca};
+      \node[font=\tiny\ttfamily] at (\k*\w+\w/2,-0.45) {\char\cb};
+      \node[font=\tiny,text=cgray] at (\k*\w+\w/2,0.45) {\k};
+    }
+    \node[note] at (15*\w,-1.0) {빠른 드럼의 글자 $l = (30Q + k) \bmod 26$};
+  \end{scope}
+\end{tikzpicture}
+\caption{주기 축 한 바퀴. 파란 26칸에서 판정하고 주황 네 칸 동안 가운데 드럼을 넘긴다. 아래 띠는 처음 두 회전에서
+각 칸의 빠른 드럼 글자다. 빈 칸에서도 빠른 드럼은 계속 돌므로 둘째 회전은 E에서 시작한다.}
+\label{fig:gm-cycle}
+\end{figure}
+
+맞물림 구간 316.2°--343.8°의 앞뒤에도 여유가 있다. 마지막 판정 칸($k = 25$)의 \code{JUDGE}는 지연이 최악이어도
+305.5°에 끝나므로 맞물림까지 약 10.7°가 남는다. 이 마지막 칸에서 정지가 나면 모터가 가운데 드럼을 넘기기 전에 멈출
+시간이다. 맞물림 뒤에서 다음 주기의 첫 접점이 패드에 닿는 355.9°까지는 12°가 남아 잠금이 자리를 잡는다
+(\code{layout.md} 3.8절, 계산).
+
+\section{위치 원판과 지시 드럼}\label{sec:gm-posdisc}
+
+판정은 테스트 레지스터의 릴레이가 하지만, 기계가 지금 어느 위치에 있는지는 따로 알아야 한다. 정지한 위치를 화면에
+보이고, 기준 모델과 대조하고, 마지막 위치에서 서고, 처음 자리로 돌아가기 위해서다.
+
+\Ours F, M, S 세 축에 지름 56~mm의 \term{위치 원판}{position disc}이 하나씩 있다. 원판마다 슬롯 26개와 원점 슬롯
+하나가 있고, 광센서 둘이 읽는다. T 센서는 그 축이 한 칸 갈 때마다 펄스를 하나 내고, I 센서는 그 축의 값이 0인 구간
+동안 높다. 제어 보드가 T 펄스를 세고 I에서 0으로 맞추어 $(l, m, r)$를 안다(\ref{sec:gk-home}절). F의 원판은 빠른
+드럼과 함께 계속 돌므로 T 펄스는 슬롯이 없는 빈 칸에서도 온다. 앞 절의 $l = (4m+k) \bmod 26$이 그대로 센서에 나타나는
+것이다.
+
+여기서 원점을 정하는 일이 생각보다 까다롭다. 세 원점 센서가 모두 높은 곳($l = m = r = 0$)을 처음 자리로 삼으면 될 것
+같지만, 주기 축의 0번째 회전 안에서 빠른 드럼이 글자 0(A)을 보이는 칸이 \emph{둘} 있다. $k = 0$과 빈 칸 $k = 26$이다
+(그림~\ref{fig:gm-cycle}의 위 띠에서 A가 두 번 나온다). 30칸이 26칸보다 많기 때문이다. 그래서 원점은 ``세 원점 센서가
+높은 동안 \code{STROBE} 슬롯이 오르는 곳''으로 정한다. 슬롯은 $k = 0$에만 있으므로 하나로 정해진다.
+
+구동부 앞판에는 \term{지시 드럼}{indicator drum} 세 개가 있다. 라인 축에 마이터 기어로 이어져 드럼과 함께 돌지만
+배선은 없고, 글자가 역순으로 인쇄되어 있어 사람이 정지값을 바로 읽는다. 실물의 지시 드럼도 가운데 뱅크 오른쪽에
+있었고 글자가 역순이었다~\cite{us6812report1944,sale-ringstellung}. 그 옆의 창으로 기어열이 보인다.
+
+\paragraph{슬롯 원판.} 주기 축의 바깥 끝에는 지름 160~mm의 슬롯 원판이 있다. 반지름 72, 62, 52~mm의 트랙 셋에
+\code{STROBE}, \code{JUDGE}, \code{CLEAR}의 슬롯이 26개씩 있고, 슬롯이 광센서를 지나는 동안이 곧 그 신호다. 시각이
+각도로 새겨져 있으므로 기계가 느려지면 모든 구간이 시간으로 길어진다. 슬롯의 각도를 어떻게 정했는지는
+\ref{sec:t-gear}절(그림~\ref{fig:t-slots})에 있다. \code{JUDGE}는 2.52°, \code{CLEAR}는 4.08° 폭이고, 가장자리는 모터
+한 스텝(주기 축 0.03°)의 정수배에 있다. \code{STROBE}만은 물린 테스트 레지스터의 릴레이 지연을 재어 맞추므로,
+\code{STROBE} 센서는 축 둘레로 $\pm3°$ 돌릴 수 있는 브래킷에 따로 달고, 그 트랙은 원판 두 장을 겹쳐 슬롯 폭을
+0--1.5° 넓힐 수 있게 한다(추정). 슬롯 원판의 각도는 CAD의 \code{params.py} 한 곳에 있다(\ref{sec:gc-slotsteps}절).
+
+\section{드럼 교체: 인덱스, 노브, 브레이크}\label{sec:gm-brake}
+
+전시에서 관람객은 메뉴 카드를 보고 드럼을 직접 고르고 끼운다. 드럼의 색이 로터의 종류이고, 카드에 적힌 글자를 기준
+표시에 맞추어 끼우는 것이 크립 오프셋을 거는 동작이다. 한 번의 실습에서 드럼 18개를 1.5분 안에, 곧 하나에 5초 안에
+끼워야 한다. 이 요구가 드럼과 축이 만나는 부분의 모양을 정했다.
+
+\paragraph{인덱스: 아무 글자로나, 스스로 제자리에.} 축에는 키(한 방향만 허락하는 홈)가 없다. 대신 축에 고정된
+\term{인덱스 플랜지}{index flange}의 앞면에 90° V자 홈 26개가 방사 방향으로 파여 있고, 드럼 쪽 원판에는 지름 3~mm의
+맞춤 핀 세 개가 있다(그림~\ref{fig:gm-index}). 홈이 26개이므로 드럼은 어느 글자 방향으로든 끼울 수 있다. 키를 두면
+한 방향만 남아 오프셋을 걸 수 없다.
+
+\Why 둥근 핀은 뾰족한 봉우리 위에 설 수 없다. 핀이 봉우리에서 조금이라도 비켜 있으면 V자의 경사면을 타고 미끄러져
+가까운 홈의 바닥으로 들어간다. 그래서 드럼을 반 칸($\pm6.9°$) 안으로 대기만 하면 가장 가까운 칸에 저절로 앉는다.
+홈에 앉은 핀은 두 경사면에 선으로 닿으므로 핀 세 개가 여섯 점에서 드럼의 각도, 중심, 기울기, 깊이를 모두 정한다.
+처음 안은 양쪽 모두 높이 1.2~mm의 V자 톱니였는데, 톱니 끝이 평평하게 잘려 대는 각도의 59\%에서 평평한 끝끼리 닿아
+걸렸다(결정 0002의 2절). 끝을 뾰족하게 하면 톱니가 너무 높아진다. 둥근 핀과 날카로운 홈의 짝은 걸리는 구간이 없다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % (가) flange top view
+  \begin{scope}
+    \def\s{0.09}
+    \fill[cgray!25,draw=cgray] (0,0) circle (17*\s);
+    \fill[white,draw=cgray] (0,0) circle (4*\s);
+    \foreach \i in {0,...,25} {
+      \pgfmathsetmacro{\a}{90-\i*360/26}
+      \draw[cgray!80!black] (\a:{10.5*\s}) -- (\a:{17*\s});
+    }
+    \foreach \i in {0,9,17} {
+      \pgfmathsetmacro{\a}{90-\i*360/26}
+      \draw[line cap=round,line width=2.6mm,cblue] (\a:{11.2*\s}) -- (\a:{16.6*\s});
+    }
+    \node[font=\footnotesize\bfseries] at (0,-2.3) {(가) 플랜지와 핀 셋};
+    \node[note,anchor=west] at (1.75,1.0) {V홈 26개\\(13.846° 간격)};
+    \node[note,anchor=west,text=cblue] at (1.75,-0.5) {핀 셋: 0번·9번·17번 칸\\(0° / 124.6° / 235.4°)};
+  \end{scope}
+  % (나) section: pin in a V groove
+  \begin{scope}[xshift=7.9cm,yshift=-0.2cm]
+    \def\u{0.55}
+    \fill[cgray!25] (-5.07*\u,-2.4*\u) -- (-5.07*\u,0) -- (-3.38*\u,-1.69*\u) -- (-1.69*\u,0) -- (0,-1.69*\u) -- (1.69*\u,0) -- (3.38*\u,-1.69*\u) -- (5.07*\u,0) -- (5.07*\u,-2.4*\u) -- cycle;
+    \draw[cgray!80!black] (-5.07*\u,0) -- (-3.38*\u,-1.69*\u) -- (-1.69*\u,0) -- (0,-1.69*\u) -- (1.69*\u,0) -- (3.38*\u,-1.69*\u) -- (5.07*\u,0);
+    \fill[cblue!70] (0,{(-1.69+2.12)*\u}) circle (1.5*\u);
+    \draw[cblue!50,dashed] (1.69*\u,{(0+1.5)*\u}) circle (1.5*\u);
+    \draw[->,cred,line width=1pt] (2.45*\u,2.0*\u) to[bend left=30] (3.3*\u,0.9*\u);
+    \node[note,anchor=west,text=cred,align=left] at (2.9*\u,2.6*\u) {봉우리 위에 설 수 없어\\옆 홈으로 미끄러진다};
+    \node[note,anchor=north,align=center] at (0,-2.55*\u) {홈에 앉은 핀: 두 경사면에 선으로 닿는다};
+    \node[font=\footnotesize\bfseries] at (0,-4.0*\u) {(나) 반지름 14~mm에서 자른 단면};
+  \end{scope}
+\end{tikzpicture}
+\caption{인덱스. (가) 축 쪽 플랜지(지름 34~mm)의 V홈과 드럼 쪽 핀 셋의 자리. 26은 3으로 나뉘지 않으므로 핀의 간격은
+124.6° / 110.8° / 124.6°다. (나) 핀(지름 3)과 90° 홈(피치 3.38, 깊이 1.69). 홈의 깊이를 반지름에 비례하게
+($\pi r / 26$) 해서 봉우리가 홈의 띠 전체에서 뾰족하다.}
+\label{fig:gm-index}
+\end{figure}
+
+\paragraph{노브: 4분의 1바퀴.} 드럼을 축에 붙드는 것은 드럼 앞의 노브다. 처음에는 나사(M6)였으나 4.5바퀴를 돌려야 해
+하나에 약 9초가 걸렸다. 지금은 \term{베이오넷}{bayonet} 방식이다. 카메라 렌즈를 끼우듯 축 끝의 가로 핀이 노브 안의
+나선 홈을 따라 90° 돌며 1.8~mm 당겨지고, 끝의 오목한 자리에서 잠긴다. 노브 안의 접시 스프링이 드럼을 약 180~N으로
+누른다. 이 힘이 접점 104개가 밀어내는 힘(최대 87~N)과 인덱스가 벌어지려는 힘을 함께 이기도록 정한 값이다. 손 토크는
+0.38--0.44~N·m(계산), 하나를 끼우는 데 약 4.5초(추정)다.
+
+순서가 영리하다. 드럼을 밀면 먼저 핀이 홈에 들어가고(자리까지 1.4~mm 남았을 때), 그다음에 접점의 공이 패드에 닿는다
+(0.76~mm 남았을 때). \emph{각도가 정해진 뒤에} 접점의 마찰이 생기는 것이다. 손이 미는 힘은 접점이 닿기 전까지 0이고,
+그 뒤는 노브의 캠이 맡는다. 억지로 드럼을 비틀면 핀이 홈의 경사면을 타고 올라와 드럼이 약 1.5~N·m에서 한 칸 넘어간다.
+부서지기 전에 넘어가고, 넘어간 것이 눈에 보인다.
+
+\paragraph{브레이크: 덮개가 열리면 F를 잡는다.} 드럼을 바꾸는 동안 기계의 상태가 그대로여야 한다. 덮개를 열면 인터록이
+모터의 48~V를 끊어 모터가 힘을 잃는다. 가운데와 느린 행은 잠금 원호가 잡고 있지만 빠른 행 F는 자유롭다. 관람객(특히
+아이)이 드럼을 돌려 보면 F가 돌고, 26:30 기어로 C가 돌고, 약 1.15바퀴마다 자리올림이 가운데 행을 한 칸 넘긴다. 그 뒤에
+``기준 표시에 맞춰'' 끼운 드럼은 앞서 끼운 드럼과 다른 기계 상태에서 맞춰진 것이 된다. 오프셋이 \emph{소리 없이} 틀린다
+(\code{hardware/common/rotor-cartridge.md} 4.2절).
+
+\General 엘리베이터의 브레이크는 스프링이 늘 잡고 있고, 전자석에 전기가 들어올 때만 풀린다. 정전이 되면 저절로 잡힌다.
+이런 \term{무여자 작동 브레이크}{spring-applied, power-off brake}는 ``고장 나면 안전한 쪽''으로 설계하는 전형이다.
+
+\Ours F 축에 24~V 무여자 작동 브레이크를 단다(구동부의 뱅크 쪽 칸, 바깥지름 64~mm 이하, 품번은 미확인). 브레이크
+코일의 전원은 앞 덮개 스위치 두 개의 둘째 b접점을 직렬로 지난다. 덮개가 닫혀 있으면 코일에 전기가 들어가 브레이크가
+풀리고, 덮개가 열리면 잡는다. F가 잡히면 26:30 기어로 C가 잡히고, M과 S는 잠금 원호가 잡는다. 기계 전체가 선다.
+정지 토크는 4~N·m 이상으로 정했다. 드럼 두 개를 함께 비틀어 둘의 인덱스가 넘어가는 토크(2 × 1.5~N·m)보다 크게 해서,
+억지로 비틀면 기계가 아니라 드럼의 인덱스가 넘어가게 한 것이다. 손 크랭크의 셔터 스위치는 이 고리에 넣지 않았다.
+덮개를 닫은 채 크랭크로 돌려 보이는 시연은 그대로 된다. 운전 중에 덮개를 열면 브레이크가 F를 약 9~ms 안에 세운다
+(계산). 48~V를 끊는 안전 기능 자체는 바뀌지 않고, 브레이크가 고장 나 풀린 채여도 브레이크가 없던 설계와 같아질
+뿐이다.
+
+관람객의 순서는 이렇게 된다(\code{layout.md} 5.2절).
+\begin{enumerate}
+\item \code{HOME}을 누르고 원위치 표시(\code{AT\_HOME})를 기다린다. 드럼 위의 기준 표시는 \code{HOME} 상태를 기준으로 한다.
+\item 앞 덮개를 연다. 48~V가 끊기고 브레이크가 F를 잡는다.
+\item 드럼마다: 노브를 4분의 1바퀴 풀어 뺀다, 카드의 색 드럼을 집는다, 카드의 글자를 기준 표시에 맞춰 민다, 노브를
+4분의 1바퀴 돌린다.
+\item 덮개를 닫는다. 브레이크가 풀리고 48~V가 돌아온다. 시작 스위치를 껐다 켜야 기계가 움직인다
+(\ref{sec:gk-safety}절의 48~V 규칙).
+\end{enumerate}
+
+드럼을 끼우지 않았거나 노브를 돌리지 않으면 그 유닛의 길이 끊긴다. 하드웨어로 따로 검출하지 않는다. 첫 위치에서
+레지스터가 정지를 내고, 감시 장치가 기준 모델의 예상과 견주어 ``드럼 장착을 확인하세요''를 띄운다.
+
+\section{정리}
+
+\begin{itemize}
+\item 드럼은 부품 없는 4층 기판이다. 패드 104개가 네 링에 있고, 로터 배선 두 벌(가는 길 링 4$\to$3, 오는 길 링 2$\to$1)이
+안쪽 층에 있다. 드럼이 글자 $o$를 보이면 접점 $j$는 패드 $j+o$에 닿아 코어의 로터 함수 $j \mapsto W[j+o]-o$가 된다.
+\item 스프링 접점은 서 있는 쪽(기계)에, 패드는 도는 쪽(드럼)에 둔다. 접점은 옆으로 지나가는 용도의 구르는 공 끝이다.
+\item 판정 창은 완전 접촉 구간의 가운데 절반이고, 빠른 드럼의 허용 오차는 $\pm1.1°$다. 백래시가 쌓이지 않도록 라인
+축과 마이터 기어로 모든 드럼을 같은 축에서 받는다.
+\item F:C = 26:30. 주기 축 한 바퀴의 30칸 가운데 26칸에서 판정하고 4칸 동안 자리올림을 한다. 빠른 드럼의 시작 글자가
+주기마다 네 칸씩 밀린다.
+\item 자리올림은 한 이빨 기어가 넘기고 잠금 원호가 붙든다. 둘째 자리올림은 M의 한 걸음 안에 끝나야 해서 54잇수 상당으로
+크다. 디텐트는 마찰을 이기지 못하므로 달지 않는다.
+\item 원점은 세 원점 센서만으로 정해지지 않는다(빈 칸 $k = 26$). \code{STROBE} 슬롯의 오름을 함께 본다.
+\item 인덱스는 V홈 26개와 둥근 핀 셋, 노브는 4분의 1바퀴 베이오넷, 덮개가 열리면 무여자 작동 브레이크가 F를 잡아 드럼을
+바꾸는 동안 기계의 상태를 지킨다.
+\end{itemize}

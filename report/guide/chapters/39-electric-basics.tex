@@ -1,0 +1,614 @@
+\chapter{전기의 기초}\label{ch:39-electric-basics}
+
+5부는 전기 회로를 다룬다. 이 장은 \ref{ch:relay}--\ref{ch:44-power-safety}장이 설명 없이 쓰는 전기의 기본을 모았다.
+전압과 전류, 직렬과 병렬, 전력과 열, 신호를 전압으로 주고받는 약속, 다이오드와 LED, 트랜지스터, 커패시터, 그리고
+회로도를 읽는 법이다. 공식은 셋(옴의 법칙, 전압 분배, 전력)뿐이고, 나머지는 그 공식으로 이 프로젝트의 숫자를
+따져 보는 연습이다. 전기를 이미 알면 \ref{sec:el-level}절(24~V 레벨 신호)만 읽고 넘어가도 된다.
+
+\section{전압, 전류, 저항}\label{sec:el-vir}
+
+\Why 전기는 물길에 빗대면 쉽다(그림~\ref{fig:el-water}). 높은 물탱크에서 낮은 물받이로 관을 이으면 물이 흐른다.
+\begin{itemize}
+\item \term{전압}{voltage}은 두 점 사이의 높이 차, 곧 물을 밀어내는 힘의 차이다. 단위는 볼트(V)다. 높이가 늘 두 점
+사이의 차이이듯 전압도 늘 두 점 사이의 값이다. 그래서 기준점 하나를 정해 0~V라 부르고, ``+24~V''는 ``그
+기준점보다 24~V 높은 점''이라는 뜻으로 쓴다.
+\item \term{전류}{current}는 1초 동안 관을 지나가는 물의 양이다. 단위는 암페어(A)이고, 이 문서에서는 그 천분의
+일인 mA를 자주 쓴다.
+\item \term{저항}{resistance}은 관이 좁아서 흐름을 막는 정도다. 단위는 옴($\Omega$)이고, 천 배가 k$\Omega$,
+백만 배가 M$\Omega$다.
+\end{itemize}
+셋은 \term{옴의 법칙}{Ohm's law}으로 묶인다.
+\[
+  V = I \times R \qquad\text{곧}\qquad I = \frac{V}{R}
+\]
+같은 높이 차에서 관이 두 배 좁으면 물이 절반만 흐른다는 뜻이다.
+
+전류는 \emph{닫힌 고리}로만 흐른다. 펌프가 올려 보낸 물이 물받이로 내려와 다시 펌프로 돌아가야 물길이 계속
+돈다. 전원의 $+$ 단자에서 나간 전류도 부하를 지나 전원의 0~V 단자로 돌아와야 한다. 그래서 모든 부하에는
+$+$ 쪽 선과 0~V 쪽(\term{복귀}{return}) 선, 두 선이 있다. 고리가 어디서든 끊기면(\term{개방}{open}) 전류는 0이
+된다. 스위치는 고리를 일부러 끊고 잇는 장치다. 거꾸로 $+$와 0~V가 부하를 거치지 않고 곧바로 닿으면
+(\term{단락}{short}) $R$이 거의 0이므로 전류가 전원이 낼 수 있는 만큼 커진다. 전선이 달아오르므로 퓨즈를 둔다
+(\ref{ch:44-power-safety}장).
+
+\begin{figure}[ht]
+\centering
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=11mm}
+  \node[font=\small\bfseries] at (2.2,4.3) {물길};
+  % tank
+  \fill[cbluebg] (0,2.0) rectangle (1.2,3.2);
+  \draw[line width=0.8pt] (0,3.6) -- (0,2.0) -- (1.2,2.0) -- (1.2,3.6);
+  \node[note,anchor=south] at (0.6,3.6) {높은 탱크};
+  % basin
+  \fill[cbluebg] (3.4,0) rectangle (4.6,0.4);
+  \draw[line width=0.8pt] (3.4,0.8) -- (3.4,0) -- (4.6,0) -- (4.6,0.8);
+  \node[note,anchor=north] at (4.0,-0.05) {낮은 물받이};
+  % pipe with narrow part
+  \draw[line width=3.5pt,cblue!55] (1.2,2.3) -- (2.0,2.3);
+  \draw[line width=1.2pt,cblue!55] (2.0,2.3) -- (3.0,2.3);
+  \draw[line width=3.5pt,cblue!55] (3.0,2.3) -- (4.0,2.3) -- (4.0,0.55);
+  \node[note,anchor=south] at (2.5,2.45) {좁은 관 = 저항};
+  \draw[->,cblue,line width=0.8pt] (4.3,1.9) -- (4.3,1.0);
+  \node[note,anchor=west,text=cblue] at (4.35,1.45) {흐름 = 전류};
+  % pump and return
+  \draw[line width=3.5pt,cgray!50] (3.4,0.2) -- (-0.6,0.2) -- (-0.6,3.0) -- (0,3.0);
+  \node[draw,circle,fill=white,inner sep=1.5pt,font=\tiny] at (-0.6,1.6) {펌프};
+  % height difference
+  \draw[cgray,dashed] (1.2,3.2) -- (6.0,3.2);
+  \draw[cgray,dashed] (4.6,0.4) -- (6.0,0.4);
+  \draw[<->] (5.8,3.2) -- (5.8,0.4);
+  \node[note,anchor=west] at (5.85,1.8) {높이 차\\= 전압};
+
+  % circuit
+  \begin{scope}[xshift=8.8cm]
+    \node[font=\small\bfseries] at (1.4,4.3) {전기 회로};
+    \draw (0,0) to[battery1,l={24 V}] (0,3) -- (2.8,3) to[R,l={$R$},i>^={$I$}] (2.8,0) -- (0,0);
+    \node[note,anchor=north] at (1.4,-0.05) {0 V로 돌아오는 복귀선};
+    \node[note,anchor=south] at (1.4,3.05) {$+$ 쪽 선};
+    \node[note,anchor=west,align=left] at (3.3,1.5) {$I = V/R$\\24 V, 2.9 k$\Omega$이면\\약 8.3 mA};
+  \end{scope}
+\end{circuitikz}
+\caption{전압, 전류, 저항. 펌프(전원)가 물을 높이 올려 두면 높이 차(전압)가 물을 밀고, 좁은 관(저항)이 흐름(전류)을
+정한다. 물이 펌프로 돌아오듯 전류도 0~V 선으로 전원에 돌아와야 한다.}
+\label{fig:el-water}
+\end{figure}
+
+\General 손전등은 건전지, 스위치, 전구가 이루는 고리 하나다. 건전지가 1.5~V이고 전구의 저항이 5~$\Omega$이면
+$1.5/5 = 0.3$~A가 흐른다. 스위치를 끄면 고리가 끊겨 아무것도 흐르지 않는다.
+
+\Ours 이 프로젝트의 회로는 거의 모두 24~V 직류다. 릴레이 G6S-2의 24~V 코일은 저항이 약 2.9~k$\Omega$인 전선
+뭉치이므로(결정 0003) 24~V를 걸면
+\[
+  I = \frac{24\ \text{V}}{2{,}900\ \Omega} \approx 8.3\ \text{mA}
+\]
+가 흐른다. 5부의 전류 계산은 대부분 이 8.3~mA에 그 순간 켜져 있는 릴레이 수를 곱하는 것이다. 보드의 전원
+단자에서 허용하는 전압은 23.0--26.4~V다(결정 0003 6절). 왜 이 범위인지는 다음 절에서 본다.
+
+\section{직렬과 병렬}\label{sec:el-series}
+
+\Why 부품을 잇는 방법은 두 가지다(그림~\ref{fig:el-series}).
+\begin{itemize}
+\item \term{직렬}{series}: 한 줄로 잇는다. 같은 전류가 모두를 차례로 지나고, 전체 전압이 저항의 크기에 비례해
+나뉜다. 저항 $R_1$, $R_2$를 직렬로 이어 $V$를 걸면 $R_2$에 걸리는 전압은
+\[
+  V_2 = V \times \frac{R_2}{R_1 + R_2}
+\]
+다. 이것을 \term{전압 분배}{voltage divider}라 한다.
+\item \term{병렬}{parallel}: 양 끝을 같은 두 점에 잇는다. 모두가 같은 전압을 받고, 전류는 각자의 몫을 더한
+만큼이다.
+\end{itemize}
+전선도 저항이 있다. 그래서 긴 전선에 큰 전류가 흐르면 전선에서 전압이 조금 깎이고, 부하는 그만큼 낮은 전압을
+받는다. 전선과 부하가 직렬로 이어진 전압 분배다.
+
+\General 옛 크리스마스 전구 줄은 직렬이어서 전구 하나가 끊기면 줄 전체가 꺼졌다. 집의 콘센트는 병렬이어서 어느
+가전이든 같은 220~V를 받고, 켜는 가전이 늘수록 차단기를 지나는 전류가 는다.
+
+\Ours 세 가지 예가 있다.
+\begin{itemize}
+\item \textbf{직렬 저항이 코일 전압을 깎는다.} 단위 시험기의 처음 설계는 \code{RUN} 출력에 보호용 1~k$\Omega$를
+직렬로 두었다. 받는 쪽이 2.9~k$\Omega$의 코일이면 코일에 걸리는 것은 $24 \times 2.9/3.9 = 17.8$~V, 정격의
+74\%뿐이어서 릴레이가 붙는다는 보장이 없다. 결정 0003은 이 저항을 자동 복귀 퓨즈로 바꿨다.
+\item \textbf{병렬 코일은 전류가 더해진다.} 위치 표시 보드에서 비트 4의 접점을 움직이는 릴레이 다섯은 코일을 한
+\term{코일 버스}{coil bus}에 나란히 단다(\ref{sec:relay-tree}절). 다섯이 같은 24~V를 받고 전류는
+$5 \times 8.3 = 41.5$~mA다.
+\item \textbf{전선의 강하.} 전원부에서 가장 무거운 갈래(릴레이식 유닛 하나, 3.7~A, 편도 2.5~m)는 접촉기, 퓨즈,
+전선을 지나며 0.37~V를 잃는다(전원부 문서의 계산). 그래서 전원 장치를 24.5~V로 맞춰 보드 단자에서 23.6--24.6~V가
+되게 한다. 하한 23.0~V는 계수기 안에서 가장 깊은 경로가 다이오드 몇 개를 지나며 1.2--1.6~V를 더 잃어도
+코일에 21.4~V(정격의 89\%)가 남게 하려는 값이다. 상한 26.4~V는 코일 정격의 110\%다.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=10mm}
+  \node[font=\small\bfseries] at (1.4,4.0) {직렬: 전압이 나뉜다};
+  \draw (0,0) to[battery1,l={24 V}] (0,3.2) -- (2.2,3.2) to[R,l={1 k$\Omega$},v^>={6.2 V}] (2.2,1.6)
+        to[L,l={코일 2.9 k$\Omega$},v^>={17.8 V}] (2.2,0) -- (0,0);
+  \node[note,anchor=north] at (1.1,-0.05) {같은 전류 6.2 mA가 둘을 지난다};
+  \begin{scope}[xshift=7.2cm]
+    \node[font=\small\bfseries] at (2.0,4.0) {병렬: 전류가 더해진다};
+    \draw (0,0) to[battery1,l={24 V}] (0,3.2) -- (4.2,3.2);
+    \draw (0,0) -- (4.2,0);
+    \foreach \x in {1.4,2.8,4.2} {
+      \draw (\x,3.2) to[L,i>^={8.3 mA}] (\x,0);
+      \node[circ] at (\x,3.2) {}; \node[circ] at (\x,0) {};
+    }
+    \node[note,anchor=north] at (2.1,-0.05) {코일마다 24 V. 전원은 $3 \times 8.3 = 24.9$ mA를 낸다};
+  \end{scope}
+\end{circuitikz}
+\caption{직렬과 병렬. 왼쪽은 1~k$\Omega$ 저항과 릴레이 코일의 직렬로, 저항이 6.2~V를 가져가 코일에는 17.8~V만 남는다.
+오른쪽은 코일 셋의 병렬로, 셋이 같은 전압을 받고 전류는 더해진다.}
+\label{fig:el-series}
+\end{figure}
+
+\section{전력과 열}\label{sec:el-power}
+
+\Why 전압은 ``얼마나 세게 미는가'', 전류는 ``얼마나 많이 흐르는가''다. 둘을 곱하면 1초 동안 옮겨지는 에너지,
+곧 \term{전력}{power}이 된다. 단위는 와트(W)다.
+\[
+  P = V \times I \;=\; I^2 R \;=\; \frac{V^2}{R}
+\]
+저항이나 코일에서 쓰인 전력은 모두 열이 된다. 릴레이 코일은 접점을 끌어당기고 있는 동안 아무 일도 하지 않는
+것처럼 보이지만, 그동안 내내 전력을 열로 바꾼다. 부품마다 견딜 수 있는 전력(정격)이 있어서, 그보다 많이 쓰면
+과열된다.
+
+\General 같은 220~V에 꽂아도 헤어드라이어는 1~kW가 넘고 LED 전구는 10~W 안팎이다. 저항이 작은 쪽이 전류를 많이
+끌어 전력이 크다. 전기 요금은 이 전력에 시간을 곱한 kWh로 매긴다.
+
+\Ours 릴레이 하나의 코일 전력은 $24\ \text{V} \times 8.3\ \text{mA} \approx 0.2$~W다(데이터시트의 140--200~mW 가운데
+200~mW 쪽으로 보았고 실측 전이다). 작다. 그러나 릴레이식 봄베에는 릴레이가 수천 개 있고, 켜져 있는 릴레이의
+수가 곧 전원 장치의 크기를 정한다(표~\ref{tab:el-power}).
+
+\begin{table}[ht]
+\centering
+\caption{릴레이 수가 전원을 정한다(결정 0003, \code{relay/concept.md}, 전원부 문서의 계산. 코일 140--200~mW).}
+\label{tab:el-power}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X rr}
+\toprule
+& 전류 & 전력 \\
+\midrule
+릴레이 코일 하나 & 8.3 mA & 0.2 W \\
+시프터 보드 한 장의 최악(5단 가운데 4단, 릴레이 104개) & 0.63--0.89 A & 15--21 W \\
+유닛 하나(시프터 4장 + 계수기), 평균 & & 35--50 W \\
+유닛 하나, 최악 & 2.7--3.7 A & 64--89 W \\
+6유닛 + 공통 계수기 + 순서기, 최악(200~mW) & 23.0 A & 약 550 W \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+``최악''은 오프셋 다이얼을 모두 같은 값으로 둘 때 실제로 생긴다. 0--25의 이진수에서 1인 비트는 많아야 넷이고
+(15 = 01111$_2$, 23 = 10111$_2$), 시프터는 1인 비트의 단만 코일이 켜지므로 유닛마다 넷 단이 한꺼번에 켜질 수 있다.
+전원부는 이 최악에서도 전원 장치가 전류 제한에 걸리지 않게 잡았다(\ref{sec:p-budget}절). 그리고 이 전력은 모두
+기계 안에서 열이 된다. 12유닛의 평균 코일 전력은 0.4--0.6~kW로 전기 난로 하나쯤이어서, 릴레이식에는 아래에서
+위로 바람을 보내는 팬과 온도 감시, 조작이 없을 때 모든 코일을 놓는 대기가 있다(설계 개요 6절).
+
+저항에도 정격이 있다. 위치 표시 보드의 램프 저항 2.7~k$\Omega$는 약 0.17~W를 열로 바꾸므로 정격 0.25~W짜리를 쓴다
+(\ref{sec:el-led}절).
+
+\section{신호를 전압으로: 24 V 레벨}\label{sec:el-level}
+
+\Why 보드와 보드 사이에 ``지금 \code{STROBE}다'' 같은 1비트를 보내려면 약속이 필요하다. 이 프로젝트의 약속은
+\term{24~V 레벨}{24 V level}이다(결정 0003 2절).
+\begin{itemize}
+\item 신호선이 0~V보다 24~V 가까이 높으면 1(참), 0~V 가까이면 0(거짓)이다.
+\item \emph{내는 쪽}이 신호선에 +24~V를 잇는다(접점이든 트랜지스터든). 이것을 \term{소스}{source} 방식이라 한다.
+\item \emph{받는 쪽}은 신호선과 0~V 사이에 걸린 부하(릴레이 코일, 광커플러의 LED)다. 전류는 내는 쪽의 +24~V에서
+나와 신호선과 받는 쪽을 지나 공용 0~V 선으로 돌아간다.
+\end{itemize}
+1과 0 사이에는 일부러 \emph{빈 구간}을 둔다(그림~\ref{fig:el-level}의 오른쪽). 내는 쪽은 1을 20~V 이상, 0을 2~V
+이하로 내야 하고, 받는 쪽은 18~V 이상이면 반드시 켜지고 2.4~V 이하이면 반드시 꺼져야 한다. 내는 쪽의 약속이
+받는 쪽의 약속보다 2~V씩 엄격하다. 그 2~V가 전선의 강하와 꺼진 반도체의 미세한 새는 전류(\term{누설}{leakage})를
+받아 준다. 그 사이(2.4--18~V)는 어느 쪽인지 보장하지 않는 회색 구간이다.
+
+다른 방법은 \term{무전압 접점}{dry contact}이다. 내는 쪽이 전압 없이 접점 한 쌍만 내놓고, 받는 쪽이 자기 전원을
+그 접점에 지나가게 한다. 신호마다 선이 둘 든다. 결정 0003은 24~V 레벨을 골랐다. 이유는 셋이다.
+\begin{itemize}
+\item \textbf{케이블이 빠지면 모든 신호가 0이다.} 시험 전압도 진행 허가(\code{RUN})도 없으므로 기계가 선다. 무전압
+접점은 신호마다 빠졌을 때의 결과가 다르다(예를 들어 b접점으로 쓰는 \code{CLEAR}는 빠지면 영영 끊기지 않을 수 있다).
+\item \textbf{엿들을 수 있다.} 감시 장치와 시험기가 같은 선에 광커플러를 나란히 달아 읽는다. 접점은 한 회로만 쓸
+수 있다.
+\item \textbf{접지 고장이 드러난다.} 스위치가 $+$ 쪽에 있으므로 선이 금속 틀에 닿으면 퓨즈가 끊긴다
+(\ref{sec:p-earth}절).
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=9mm}
+  \node[font=\small\bfseries] at (2.0,3.5) {(가) 24 V 레벨};
+  \draw[cgray,dashed,rounded corners=2pt] (-0.3,0.3) rectangle (1.4,3.1);
+  \node[note,anchor=north] at (0.55,0.25) {내는 쪽};
+  \draw (0.2,2.6) node[left,font=\footnotesize] {$+24$ V} to[nos] (1.2,2.6) -- (2.8,2.6) node[above,font=\scriptsize,pos=0.5] {신호선};
+  \draw (2.8,2.6) to[L,l_={코일}] (2.8,0.8) -- (0.2,0.8) node[left,font=\footnotesize] {0 V};
+  \draw[cgray,dashed,rounded corners=2pt] (2.3,0.3) rectangle (3.9,3.1);
+  \node[note,anchor=north] at (3.1,0.25) {받는 쪽};
+
+  \begin{scope}[xshift=5.6cm]
+    \node[font=\small\bfseries] at (2.0,3.5) {(나) 무전압 접점};
+    \draw[cgray,dashed,rounded corners=2pt] (0.3,1.9) rectangle (1.7,3.1);
+    \node[note,anchor=south] at (1.0,3.1) {내는 쪽};
+    \draw (2.6,2.6) -- (1.6,2.6) to[nos] (0.5,2.6) -- (0.5,2.0) -- (2.6,2.0);
+    \draw (2.6,2.6) -- (3.6,2.6) node[right,font=\footnotesize] {$+24$ V};
+    \draw (2.6,2.0) -- (3.0,2.0) to[L,l={코일}] (3.0,0.8) node[below,font=\footnotesize] {0 V};
+    \node[note,anchor=west] at (3.1,1.3) {받는 쪽이\\전원을 낸다};
+  \end{scope}
+
+  \begin{scope}[xshift=11.4cm]
+    \node[font=\small\bfseries] at (1.3,3.5) {약속한 전압};
+    % 1 V = 3.0/26.4 cm
+    \draw[->] (0,0) -- (0,3.25) node[above,font=\scriptsize] {V};
+    \fill[cgreenbg] (0.3,2.273) rectangle (0.9,3.0);
+    \fill[cgreenbg] (0.3,0) rectangle (0.9,0.227);
+    \fill[cbluebg] (1.3,2.045) rectangle (1.9,3.0);
+    \fill[cbluebg] (1.3,0) rectangle (1.9,0.273);
+    \fill[clight] (1.3,0.273) rectangle (1.9,2.045);
+    \node[font=\tiny] at (0.6,2.64) {1};
+    \node[font=\tiny] at (0.6,0.6) {0};
+    \node[font=\tiny] at (1.6,2.52) {켜짐};
+    \node[font=\tiny,align=center] at (1.6,1.16) {회색\\구간};
+    \foreach \y in {0.227,2.273,3.0} \draw (-0.05,\y) -- (0.3,\y);
+    \foreach \y in {0.273,2.045} \draw (1.9,\y) -- (2.05,\y);
+    \node[font=\tiny,anchor=east] at (-0.05,3.0) {26.4};
+    \node[font=\tiny,anchor=east] at (-0.05,2.273) {20};
+    \node[font=\tiny,anchor=east] at (-0.05,0.227) {2};
+    \node[font=\tiny,anchor=west] at (2.05,2.045) {18};
+    \node[font=\tiny,anchor=west] at (2.05,0.273) {2.4};
+    \node[note,anchor=north] at (0.6,-0.05) {내는 쪽};
+    \node[note,anchor=north] at (1.6,-0.05) {받는 쪽};
+  \end{scope}
+\end{circuitikz}
+\caption{신호를 보내는 두 방법과 24~V 레벨의 약속. (가) 내는 쪽이 +24~V를 신호선에 잇고 받는 쪽은 0~V로 가는
+부하다. 신호마다 선 하나와 공용 0~V. (나) 내는 쪽은 접점만 내놓고 받는 쪽이 전압을 공급한다. 신호마다 선 둘.
+오른쪽은 결정 0003의 문턱이다. 내는 쪽은 1을 20~V 이상, 0을 2~V 이하로 내고, 받는 쪽은 18~V
+이상에서 켜지고 2.4~V 이하에서 꺼져야 한다.}
+\label{fig:el-level}
+\end{figure}
+
+\General 공장 자동화의 PLC(프로그래머블 논리 제어기)가 이 방식을 표준처럼 쓴다. 센서는 감지하면 24~V를 내고, PLC의
+입력 단자는 그 전압을 받아 0~V로 흘려 보내는 부하다. 초인종 버튼은 무전압 접점의 예다. 버튼 자체에는 전압이
+없고, 초인종이 자기 전원을 버튼에 지나가게 한다.
+
+\Ours 결정 0003에서 \code{STROBE}, \code{JUDGE}, \code{CLEAR}, \code{RUN}, \code{HOME}, \code{POS} 같은 모든 제어
+신호가 이 규격이다. 받는 쪽 하나는 신호당 15~mA 이하, 한 선에 받는 쪽은 둘(동작용 하나와 감시용 하나)까지로
+정해 내는 쪽의 30~mA 안에 들게 했다. 릴레이 코일 8.3~mA와 시험기의 광커플러 입력(2.2~k$\Omega$, 약 10~mA)이
+그 둘이다.
+
+\subsection{풀다운: 아무것도 꽂히지 않은 입력}\label{sec:el-pulldown}
+
+\Why 신호선이 내는 쪽에서 끊기면(케이블이 빠졌거나 내는 쪽 접점이 열렸으면) 그 선의 전압은 0이 아니라 \emph{정해지지
+않은 값}이 된다. 어디에도 이어지지 않은 선은 주변의 정전기나 누설 전류를 받아 아무 전압이나 될 수 있다. 이런 선을
+\term{떠 있다}{floating}고 한다. 해법은 입력과 0~V 사이에 저항 하나(\term{풀다운}{pull-down})를 두는 것이다. 아무것도
+선을 밀지 않으면 저항이 선을 0~V로 끌어내리고, 내는 쪽이 +24~V를 이으면 저항으로는 작은 전류만 새어 선이 24~V가
+된다. 받는 쪽이 릴레이 코일이면 코일 자체가 0~V로 가는 저항이므로 따로 풀다운이 필요 없다.
+
+풀다운은 너무 크면 소용이 없다. 꺼진 반도체 출력도 0.5~mA쯤 새므로, 풀다운이 그 전류를 받으며 만드는 전압
+(옴의 법칙으로 $0.5\ \text{mA} \times R$)이 받는 쪽을 켜면 안 된다. 결정 0003이 받는 쪽의 등가 저항을 8~k$\Omega$
+이하로 정한 것은 $0.5\ \text{mA} \times 8\ \text{k}\Omega = 4$~V를 넘지 않게 하려는 것이다. 받는 쪽에 +24~V 쪽으로
+끌어올리는 저항(\term{풀업}{pull-up})은 금지다. 풀업이 있으면 케이블이 빠졌을 때 신호가 1이 되어 ``빠지면 모두
+0''이라는 약속이 깨진다.
+
+\Ours 테스트 레지스터의 타이밍 입력은 핀 쪽에 표시 LED와 저항을 두어 그것이 풀다운을 겸한다. 위치 표시 보드의
+\code{POS} 입력은 33~k$\Omega$ 풀다운이고(\ref{sec:el-mosfet}절), 순서기의 구동기 입력에는 47~k$\Omega$ 풀다운이
+있다. 위치 표시 보드는 8~k$\Omega$ 규칙을 일부러 지키지 않는데, 그 이유도 \ref{sec:el-mosfet}절에서 본다.
+
+\section{다이오드: 한 방향 밸브}\label{sec:el-diode}
+
+\Why \term{다이오드}{diode}는 물길의 역류 방지 밸브다. 한쪽(\term{애노드}{anode})에서 다른 쪽(\term{캐소드}{cathode})으로는
+흐르고 거꾸로는 막는다. 기호의 삼각형이 흐르는 방향을 가리키고, 막대가 캐소드다. 성질은 셋이다(그림~\ref{fig:el-diode}).
+\begin{itemize}
+\item \textbf{순방향 강하.} 밸브를 열려면 조금 밀어야 하듯, 실리콘 다이오드는 애노드가 캐소드보다 약 0.7~V 높아야
+흐르기 시작한다. 일단 흐르면 전류가 늘어도 강하는 0.7~V 근처에 머문다. 그래서 다이오드 하나를 지날 때마다
+0.7~V를 잃는다. 쇼트키 다이오드는 이 강하가 더 작은 종류다.
+\item \textbf{역방향 차단.} 거꾸로는 거의 흐르지 않는다.
+\item \textbf{항복.} 거꾸로 거는 전압이 아주 커지면 결국 흐른다. 보통의 다이오드에게는 고장이지만, \term{제너
+다이오드}{Zener diode}는 정해진 전압 $V_Z$에서 거꾸로 흐르도록 만든 것이다. 흐르는 동안 양 끝의 전압이 $V_Z$에
+묶이므로 ``이 전압 이상은 넘기지 않는다''는 \term{클램프}{clamp}로 쓴다. \term{TVS}{transient voltage suppressor}는
+짧고 큰 전압 튐을 삼키도록 크게 만든 제너다.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \draw[->] (-5.2,0) -- (3.2,0) node[right,font=\scriptsize] {전압 (애노드 $-$ 캐소드)};
+  \draw[->] (0,-2.2) -- (0,2.4) node[above,font=\scriptsize] {전류};
+  % forward
+  \draw[line width=1.2pt,cblue] (-3.8,0) -- (0.9,0) .. controls (1.25,0.02) and (1.35,0.4) .. (1.5,2.2);
+  \draw[cgray,dashed] (1.4,0) -- (1.4,1.2);
+  \node[font=\scriptsize,anchor=north] at (1.4,-0.05) {약 0.7 V};
+  \node[note,anchor=west,text=cblue] at (1.7,1.6) {순방향: 흐른다};
+  \node[note,anchor=south,text=cblue] at (-1.9,0.05) {역방향: 막는다};
+  % zener breakdown
+  \draw[line width=1.2pt,corange] (-3.8,0) .. controls (-3.95,-0.02) and (-4.05,-0.4) .. (-4.2,-2.0);
+  \draw[cgray,dashed] (-4.0,0) -- (-4.0,-1.0);
+  \node[font=\scriptsize,anchor=south] at (-4.0,0.05) {$-V_Z$};
+  \node[note,anchor=west,text=corange] at (-3.85,-1.4) {제너: $V_Z$에서 거꾸로 흘러\\전압을 묶는다};
+  % symbols
+  \begin{scope}[shift={(4.6,1.2)}]
+    \draw (0,0) to[D*,l={다이오드}] (1.6,0);
+    \draw (0,-1.4) to[zD*,l={제너}] (1.6,-1.4);
+    \draw (0,-2.8) to[tvsD*,l={TVS}] (1.6,-2.8);
+    \draw[->,cblue] (0.3,0.55) -- (1.3,0.55);
+    \node[note,anchor=south,text=cblue] at (0.8,0.6) {흐르는 방향};
+  \end{scope}
+\end{tikzpicture}
+\caption{다이오드의 전압과 전류(개념도, 눈금은 비례하지 않는다). 파란 선이 보통의 다이오드, 주황 선이 제너의 역방향이다.
+오른쪽은 회로도 기호로, 삼각형이 흐르는 방향, 막대가 캐소드다.}
+\label{fig:el-diode}
+\end{figure}
+
+\General 자동차의 발전기는 교류를 내는데, 다이오드 여섯 개가 그것을 한 방향 전류로 바꿔 배터리를 충전한다. 휴대폰
+충전기의 입구에도 같은 일을 하는 다이오드 묶음이 있다.
+
+\Ours 이 프로젝트에서 다이오드는 다섯 가지로 쓰인다. 자세한 것은 각 장에 있고 여기서는 한 줄씩만 적는다.
+\begin{itemize}
+\item \textbf{차단.} 테스트 레지스터는 선마다 다이오드를 두어 자기 유지 전압이 메뉴 배선망으로 거꾸로 새지 않게 한다
+(\ref{sec:t-register}절).
+\item \textbf{다이오드 OR.} 여러 신호를 다이오드 하나씩을 거쳐 한 점에 모으면 어느 하나만 켜져도 그 점이 켜지고,
+다른 입력으로 거꾸로 새지 않는다(\ref{sec:relay-logic}절). 순서기는 링 계수기의 출력을 이렇게 묶어 창을 만든다.
+\item \textbf{역기전력.} 코일을 끄는 순간 생기는 큰 전압을 코일 옆의 다이오드가 흘려 보낸다(\ref{sec:relay-flyback}절).
+\item \textbf{제너 클램프.} 빨리 놓여야 하는 릴레이는 다이오드에 제너 30~V를 직렬로 더해 코일 전압을 약 31~V에서
+묶는다(같은 절). MOSFET의 게이트에는 제너 12~V를 걸어 게이트 전압이 한계를 넘지 않게 한다(\ref{sec:p-input}절).
+\item \textbf{TVS.} 보드의 전원 입력에 33~V TVS를 두어 전원선에 들어온 순간의 튐을 삼킨다. 정상 전압(최대 26.4~V)에서는
+흐르지 않는다(\ref{sec:p-input}절).
+\end{itemize}
+대가는 순방향 강하다. 테스트 레지스터의 타이밍 입력에 직렬 다이오드를 넣자 코일 전압이 $23.0 - 0.7 = 22.3$~V(정격의
+93\%)로 줄었다(결정 0003 2.2절). 같은 이유로 전원 입력의 역극성 보호는 다이오드가 아니라 MOSFET으로 한다
+(\ref{sec:p-input}절).
+
+\section{LED는 저항과 함께}\label{sec:el-led}
+
+\Why \term{LED}{light-emitting diode}는 전류가 흐르면 빛을 내는 다이오드다. 다이오드이므로 한 방향으로만 켜지고, 켜진
+LED의 양 끝 전압은 색에 따라 2--3~V쯤으로 거의 일정하다. 그래서 LED를 24~V에 곧바로 이으면 나머지 21~V를 받아 줄
+것이 없어 전류가 걷잡을 수 없이 커지고 LED가 탄다. LED에는 늘 저항을 직렬로 단다. 저항이 남는 전압을 맡고, 옴의
+법칙으로 전류를 정한다.
+\[
+  I = \frac{V_{\text{전원}} - V_{\text{LED}}}{R}
+\]
+
+\General 5~V 마이크로컨트롤러로 LED를 켜는 입문 예제에는 늘 수백 $\Omega$의 저항이 함께 나온다. $(5 - 2)/300 = 10$~mA쯤이다.
+
+\Ours 위치 표시 보드의 글자 램프는 5~mm LED와 2.7~k$\Omega$다. 백색 LED를 3.0~V로 보면
+\[
+  I = \frac{24 - 3.0}{2{,}700} \approx 7.8\ \text{mA}, \qquad P_R = 21\ \text{V} \times 7.8\ \text{mA} \approx 0.17\ \text{W}
+\]
+이므로 저항은 정격 0.25~W짜리를 쓴다(\ref{sec:el-power}절). 이 프로젝트의 LED는 보이는 것 이상의 일도 한다. 테스트
+레지스터의 타이밍 입력 핀에 달린 표시 LED와 저항은 신호가 보이게 하면서 동시에 핀의 풀다운이다(\ref{sec:el-pulldown}절).
+
+\section{트랜지스터: 움직이지 않는 릴레이}\label{sec:el-mosfet}
+
+\Why 릴레이는 코일 전류로 접점을 움직이는 스위치였다. \textbf{MOSFET}(전계 효과 트랜지스터의 한 종류)은
+\emph{전압}으로 여닫는 스위치이고 움직이는 부분이 없다. 다리가 셋이다.
+\begin{itemize}
+\item \term{게이트}{gate, G}: 스위치의 손잡이. 얇은 절연막으로 나머지와 떨어져 있어 전류가 거의 들지 않는다.
+\item \term{드레인}{drain, D}과 \term{소스}{source, S}: 스위치의 두 단자.
+\end{itemize}
+게이트와 소스 사이의 전압 $V_{GS}$가 \term{문턱}{threshold}을 넘으면 드레인과 소스 사이가 작은 저항으로 이어지고,
+문턱 아래이면 끊긴다. 종류가 둘이다(그림~\ref{fig:el-mos}의 위).
+\begin{itemize}
+\item \textbf{N채널}: 게이트가 소스보다 \emph{높으면} 켜진다. 소스를 0~V에 두므로 부하와 0~V 사이에 넣는다.
+\term{저측 스위치}{low-side switch}다.
+\item \textbf{P채널}: 게이트가 소스보다 \emph{낮으면} 켜진다. 소스를 +24~V에 두므로 +24~V와 부하 사이에 넣는다.
+\term{고측 스위치}{high-side switch}다. 끄려면 게이트를 소스와 같은 +24~V로 올려 두고, 켜려면 게이트를 끌어내린다.
+\end{itemize}
+게이트 전압에는 절대 한계가 있다(아래에 나오는 AO3401A는 $\pm 12$~V). 24~V를 게이트에 그대로 걸면 절연막이
+깨지므로 분압 저항이나 제너로 줄여서 건다.
+
+이 프로젝트는 \emph{고측}을 쓴다. 모든 코일의 한쪽은 0~V에 붙어 있고 스위치(접점이든 트랜지스터든)는 $+$ 쪽에 있다
+(결정 0003 7.1절). 24~V 레벨 신호가 ``내는 쪽이 +24~V를 잇는'' 방식인 것과 같은 원칙이고, 그 덕분에 $+$ 쪽 선이
+틀에 닿는 고장이 퓨즈를 끊어 드러난다(\ref{sec:p-earth}절).
+
+\General 아두이노로 모터나 LED 띠를 켤 때는 5~V 출력 핀으로 N채널 MOSFET의 게이트를 움직여 부하의 0~V 쪽을 여닫는다.
+핀은 몇 mA밖에 못 내지만 MOSFET은 몇 A를 여닫는다. 게이트에 전류가 거의 들지 않기 때문이다.
+
+\Ours 위치 표시 보드의 입력 채널(\code{POS} 선 하나에 하나, 15채널)이 두 종류를 모두 쓴다(그림~\ref{fig:el-mos}의 아래).
+\begin{enumerate}
+\item \textbf{가볍게 읽는다.} \code{POS10}, \code{13}, \code{14}에는 이미 순서기의 릴레이와 감시 장치가 물려 있어
+27.6--28.9~mA(24--26.4~V)를 쓴다. 내는 쪽의 한도 30~mA까지 남은 몫은 약 1.1~mA다. 그래서 이 입력은 전류를 거의 쓰지 않는 저항만으로 핀을 본다.
+핀 쪽 풀다운 33~k$\Omega$과 분압 100~k$\Omega$/18~k$\Omega$를 합한 등가 저항이 25.8~k$\Omega$, 24~V에서 0.93~mA다.
+\item \textbf{문턱을 맞춘다.} 분압은 게이트에 핀 전압의 $18/118$을 준다. 핀이 2.4~V이면 0.37~V, 18~V이면 2.75~V다.
+N채널 BSS138의 문턱이 0.8--1.5~V이므로 2.4~V 이하에서는 반드시 꺼지고 18~V 이상에서는 반드시 켜진다. 24~V 레벨의
+받는 쪽 약속(\ref{sec:el-level}절)을 저항 두 개로 지키는 것이다.
+\item \textbf{걸러 낸다.} 18~k$\Omega$과 나란히 단 100~nF가 시상수 약 1.5~ms로 짧은 튐을 거른다(\ref{sec:el-cap}절).
+\item \textbf{고측으로 코일을 켠다.} BSS138이 켜지면 10~k$\Omega$을 거쳐 P채널 AO3401A의 게이트를 끌어내린다. 4.7~k$\Omega$과
+10~k$\Omega$의 분압으로 $V_{GS}$는 23.0~V에서 $-7.35$~V, 26.4~V에서 $-8.44$~V여서 확실히 켜지면서도 $\pm 12$~V 한계 안이다.
+AO3401A가 +24~V를 코일 버스에 이어 그 비트의 릴레이(최대 다섯)와 비트 LED를 켠다. 코일 전류는 \code{POS} 선이 아니라
+표시 보드 자신의 전원에서 나온다.
+\end{enumerate}
+8~k$\Omega$ 규칙(\ref{sec:el-pulldown}절)을 지키지 않는 것은 의도한 것이다. 지키면 입력이 3~mA 넘게 먹어 30~mA 한도를
+넘는다. 이 보드가 받는 \code{POS}는 계수기의 릴레이 접점이어서 누설이 없으므로, 누설을 막으려는 규칙이 필요 없다.
+결정 0003은 이것을 접점 출력의 \code{POS}에만 쓰는 예외로 적어 두었다.
+
+\begin{figure}[ht]
+\centering
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=9mm}
+  % ---- top: low-side and high-side
+  \node[font=\small\bfseries] at (1.0,10.5) {N채널, 저측};
+  \draw (0.9,10.0) node[above,font=\footnotesize] {$+24$ V} to[L,l={부하}] (0.9,8.75);
+  \node[nmos,anchor=D] (N) at (0.9,8.75) {};
+  \draw (N.S) -- (0.9,7.0) node[below,font=\footnotesize] {0 V};
+  \draw (N.G) -- ++(-0.5,0) node[left,font=\scriptsize,align=right] {게이트를\\올리면 켜짐};
+  \node[font=\small\bfseries] at (6.2,10.5) {P채널, 고측 (이 프로젝트)};
+  \node[pmos,anchor=S] (P) at (6.2,10.0) {};
+  \draw (6.2,10.0) node[above,font=\footnotesize] {$+24$ V};
+  \draw (P.D) to[L,l={부하}] (6.2,7.0) node[below,font=\footnotesize] {0 V};
+  \draw (P.G) -- ++(-0.5,0) node[left,font=\scriptsize,align=right] {게이트를\\내리면 켜짐};
+  \node[note,anchor=west,align=left] at (7.2,8.6) {코일의 한쪽이 늘 0 V에 붙고\\스위치는 $+$ 쪽에 있다};
+
+  % ---- bottom: position-display input channel
+  \node[font=\small\bfseries,anchor=west] at (-1.4,6.0) {위치 표시 보드의 입력 채널 하나};
+  \draw (-0.6,3.0) node[left,font=\footnotesize] {\code{POS} 핀} -- (0.6,3.0) coordinate (a)
+        to[R,l={RA 100 k$\Omega$}] (2.6,3.0) coordinate (g) -- (4.4,3.0);
+  \draw (a) to[R,l_={RP 33 k$\Omega$},*-] (0.6,0);
+  \draw (g) to[R,l_={RB 18 k$\Omega$},*-] (2.6,0);
+  \draw (3.6,3.0) to[C,l={100 nF},*-] (3.6,0);
+  \node[nmos,anchor=G] (Q1) at (4.4,3.0) {};
+  \node[font=\scriptsize,anchor=west] at (5.45,3.0) {BSS138};
+  \draw (Q1.S) -- (Q1.S |- 0,0);
+  \draw (Q1.D) -- (Q1.D |- 0,4.4) to[R,l={RC 10 k$\Omega$}] (7.6,4.4) coordinate (h);
+  \draw (h) -- (8.0,4.4);
+  \node[pmos,anchor=G] (Q2) at (8.0,4.4) {};
+  \node[font=\scriptsize,anchor=west] at (9.05,4.4) {AO3401A};
+  \draw (6.6,5.7) node[left,font=\footnotesize] {$+24$ V} -- (9.6,5.7);
+  \draw (7.6,5.7) to[R,l_={RD 4.7 k$\Omega$},*-*] (h);
+  \draw (Q2.S) -- (Q2.S |- 0,5.7);
+  \node[circ] at (Q2.S |- 0,5.7) {};
+  \draw (Q2.D) -- (Q2.D |- 0,3.0) coordinate (b) -- (11.3,3.0);
+  \node[font=\scriptsize,anchor=south] at (10.6,3.0) {코일 버스};
+  \draw (b) to[L,l_={코일 ×1--5},*-] (b |- 0,0);
+  \draw (10.0,0) to[D*,l_={역기전력}] (10.0,3.0);
+  \node[circ] at (10.0,3.0) {};
+  \draw (11.3,3.0) to[R,l={4.7 k$\Omega$}] (11.3,1.5) to[leD*,l={비트 LED}] (11.3,0);
+  \draw (-0.6,0) node[left,font=\footnotesize] {0 V} -- (11.3,0);
+  \node[note,anchor=north] at (1.6,-0.1) {풀다운과 분압: 약 1 mA만 쓴다};
+  \node[note,anchor=north] at (5.0,-0.1) {N채널이 문턱을 본다};
+  \node[note,anchor=north] at (10.2,-0.1) {P채널이 +24 V를 코일에 잇는다};
+\end{circuitikz}
+\caption{MOSFET 스위치. 위: N채널은 부하의 0~V 쪽을, P채널은 $+$ 쪽을 여닫는다. 아래: 위치 표시 보드의 입력 채널
+(\code{hardware/relay/position-display} README 3.2절). 분압이 핀 전압을 게이트 전압으로 줄이고, BSS138이 켜지면
+AO3401A의 게이트가 내려가 +24~V가 그 비트의 코일 버스에 이어진다.}
+\label{fig:el-mos}
+\end{figure}
+
+\paragraph{고측 구동기 칩.} 같은 일을 여덟 채널씩 한 칩에 담은 것이 TBD62783A 같은 \term{고측 구동기}{high-side driver}다.
+입력은 5~V 논리 신호이고 출력은 +24~V를 부하에 잇는다. 순서기에서는 링 계수기의 창(다이오드 OR)을 받아 출력
+릴레이의 코일을 켜고(\ref{sec:t-sequencer}절), 단위 시험기에서는 26선 노드를 하나씩 구동한다. 이 칩의 출력에는 클램프
+다이오드가 들어 있어 음전압을 0.7~V에서 자른다. 그 성질이 받는 쪽의 제너 클램프를 무력하게 만들 수 있어서 결정
+0003이 ``받는 쪽이 역기전력을 자기 안에서 처리한다''는 규칙을 두었다(\ref{sec:relay-flyback}절, \ref{sec:p-rules}절).
+
+\section{커패시터: 전기를 잠깐 담는 통}\label{sec:el-cap}
+
+\Why \term{커패시터}{capacitor}는 얇은 절연층을 사이에 둔 두 금속판이다. 전류를 넣으면 판에 전하가 쌓이고, 쌓인
+만큼 양 끝 전압이 오른다. 물길로는 바닥이 넓은 물통이다. 물을 부으면 수위가 오르고, 수위는 순간에 바뀌지 않는다.
+단위는 패럿(F)이고 실제로는 $\mu$F(백만분의 일), nF(10억분의 일)를 쓴다.
+
+커패시터를 저항을 거쳐 충전하면 처음에는 빨리, 차오를수록 천천히 오른다(그림~\ref{fig:el-rc}). 빠르기를 정하는 것은
+곱 $\tau = RC$, 곧 \term{시상수}{time constant}이다. $\tau$가 지나면 목표의 약 63\%, $3\tau$가 지나면 95\%에 이른다.
+그래서 커패시터는 세 가지 일을 한다.
+\begin{itemize}
+\item \textbf{저수지.} 전원선에 큰 커패시터를 두면 순간적으로 전류를 많이 끌어도 전압이 덜 출렁인다.
+\item \textbf{거르기.} $\tau$보다 훨씬 짧은 튐은 커패시터를 채우지 못해 지나가지 못한다. 반대로 빠른 펄스에게는 커패시터가
+짧은 길이 된다(직류는 막고 빠른 변화는 통한다).
+\item \textbf{시간 재기.} 정해진 전압까지 차오르는 시간이 $RC$에 비례하므로 시계가 된다.
+\end{itemize}
+커패시터로 천천히 오르는 신호를 논리 칩에 넣으면, 문턱 근처에서 잡음 때문에 0과 1 사이를 여러 번 오갈 수 있다.
+\term{슈미트 트리거}{Schmitt trigger}는 오를 때와 내릴 때 문턱을 따로 두어(예를 들어 오를 때는 높은 문턱, 내릴 때는 낮은
+문턱) 한 번만 바뀌게 하는 입력이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1.4cm,y=2.6cm]
+  \draw[->] (0,0) -- (5.4,0) node[right,font=\scriptsize] {시간 ($\tau$ 단위)};
+  \draw[->] (0,0) -- (0,1.15) node[above,font=\scriptsize] {$v_C$ / 목표};
+  \draw[cgray,dashed] (0,1) -- (5.2,1);
+  \draw[line width=1.1pt,cblue,domain=0:5,samples=60] plot (\x,{1-exp(-\x)});
+  \foreach \t/\v/\lbl in {1/0.632/63\%,3/0.950/95\%} {
+    \draw[cgray,dashed] (\t,0) -- (\t,\v) -- (0,\v);
+    \node[font=\tiny,anchor=east] at (0,\v) {\lbl};
+    \node[font=\tiny,anchor=north] at (\t,0) {\t};
+  }
+  \node[font=\tiny,anchor=west] at (5.2,1) {100\%};
+  \node[note,anchor=west,align=left] at (3.15,0.5) {예: 위치 표시 보드의 게이트 필터\\$\tau = (100\,\text{k}\Omega \parallel 18\,\text{k}\Omega) \times 100\,\text{nF} \approx 1.5$ ms};
+\end{tikzpicture}
+\caption{저항을 거친 커패시터의 충전. 처음에 빠르고 차오를수록 느려진다. 시상수 $\tau = RC$마다 남은 거리의 63\%를
+간다.}
+\label{fig:el-rc}
+\end{figure}
+
+\General 카메라 플래시는 건전지로 커패시터를 몇 초 동안 채운 뒤 한순간에 쏟아 낸다. 저수지 쓰임의 극단적인 예다.
+
+\Ours 이 프로젝트의 커패시터는 위의 세 가지에 다 있다.
+\begin{itemize}
+\item \textbf{저수지.} 전원 단자가 있는 보드마다 입구에 100~$\mu$F 이상(\ref{sec:p-input}절), 기어식 모터의 48~V에는
+4,700~$\mu$F(\ref{sec:p-budget}절).
+\item \textbf{거르기.} 위치 표시 보드의 게이트 필터 1.5~ms는 리본 케이블에 실린 짧은 유도 펄스를 거르되, 릴레이의
+동작(2.5~ms 이상)보다는 짧다. 보드마다 금속 껍데기와 0~V 사이의 10~nF는 정전기의 빠른 펄스에게만 길을
+준다(\ref{sec:p-earth}절). 기어식 제어 보드는 광센서 출력을 RC 필터와 슈미트 트리거(74HC14)로 다듬는다
+(\ref{sec:t-gear}절).
+\item \textbf{시간 재기.} 순서기의 555 타이머는 22~nF를 저항으로 충전하고 방전하며 6.3~ms의 박자를 만든다. 555와 링
+계수기 4017은 \ref{sec:t-sequencer}절이 블록으로 설명한다.
+\end{itemize}
+
+\section{회로도 읽기}\label{sec:el-schematic}
+
+\Why 회로도는 부품의 \emph{모양}이 아니라 \emph{연결}을 그린 지도다. 기호 하나가 부품 하나이고, 선은 ``이 두 점은 같은
+전압이다''라는 뜻이다. 선의 길이와 위치는 아무 의미가 없다. 그림~\ref{fig:el-symbols}가 5부에 나오는 기호다. 읽을 때
+알아야 할 약속이 몇 가지 더 있다.
+\begin{itemize}
+\item \textbf{점과 교차.} 선이 만나는 곳에 점이 있으면 이어진 것이고, 점 없이 엇갈리면 이어지지 않은 것이다.
+\item \textbf{이름표.} 선 끝에 이름(\term{넷 이름표}{net label})을 달면 같은 이름끼리 이어진 것으로 본다. 선을 도면 끝까지
+끌고 가지 않아도 되므로 큰 회로도는 대부분 이름표로 잇는다(\ref{sec:gen-labels}절). 이어진 점 전체를
+\term{넷}{net}이라 한다.
+\item \textbf{전원과 0~V 기호.} ``+24V'' 같은 전원 기호는 그 이름의 넷에 잇는다는 뜻이고, 접지 기호(아래로 짧아지는 막대
+셋)는 0~V에 잇는다는 뜻이다. 이 프로젝트에서 회로도의 GND는 0~V다. 땅에 묻힌 보호접지(PE)나 금속 틀(CHASSIS)과는 다른
+넷이다(\ref{sec:p-earth}절).
+\item \textbf{참조 기호.} 부품마다 종류를 뜻하는 글자와 번호가 붙는다. R 저항, C 커패시터, D 다이오드, DZ 제너, DS 표시용
+LED, K 릴레이, Q 트랜지스터, U 칩(IC), J 커넥터, F 퓨즈, S 스위치, H 장착 구멍이다. 숫자에는 자리 정보를 넣기도 한다.
+시프터 보드의 \code{K305}는 3단의 다섯째 릴레이, \code{D305}는 그 코일의 역기전력 다이오드다.
+\item \textbf{핀 번호.} 커넥터와 릴레이는 핀 번호로 적는다. G6S-2는 1과 12가 코일, 4/3/5와 9/10/8이 두 극의
+COM/NC/NO다(\ref{sec:relay-one}절). D-sub 커넥터의 핀 번호가 결정 0003의 핀 배치표다.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=9mm}
+  \newcommand{\esym}[4]{\draw (#1,#2) to[#3] ++(1.3,0); \node[font=\scriptsize,anchor=north,align=center] at (#1+0.65,#2-0.45) {#4};}
+  \esym{0}{0}{R}{저항 (R)}
+  \esym{2.6}{0}{C}{커패시터 (C)}
+  \esym{5.2}{0}{L}{코일 (K의 코일)}
+  \esym{7.8}{0}{battery1}{전지·전원}
+  \esym{10.4}{0}{fuse}{퓨즈 (F)}
+  \esym{0}{-1.7}{D*}{다이오드 (D)}
+  \esym{2.6}{-1.7}{zD*}{제너 (DZ)}
+  \esym{5.2}{-1.7}{leD*}{LED (DS)}
+  \esym{7.8}{-1.7}{tvsD*}{TVS}
+  \esym{10.4}{-1.7}{thRp}{자동 복귀 퓨즈 (PTC)}
+  \esym{0}{-3.4}{nos}{NO 접점 (a접점)}
+  \esym{2.6}{-3.4}{ncs}{NC 접점 (b접점)}
+  \esym{5.2}{-3.4}{push button}{누름 버튼}
+  \node[nmos] at (8.45,-3.4) {};
+  \node[font=\scriptsize,anchor=north] at (8.3,-3.95) {N채널 (Q)};
+  \node[pmos] at (11.05,-3.4) {};
+  \node[font=\scriptsize,anchor=north] at (10.9,-3.95) {P채널 (Q)};
+  \draw (0.65,-5.0) node[ground] {};
+  \node[font=\scriptsize,anchor=north] at (0.65,-5.35) {0 V (GND)};
+  \draw (3.25,-5.3) -- (3.25,-4.9) node[above,font=\scriptsize] {$+24$V};
+  \node[font=\scriptsize,anchor=north] at (3.25,-5.35) {전원 넷};
+  \draw (5.2,-5.0) -- (6.0,-5.0) node[right,draw,font=\scriptsize,inner sep=1.5pt] {\code{CTRL0}};
+  \node[font=\scriptsize,anchor=north] at (6.2,-5.35) {이름표 (같은 이름 = 같은 선)};
+  \draw (8.4,-5.0) -- (9.6,-5.0); \draw (9.0,-4.6) -- (9.0,-5.4); \node[circ] at (9.0,-5.0) {};
+  \draw (10.4,-5.0) -- (11.6,-5.0); \draw (11.0,-4.6) -- (11.0,-5.4);
+  \node[font=\scriptsize,anchor=north,align=center] at (9.0,-5.45) {점: 이어짐};
+  \node[font=\scriptsize,anchor=north,align=center] at (11.0,-5.45) {점 없음: 안 이어짐};
+\end{circuitikz}
+\caption{5부에 나오는 회로도 기호. 괄호 안은 참조 기호의 글자다. 이 문서의 그림은 미국식 기호(톱니 모양 저항)를 쓴다.
+KiCad 회로도는 네모 저항을 쓰지만 뜻은 같다.}
+\label{fig:el-symbols}
+\end{figure}
+
+\General 지하철 노선도와 같다. 역 사이의 실제 거리와 방향은 무시하고 ``어느 역이 어느 역과 이어지는가''만 보인다.
+환승역 표시가 회로도의 점이고, 다른 노선도 쪽으로 넘어가는 화살표가 이름표다.
+
+\Ours 이 프로젝트의 회로도는 사람이 그리지 않고 Python 생성기가 쓴다(\ref{ch:boardgen}장). 생성기는 거의 모든 연결을
+이름표로 한다. 핀마다 짧은 선 하나와 이름 하나(\code{OIN\_A}, \code{CTRL}, \code{GND} 같은)를 붙이면 같은 이름끼리
+이어진다. 그래서 이 프로젝트의 회로도를 읽는 요령은 선을 따라가는 것이 아니라 \emph{이름을 따라가는 것}이다.
+넷리스트(부품의 핀마다 넷 이름을 적은 목록)가 회로의 진짜 내용이고, 검증기가 읽는 것도 이것이다(\ref{ch:boardverify}장).
+
+\section{정리}
+
+\begin{itemize}
+\item 전압은 두 점 사이의 밀어내는 힘, 전류는 흐름의 양, 저항은 흐름을 막는 정도다. $V = IR$. 전류는 닫힌 고리로만
+흐르고 0~V 선으로 돌아온다. G6S-2 코일은 24~V에서 약 8.3~mA다.
+\item 직렬은 같은 전류에 전압이 나뉘고, 병렬은 같은 전압에 전류가 더해진다. 직렬 저항과 긴 전선은 코일 전압을 깎는다.
+그래서 보드 단자 전압을 23.0--26.4~V로 묶었다.
+\item $P = VI$이고 쓰인 전력은 열이 된다. 릴레이 하나는 0.2~W지만 켜진 릴레이 수가 전원 장치와 팬의 크기를 정한다.
+\item 제어 신호는 24~V 레벨이다. 내는 쪽이 +24~V를 잇고 받는 쪽은 0~V로 가는 부하다. 1과 0 사이에 빈 구간을 두고,
+입력에는 풀다운을 두며 풀업은 금지한다. 케이블이 빠지면 모두 0이다.
+\item 다이오드는 한 방향 밸브이고 지날 때마다 약 0.7~V를 잃는다. 차단, OR, 역기전력, 제너 클램프, TVS로 쓴다.
+LED는 늘 저항과 직렬이다.
+\item MOSFET은 전압으로 여닫는 스위치다. 이 프로젝트는 코일의 0~V 쪽을 고정하고 $+$ 쪽을 여닫는 고측 스위치를 쓴다.
+\item 커패시터는 시상수 $RC$로 천천히 차오르는 통이다. 저수지, 거르기, 시간 재기에 쓴다.
+\item 회로도는 연결의 지도다. 이 프로젝트의 회로도는 이름표로 이어져 있으므로 이름을 따라 읽는다.
+\end{itemize}

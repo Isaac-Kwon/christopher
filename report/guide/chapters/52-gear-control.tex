@@ -1,0 +1,636 @@
+\chapter{기어식 제어: 구동과 시간 신호}\label{ch:52-gear-control}
+
+기어식 봄베의 판단은 테스트 레지스터의 릴레이가 한다. 기계 쪽에서 할 일은 둘이 남는다. 슬롯 원판의 광센서 신호를
+24~V의 \code{STROBE}, \code{JUDGE}, \code{CLEAR}로 바꾸어 레지스터에 보내는 일, 그리고 모터를 돌리고 세우고 되돌리는 일이다.
+이 장은 그 두 일을 맡는 구동부의 제어 보드(\code{hardware/gear/control-board})를 다룬다. 시간 규칙 L1--L9가 어디서
+나왔는지는 \ref{ch:relay-timing}장에서 보았으므로 되풀이하지 않는다. 여기서는 그 규칙을 \emph{누가, 어떤 회로로} 지키는지,
+그리고 그것을 어떻게 시뮬레이션으로 확인하는지를 본다.
+
+\section{보드의 두 가지 일}\label{sec:gk-overview}
+
+\Why 보드에는 마이크로컨트롤러(Raspberry Pi Pico)가 하나 있다. 그러면 \code{STROBE}도 Pico가 센서를 읽어 내보내면
+간단할 것 같다. 그렇게 하지 않는다. 이유는 둘이다. 첫째, 프로젝트의 원칙(\code{design-brief.md} 1절)이 ``전자 장치는
+구동과 신호 조건화만 하고 판정에는 관여하지 않는다''이다. 둘째, 펌웨어는 멈추거나, 늦거나, 틀릴 수 있다. 정지 판정의
+시각이 펌웨어의 반복 주기나 버그에 달리면, 놓친 정지가 소프트웨어 버그 하나로 생길 수 있다. 그래서 일을 둘로 나눈다
+(그림~\ref{fig:gk-block}).
+
+\begin{enumerate}
+\item \textbf{타이밍 경로}: 광센서 $\to$ RC 필터 $\to$ 슈미트 트리거 $\to$ 논리 게이트 $\to$ 고측 구동기 $\to$ 퓨즈 $\to$
+커넥터 핀. 이 길에 \emph{펌웨어가 없다}. 시간은 슬롯이 정하고, 순서는 게이트가 지킨다.
+\item \textbf{구동 제어}: Pico가 모터 구동기에 스텝 펄스를 주고, 정지·되돌림·재출발·\code{HOME}·\code{END}·위치 계수를
+맡는다. 타이밍 경로에는 ``지금 내보내도 된다''는 허가 신호(\code{TXEN})와 ``원점 복귀 중''(\code{HOMING}) 두 선만 준다.
+\end{enumerate}
+
+\General 전자레인지의 문에는 스위치가 있어서 문이 열리면 마그네트론의 전원이 \emph{회로로} 끊긴다. 조작판의 마이크로컨트롤러가
+문이 열린 것을 알아채고 끄기를 기다리지 않는다. 안전이나 정확성이 걸린 규칙을 소프트웨어 밖의 하드웨어에 두는 것은
+흔한 설계 방식이다. 소프트웨어는 그 위에서 편의를 맡는다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    b/.style={blk,font=\footnotesize,minimum width=20mm},
+    ar/.style={->,line width=0.7pt}]
+  \node[b] (sen) at (0,2.2) {광센서 3\\(슬롯 원판)};
+  \node[b] (rc) at (2.9,2.2) {RC + 74HC14};
+  \node[blko,font=\footnotesize,minimum width=22mm] (g) at (6.0,2.2) {게이트\\(74HC08/32/02/74)};
+  \node[b] (tbd) at (9.2,2.2) {TBD62783A\\+ 퓨즈};
+  \node[blkn,font=\footnotesize,align=center] (jc) at (12.2,1.2) {\code{J\_CTRL}\\(테스트 레지스터,\\공통부)};
+  \draw[ar] (sen) -- (rc); \draw[ar] (rc) -- node[above,font=\scriptsize] {\code{SLOT\_*}} (g);
+  \draw[ar] (g) -- node[above,font=\scriptsize] {\code{*\_G}} (tbd);
+  \draw[ar] (tbd) -| node[pos=0.25,above,font=\scriptsize] {\code{STROBE}, \code{JUDGE}, \code{CLEAR}} (jc.north);
+  \node[blkb,font=\footnotesize,minimum width=22mm,minimum height=16mm] (pico) at (6.0,-0.2) {Pico\\(펌웨어)};
+  \node[b] (pos) at (0,0.25) {광센서 6\\(위치 원판)};
+  \draw[ar] (pos.east) -- node[above,font=\scriptsize] {T, I} (pos.east -| pico.west);
+  \draw[ar,cblue] (pico) -- node[right,font=\scriptsize,text=cblue] {\code{TXEN}, \code{HOMING}} (g);
+  \node[b] (opt) at (0,-0.75) {광커플러 입력};
+  \draw[ar] (opt.east) -- (opt.east -| pico.west);
+  \node[note,anchor=north] at (0,-1.15) {\code{RUN}, \code{STOP\_LATCH}, \code{HOME},\\\code{V48\_OK}, \code{SW\_OK}};
+  \node[b] (drv) at (9.2,-0.2) {모터 구동기\\(폐루프 스테퍼)};
+  \draw[ar] (pico) -- node[above,font=\scriptsize] {\code{PUL}/\code{DIR}/\code{ENA}} (drv);
+  \node[b] (sr) at (9.2,-1.9) {74HC595 + 구동기};
+  \draw[ar] (pico.south) |- (sr.west);
+  \draw[ar] (sr.east) -| node[pos=0.25,below,font=\scriptsize,align=center] {\code{STOPPED}, \code{AT\_HOME},\\\code{END}, \code{POS0--14}} (jc.south);
+  \begin{pgfonlayer}{background}
+    \fill[corangebg!50] (-1.2,1.55) rectangle (10.4,2.9);
+  \end{pgfonlayer}
+  \node[font=\scriptsize,text=corange,anchor=south west] at (-1.2,2.9) {펌웨어가 없는 길};
+\end{tikzpicture}
+\caption{기어식 제어 보드. 위쪽 띠가 타이밍 경로이고, Pico는 그 길에 허가 신호 두 개만 준다. 릴레이는 하나도 없다.}
+\label{fig:gk-block}
+\end{figure}
+
+\Ours 보드의 부품은 216개이고 그중 집적회로가 19개다. \code{RUN}이나 \code{HOME} 같은 받는 신호는 모두
+2.2~k$\Omega$ 저항과 \term{광커플러}{optocoupler}를 지난다. 광커플러는 LED와 빛을 받는 트랜지스터를 한 칩에 넣은 것으로,
+24~V 쪽 신호가 LED를 켜면 3.3~V 쪽 트랜지스터가 켜진다. 두 쪽이 빛으로만 이어지므로 24~V의 잡음이나 사고 전압이 Pico로
+들어오지 않는다. 내는 신호는 \term{고측 구동기}{high-side driver} TBD62783A가 +24~V를 핀에 이어 주고, 핀마다 자동 복귀
+퓨즈가 단락을 막는다.
+
+\paragraph{느린 에지를 깨끗하게.} 광센서의 출력은 슬롯 가장자리가 천천히 지나가는 동안 천천히 변하고 잡음이 섞인다.
+문턱 하나로 0과 1을 가르면 문턱 근처에서 여러 번 오르내릴 수 있다. 그래서 RC 필터(약 5~$\mu$s)로 잔 떨림을 깎은 뒤
+\term{슈미트 트리거}{Schmitt trigger}(74HC14)에 넣는다. 슈미트 트리거는 오를 때의 문턱(이 시뮬레이션은 1.9~V로 둔다)과
+내릴 때의 문턱(1.0~V)이 다르다. 한 번 넘어가면 반대쪽 문턱까지 돌아와야 다시 넘어가므로 문턱 근처의 떨림이 출력에
+나타나지 않는다. 난방 온도 조절기가 20°C에서 켜고 22°C에서 끄는 것도 같은 이유다. 하나의 온도로 켜고 끄면 보일러가
+쉴 새 없이 켜졌다 꺼진다.
+
+\section{스테퍼 모터와 가감속}\label{sec:gk-stepper}
+
+\Why \term{스테퍼 모터}{stepper motor}는 펄스 하나에 정해진 각도만큼 돈다. 펄스의 수가 곧 위치이고 펄스의 빠르기가 곧
+속도이므로, 위치를 세기 쉽고 원하는 자리에 세우기 쉽다. 약점은 \term{탈조}{stall, lost step}다. 펄스를 너무 갑자기
+빠르게 주면 회전자가 관성 때문에 따라오지 못하고 미끄러져, 펄스 수와 실제 위치가 어긋난다. 이 기계의 모터는 엔코더가
+달린 \term{폐루프}{closed-loop} 스테퍼여서 어긋남을 스스로 바로잡지만, 그래도 정지 상태에서 곧바로 최고 속도의
+펄스를 주면 따라오지 못한다. 그래서 속도를 천천히 올리고(\term{가속}{acceleration}) 천천히 내려야(감속) 한다.
+
+\General 자동차는 정지 상태에서 시속 100~km로 순간 이동하지 않는다. 3D 프린터의 설정에 ``가속도'' 항목이 있는 것도 같다.
+흔한 방법은 \term{사다리꼴 속도}{trapezoidal profile}다. 일정한 가속도로 오르고, 일정한 속도로 가고, 일정한 감속도로
+내린다(그림~\ref{fig:gk-ramp}). 언제 감속을 시작할지는 제동 거리로 정한다. 속도 $v$에서 감속도 $a$로 서는 데 드는 거리는
+$v^2 / (2a)$이므로, 남은 거리가 $d$이면 지금 낼 수 있는 가장 빠른 속도는 $\sqrt{2ad}$다. 이보다 빠르면 제때 서지 못한다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \draw[->] (0,0) -- (11,0) node[right,font=\scriptsize] {시간};
+  \draw[->] (0,0) -- (0,2.4) node[above,font=\scriptsize] {속도 (스텝/s)};
+  \draw[cblue,line width=1.2pt] (0,0) -- (1.6,1.8) -- (8.0,1.8) -- (9.1,0);
+  \draw[dashed,cgray] (0,1.8) node[left,font=\scriptsize,text=black] {10,400} -- (1.6,1.8);
+  \node[note,anchor=south] at (0.8,1.9) {가속\\$8 \times 10^5$/s$^2$};
+  \node[note,anchor=south] at (4.8,1.9) {60~rpm = 26위치/s};
+  \node[note,anchor=south west] at (8.4,1.0) {정지 감속\\$1.2 \times 10^6$/s$^2$};
+  \draw[corange,dashed,domain=0:1.1,samples=20] plot ({9.1-\x},{1.8*sqrt(\x/1.1)});
+  \node[note,anchor=north,text=corange] at (8.2,-0.15) {$v \le \sqrt{2a \cdot \text{남은 거리}}$};
+\end{tikzpicture}
+\caption{사다리꼴 속도. 감속 구간의 곡선(주황 점선)은 ``남은 거리에서 설 수 있는 가장 빠른 속도''다. 위치 이동 함수는 매
+순간 이 값과 최고 속도 가운데 작은 쪽을 목표로 삼는다. 가속도 값은 추정이며 G.2 시제품에서 정한다.}
+\label{fig:gk-ramp}
+\end{figure}
+
+\Ours 구동기는 모터 한 바퀴를 2,600펄스로 나누도록 설정한다. 4:1 벨트와 26위치를 거치면 한 위치가 400스텝이고, 60~rpm은
+초당 26위치, 곧 10,400~pps(초당 펄스)다(\ref{sec:gc-slotsteps}절). 구동기 쪽에는 자체 가감속이 없으므로 Pico가 펄스의
+빠르기를 조금씩 바꾸어 사다리꼴을 만든다. 구동기를 펄스/방향(step/dir) 방식으로 고른 이유는 되돌림 때문이다. ``돌아라/서라''만
+받는 구동기로는 정지한 위치로 거꾸로 몇 스텝 돌아가는 일을 할 수 없다.
+
+펌웨어의 명세는 실행할 수 있는 Python 파일 \code{firmware\_model.py}다. Pico에 올릴 MicroPython은 이 파일을 옮겨 쓴다.
+위치로 가는 함수는 앞의 규칙을 그대로 쓴다.
+
+\begin{lstlisting}[language=Python,caption={\code{firmware\_model.py}: 목표 스텝까지 사다리꼴로 간다(발췌).},label={lst:gk-goto}]
+    def _goto(self, target: int, vmax: float, a: float, dt: float):
+        """move to the absolute step target with a trapezoid profile; returns (steps, arrived)"""
+        rem = target - self.s
+        if rem == 0 and abs(self.v) < 1.0:
+            self.v = 0.0
+            return 0, True
+        d = 1 if rem > 0 else -1
+        vd = d * min(vmax, math.sqrt(2.0 * a * max(abs(rem) - 0.5, 0.0)))
+        n = self._motion(vd, a, dt)
+        if (target - self.s) * d < 0:          # never overshoot (closed-loop drive: exact step count)
+            ...
+\end{lstlisting}
+
+\code{vd}가 ``이번 순간의 목표 속도''다. 남은 거리가 많으면 \code{vmax}, 적으면 $\sqrt{2a \cdot \text{남은 거리}}$다.
+\code{\_motion}은 현재 속도를 한 틱에 $a \cdot dt$ 이상 바꾸지 않으면서 \code{vd}로 다가가고, 그 틱에 낼 스텝 수를 돌려준다.
+예를 들어 정격 속도 10,400~pps에서 정지 감속 $1.2 \times 10^6$~스텝/s$^2$로 서면 $10400^2 / (2 \times 1.2 \times 10^6) \approx
+45$스텝을 더 간다. 슬롯 원판의 한 위치가 400스텝이므로 정지 신호를 받고 한 위치의 9분의 1 안에 선다.
+
+여기에는 \ref{sec:t-bounds}절의 ``느려지면 늘 안전하다''가 깔려 있다. L1--L6은 모두 시간의 하한이고 슬롯이 각도로
+시각을 정하므로, 가속이나 감속 중에 모터가 느려지면 모든 구간이 시간으로 길어진다. 위험한 것은 빨라지는 쪽뿐이고,
+램프는 10,400~pps를 넘지 않게 되어 있다.
+
+\section{펌웨어가 없는 길: 게이트 셋과 플립플롭 둘}\label{sec:gk-gates}
+
+\Why 슬롯이 센서를 지나는 동안 신호를 그대로 핀에 내보내기만 하면 대부분의 규칙(L1--L6)은 슬롯의 각도가 지킨다
+(\ref{sec:t-gear}절). 남는 것은 순서에 관한 두 규칙과 ``내보내지 말아야 할 때''다.
+
+\begin{itemize}
+\item \textbf{L7}: \code{STROBE}를 낸 위치에는 \code{JUDGE}와 \code{CLEAR}를 반드시 낸다. 펌웨어가 주기 한가운데서 허가를
+거두어도(예를 들어 되돌아가려고) 시작한 주기는 끝나야 한다.
+\item \textbf{L8}: 전원 투입, \code{HOME}, 정지 해제 뒤에는 \code{STROBE}를 한 번 내기 전에 \code{JUDGE}를 내지 않는다. 비어 있는
+레지스터를 판정하면 곧 정지(거짓 정지)이기 때문이다.
+\item \code{HOME} 동작 중, 거꾸로 되돌아가는 동안, 비상 정지 중에는 내보내지 않는다(\code{TXEN}).
+\end{itemize}
+
+이 셋을 논리식 몇 줄과 \term{D 플립플롭}{D flip-flop} 두 개로 만든다. \ref{ch:sync}장의 플립플롭은 클럭의 오르는 에지에서
+입력 D를 받아 들고 있는 1비트 기억이었다. 74HC74는 여기에 클럭과 상관없이 출력을 1로 만드는 \emph{세트} 입력과 0으로
+만드는 \emph{리셋} 입력이 따로 달린 칩이다.
+
+\Ours 회로는 그림~\ref{fig:gk-gates}이고 식은 이렇다(\code{README.md} 1.1절).
+\begin{lstlisting}[numbers=none,caption={타이밍 경로의 논리.},label={lst:gk-eq}]
+  STROBE_G = SLOT_S & TXE
+  CLEAR_G  = SLOT_C & TXE
+  JUDGE_G  = SLOT_J & SEEN & TXE
+  TXE      = TXEN | CYC
+  CYC  : set while STROBE_G is high, cleared by the fall of CLEAR_G; reset by POR | HOMING      (L7)
+  SEEN : set by the rise of STROBE_G, cleared by POR | HOMING | fall of STOP_LATCH            (L8)
+\end{lstlisting}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    lb/.style={font=\scriptsize\ttfamily},
+    ff/.style={draw,fill=cyellowbg,minimum width=30mm,minimum height=16mm,align=left,font=\scriptsize,inner sep=3pt}]
+  % OR
+  \node[or gate US,gate] (or1) at (1.2,0) {};
+  \draw (or1.input 1) -- ++(-0.5,0) node[left,lb] {TXEN};
+  \draw (or1.input 2) -- ++(-0.5,0) node[left,lb] {CYC};
+  \draw (or1.output) -- ++(0.4,0) node[right,lb] {TXE};
+  % ANDs
+  \node[and gate US,gate] (a1) at (5.4,1.4) {};
+  \draw (a1.input 1) -- ++(-0.5,0) node[left,lb] {SLOT\_S};
+  \draw (a1.input 2) -- ++(-0.5,0) node[left,lb] {TXE};
+  \draw (a1.output) -- ++(0.4,0) node[right,lb] {STROBE\_G};
+  \node[and gate US,gate] (a2) at (5.4,0.0) {};
+  \draw (a2.input 1) -- ++(-0.5,0) node[left,lb] {SLOT\_C};
+  \draw (a2.input 2) -- ++(-0.5,0) node[left,lb] {TXE};
+  \draw (a2.output) -- ++(0.4,0) node[right,lb] {CLEAR\_G};
+  \node[and gate US,gate] (a3) at (4.6,-1.5) {};
+  \draw (a3.input 1) -- ++(-0.5,0) node[left,lb] {SLOT\_J};
+  \draw (a3.input 2) -- ++(-0.5,0) node[left,lb] {SEEN};
+  \node[and gate US,gate] (a4) at (7.2,-1.9) {};
+  \draw (a3.output) -- ++(0.2,0) |- (a4.input 1);
+  \draw (a4.input 2) -- ++(-0.5,0) node[left,lb] {TXE};
+  \draw (a4.output) -- ++(0.4,0) node[right,lb] {JUDGE\_G};
+  % flip-flops
+  \node[ff] (seen) at (12.2,1.0) {\textbf{SEEN} (74HC74 1)\\D = 1, 클럭 = \code{STROBE\_G} $\uparrow$\\리셋 = POR $\vee$ HOMING\\\phantom{리셋 = }$\vee$ \code{STOP\_LATCH} $\downarrow$ 펄스};
+  \node[ff] (cyc) at (12.2,-1.2) {\textbf{CYC} (74HC74 2)\\세트 = \code{STROBE\_G}가 높은 동안\\D = 0, 클럭 = \code{CLEAR\_G} $\downarrow$\\리셋 = POR $\vee$ HOMING};
+  \node[note,anchor=north] at (6.0,-2.4) {같은 이름의 선끼리 이어져 있다(회로도의 전역 레이블과 같다)};
+\end{tikzpicture}
+\caption{타이밍 경로의 게이트(74HC08 넷, 74HC32 하나)와 플립플롭 둘. 세 출력 \code{*\_G}가 TBD62783A와 퓨즈를 거쳐
+\code{J\_CTRL}의 핀 1(\code{STROBE}), 34(\code{JUDGE}), 35(\code{CLEAR})로 나간다.}
+\label{fig:gk-gates}
+\end{figure}
+
+\paragraph{CYC: 시작한 주기는 끝낸다 (L7).} \code{CYC}는 ``지금 주기 안에 있다''를 기억한다. \code{STROBE\_G}가 높은 동안 세트
+입력이 걸려 1이 되고, \code{CLEAR\_G}가 내려가는 순간 클럭이 D = 0을 받아 0이 된다. \code{TXE}는 \code{TXEN}과 \code{CYC}의
+OR이므로, 주기 안에서는 Pico가 \code{TXEN}을 내려도 \code{TXE}가 1로 남는다. 그림~\ref{fig:gk-cyc}가 그 경우다. \code{STROBE}
+직후에 \code{TXEN}이 내려가도 그 주기의 \code{JUDGE}와 \code{CLEAR}는 나가고, \code{CLEAR}가 끝나 \code{CYC}가 지워진 뒤 다음
+\code{STROBE} 슬롯은 막힌다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikztimingtable}[timing/slope=0.05,timing/coldist=4pt,xscale=0.29,yscale=1.1,semithick]
+  \code{SLOT\_S}   & .5L 7H 31L 7H .5L \\
+  \code{SLOT\_J}   & 11.5L 8H 26.5L \\
+  \code{SLOT\_C}   & 21.5L 13H 11.5L \\
+  \code{TXEN}      & 10H 36L \\
+  \code{CYC}       & .5L 34H 11.5L \\
+  \code{TXE}       & 34.5H 11.5L \\
+  \code{SEEN}      & .5L 45.5H \\
+  \code{STROBE\_G} & .5L 7H 38.5L \\
+  \code{JUDGE\_G}  & 11.5L 8H 26.5L \\
+  \code{CLEAR\_G}  & 21.5L 13H 11.5L \\
+\extracode
+  \begin{pgfonlayer}{background}
+    \fill[credbg] (10,1.0) rectangle (10.4,-6.6);
+    \fill[cgreenbg] (38.5,-14.2) rectangle (45.5,-12.8);
+  \end{pgfonlayer}
+  \node[note,text=cred,anchor=south] at (10.2,1.0) {Pico가 허가를 거둠};
+  \node[note,text=cgreen,anchor=west] at (46.2,-13.5) {막힘};
+\end{tikztimingtable}
+\caption{L7을 지키는 \code{CYC}. 가로는 시간(한 칸 약 1~ms, 60~rpm). \code{TXEN}이 주기 한가운데서 내려가도 \code{CYC}가
+\code{TXE}를 붙들어 \code{JUDGE}와 \code{CLEAR}가 나간다. \code{CLEAR\_G}가 내려가며 \code{CYC}가 지워진 뒤에는 다음 \code{STROBE}
+슬롯이 와도 \code{STROBE\_G}가 나가지 않는다.}
+\label{fig:gk-cyc}
+\end{figure}
+
+\paragraph{SEEN: STROBE 없이 JUDGE 없다 (L8).} \code{SEEN}은 ``이번 출발 뒤로 \code{STROBE}를 한 번이라도 냈는가''를 기억한다.
+D가 늘 1이고 클럭이 \code{STROBE\_G}이므로 \code{STROBE}가 처음 오를 때 1이 되고, 지워지기 전까지 그대로다. \code{JUDGE\_G}는
+\code{SEEN}이 1일 때만 나간다. 지우는 조건은 전원 투입(POR: 전원이 들어온 뒤 약 10~ms 동안 내는 리셋), \code{HOMING},
+그리고 \code{STOP\_LATCH}가 \emph{내려가는 순간}이다.
+
+``내려가는 순간''이 설계의 요점이다. \code{STOP\_LATCH}는 레지스터의 정지 릴레이가 붙으면 오르고 해제 버튼을 누르면 내린다.
+\code{STOP\_LATCH}가 \emph{높은 동안} 내내 \code{SEEN}을 지우도록(레벨로) 하면 문제가 생긴다. 정지는 \code{JUDGE} 도중에
+판정되므로 \code{STOP\_LATCH}가 \code{JUDGE} 한가운데서 오르고, 그 순간 \code{SEEN}이 지워져 \code{JUDGE}가 잘린다. 정지
+릴레이가 자기 유지에 들기 전에 판정 경로가 열려 버릴 수 있다. 그래서 해제 때에만, 곧 \code{STOP\_LATCH}가 내려가는
+에지에서만 지운다.
+
+에지는 RC 지연으로 만든다. $\overline{\text{STOP\_LATCH}}$를 47~k$\Omega$과 10~nF(약 0.5~ms)로 늦춘 것을 뒤집어, 늦추지
+않은 것과 AND한다. $\overline{\text{STOP\_LATCH}}$가 오른 직후 0.5~ms 동안만 두 입력이 모두 1이므로, 그 AND가 짧은 펄스
+하나를 낸다. 계단의 ``지금''과 ``조금 전''을 비교해 바뀐 순간만 잡는 \term{에지 검출기}{edge detector}다.
+
+\paragraph{부팅 중에도.} Pico가 켜지는 동안 핀은 아직 프로그램을 따르지 않는다. 그래서 \code{TXEN}에는 풀다운 저항(기본 0,
+내보내지 않음), \code{HOMING}에는 풀업 저항(기본 1, \code{SEEN}과 \code{CYC}를 지운 채)을 단다. 펌웨어가 아무것도 하지
+않아도 보드는 안전한 쪽에 있다.
+
+\section{서고, 되돌아가고, 다시 출발한다}\label{sec:gk-stop}
+
+\Why 레지스터가 정지를 판정하면(\code{STOP\_LATCH}가 오름) 모터를 세워야 한다. 그런데 아무 데나 서면 안 된다. 그 위치의
+주기(\code{STROBE}--\code{JUDGE}--\code{CLEAR})는 끝까지 마쳐야 하고(L7), 다음 위치의 \code{STROBE} 슬롯 안에 서면 재출발할 때
+그 \code{STROBE}가 반쪽만 나간다. 설 수 있는 곳은 \code{CLEAR} 슬롯이 끝난 뒤부터 다음 \code{STROBE} 슬롯이 시작하기 전까지,
+한 위치 400스텝 가운데 330--374스텝, 44스텝(1.32°)뿐이다. 이것을 \term{정지 자리}{stop zone}라 한다(그림~\ref{fig:gk-zone}).
+
+\General 엘리베이터는 층에 가까워지면 감속하고, 마지막에는 아주 천천히 기어 가서 바닥 높이를 맞춘다. 빠르게 가다가 정확한
+높이에 한 번에 서려고 하지 않는다. 지나쳤으면 조금 되돌아간다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=0.028cm,y=1cm]
+  \draw[->] (-60,0) -- (470,0) node[right,font=\scriptsize] {스텝};
+  \foreach \t in {0,100,200,300,400} \draw (\t,0.06) -- (\t,-0.06) node[below,font=\tiny] {\t};
+  \fill[cbluebg] (-26,0.2) rectangle (47,0.5); \node[font=\tiny] at (10,0.35) {\code{STROBE}};
+  \fill[cgreenbg] (89,0.2) rectangle (173,0.5); \node[font=\tiny] at (131,0.35) {\code{JUDGE}};
+  \fill[corangebg] (194,0.2) rectangle (330,0.5); \node[font=\tiny] at (262,0.35) {\code{CLEAR}};
+  \fill[cbluebg] (374,0.2) rectangle (447,0.5); \node[font=\tiny] at (410,0.35) {다음 \code{STROBE}};
+  \fill[credbg] (330,0.55) rectangle (374,0.85);
+  \node[font=\tiny,text=cred,anchor=south] at (352,0.85) {정지 자리 44};
+  \draw[cred,line width=1.2pt] (340,0.1) -- (340,0.95);
+  \node[font=\tiny,text=cred,anchor=south] at (300,1.2) {목표 = \code{CLEAR} 끝 + 10};
+  \draw[->,cred] (310,1.2) -- (338,0.97);
+  \draw[cgray,dashed] (280,-0.3) -- (280,0.55);
+  \node[note,anchor=north] at (250,-0.3) {\code{POS} 경계 +280};
+  \draw[cred,dashed] (350,-0.3) -- (350,0.55);
+  \node[note,anchor=north west,text=cred] at (335,-0.3) {먼 쪽이 최악일 때 +350:\\목표 양쪽에 약 10스텝};
+\end{tikzpicture}
+\caption{한 위치(400스텝, 0은 \code{STROBE} 접점의 시작) 안의 슬롯과 정지 자리. 되돌림 목표는 펌웨어가 \emph{센서에서 직접
+잰} \code{CLEAR}의 끝에서 10스텝 뒤다. 먼 쪽 가장자리(다음 \code{STROBE} 슬롯의 시작)는 \code{STROBE} 보정에 따라 최악 약
+20스텝까지 당겨지므로 목표 양쪽에 약 10스텝씩 남는다.}
+\label{fig:gk-zone}
+\end{figure}
+
+\Ours 펌웨어는 \term{상태 기계}{state machine}(\ref{sec:fsm}절)다. 상태는 \code{REST}, \code{RUN}, \code{STOPDEC},
+\code{CREEPOUT}, \code{RET}과 \code{HOME}에 쓰는 몇 개다(그림~\ref{fig:gk-states}). 정지는 이렇게 흘러간다.
+
+\begin{enumerate}
+\item \code{RUN}에서 \code{STOP\_LATCH}가 오르면 \code{STOPDEC}로 가서 정지 감속으로 선다. \code{STOP\_LATCH}는 \code{JUDGE}
+슬롯이 오른 뒤 5--9~ms에 오르고 축은 약 45스텝 더 가므로, 보통 \code{CLEAR} 슬롯 안에서 선다.
+\item \code{CREEPOUT}: 천천히(2,000~pps) 앞으로 기어 가며 그 주기의 \code{CLEAR} 슬롯이 \emph{끝나는 에지}를 기다린다. 센서
+인터럽트가 그 순간의 스텝 수를 \code{s\_clear\_end}에 적는다.
+\item 목표를 \code{s\_clear\_end + 10}으로 잡는다. 목표가 지금보다 뒤에 있으면(감속이 약해 지나쳤으면) \code{TXEN}을 내리고
+되돌아간다. 거꾸로 지나가는 슬롯에서 신호가 나가면 안 되기 때문이다(결정 0003 4.4절).
+\item \code{RET}: 목표까지 가서 \code{REST}. \code{STOPPED} = 1, 위치 버스 \code{POS}에 정지한 위치를 보인다.
+\end{enumerate}
+
+\begin{lstlisting}[language=Python,caption={\code{firmware\_model.py}: \code{CREEPOUT} 상태(발췌).},label={lst:gk-creep}]
+        elif st == "CREEPOUT":
+            ...
+            if self.stop_kind == "latch":
+                if self.s_clear_end is None:
+                    n = self._motion(p.v_creep, p.a_creep, dt)       # forward until CLEAR has ended
+                else:
+                    self.ret_target = self.s_clear_end + p.ret_offset
+                    if "no_txen_return" not in self.mut and self.ret_target < self.s:
+                        self.txen = False                              # reverse: no timing outputs (4.4 (2))
+                    self.state = "RET"
+            else:
+                if slot_any or self.in_cycle:                     # operator stop / END: stand between two cycles
+                    n = self._motion(p.v_creep, p.a_creep, dt)
+                else:
+                    n = self._motion(0.0, p.a_creep, dt)
+                    if self.v == 0.0:
+                        self._rest_after_stop()
+\end{lstlisting}
+
+\code{"no\_txen\_return" not in self.mut} 같은 조건은 음성 시험용이다(\ref{sec:gk-verify}절). 검증기가 일부러 이 규칙을 빼 본
+펌웨어를 돌려, 빼면 반드시 실패가 나오는지를 확인한다.
+
+\paragraph{왜 각도가 아니라 에지인가.} ``정지 자리의 가운데(352스텝)에 선다''로 정할 수도 있다. 그러나 그 352는 설계 각도이고,
+실제 원판의 가공 오차와 센서 브래킷의 오차가 거기에 그대로 얹힌다. 목표를 \emph{센서가 잰} \code{CLEAR}의 끝에서 세면
+가까운 쪽 가장자리의 오차는 상쇄된다. 남는 것은 먼 쪽이다. 먼 쪽은 따로 도는 \code{STROBE} 센서 브래킷이 정하는데, 물린
+레지스터의 \code{STROBE} 릴레이가 가장 느리면 보정이 슬롯을 1.5~ms 앞당기고, 보정의 흩어짐과 \code{CLEAR} 센서의 0.1°를 더하면
+정지 자리가 최악 약 20스텝으로 준다(계산). 그래서 목표는 +10이다. 처음에는 +20이었는데, 그러면 최악의 경우 목표가 다음
+\code{STROBE} 슬롯 안에 들 수 있었다(\code{README.md} 6절 3번). 폐루프 스테퍼의 정지 정확도 $\pm$1--2스텝(추정)이 양쪽 10스텝
+안에 들어간다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    s/.style={draw,rounded corners=3pt,fill=cbluebg,draw=cblue,minimum width=19mm,minimum height=7mm,font=\scriptsize\ttfamily},
+    h/.style={s,fill=cgreenbg,draw=cgreen},
+    lab/.style={font=\tiny,fill=white,inner sep=1pt,align=center},
+    ar/.style={->,line width=0.6pt}]
+  \node[s,fill=cyellowbg,draw=corange] (rest) at (0,0) {REST};
+  \node[s] (run) at (3.8,0) {RUN};
+  \node[s] (dec) at (7.6,0) {STOPDEC};
+  \node[s] (crp) at (7.6,-2.0) {CREEPOUT};
+  \node[s] (ret) at (3.8,-2.0) {RET};
+  \node[h] (hmv) at (-3.4,-1.0) {HMOVE};
+  \node[h,align=center] (hsr) at (-3.4,-2.9) {HSEARCH\\{\tiny(HBACK, HDEC, HGO)}};
+  \node[h] (hfl) at (0,-2.9) {HFLUSH};
+  \draw[ar] (rest) -- node[lab,above] {\code{RUN} $\wedge$ \code{RUNARM}} (run);
+  \draw[ar] (run) -- node[lab,above] {\code{STOP\_LATCH}$\uparrow$,\\\code{RUN}$\downarrow$, \code{END}} (dec);
+  \draw[ar] (dec) -- node[lab,right] {속도 0} (crp);
+  \draw[ar] (crp) -- node[lab,above] {\code{CLEAR} 끝을 잡음} (ret);
+  \draw[ar] (ret) -- node[lab,above left] {도착: \code{STOPPED}} (rest);
+  \draw[ar] (crp.south) -- (7.6,-3.8) -- node[lab,below] {조작 정지·\code{END}: 주기 사이에서 섬} (1.6,-3.8) -- (1.6,-0.35) -- (rest.south east);
+  \draw[ar] (rest.west) -- node[lab,above] {\code{HOME}, 계수 맞음} (hmv.north east);
+  \draw[ar] (rest.south west) -- node[lab,pos=0.6,left] {\code{HOME},\\계수 모름} (hsr.north east);
+  \draw[ar] (hmv.south east) -- (hfl.west);
+  \draw[ar] (hsr) -- node[lab,below] {원점 표시} (hfl);
+  \draw[ar] (hfl) -- node[lab,right] {\code{AT\_HOME}} (rest);
+\end{tikzpicture}
+\caption{펌웨어의 상태(\code{firmware\_model.py}). 파란 상태가 운전과 정지, 초록 상태가 \code{HOME}이다.}
+\label{fig:gk-states}
+\end{figure}
+
+\paragraph{재출발.} 해제 버튼을 누르면 레지스터가 \code{STOP\_LATCH}를 내리고 \code{RUN}을 올린다. 펌웨어는 \code{REST}에서
+\code{RUN}으로 가고 \code{TXEN}을 올린다. 축은 정지 자리에 있으므로 처음 만나는 것은 \emph{다음} 위치의 \code{STROBE} 슬롯이다.
+정지한 위치 $n$은 다시 시험하지 않고 $n+1$부터 이어 간다. 그리고 \code{STOP\_LATCH}가 내려간 에지가 \code{SEEN}을 지웠으므로,
+그 \code{STROBE}가 오기 전에는 \code{JUDGE}가 나가지 않는다.
+
+\paragraph{조작 정지.} 관람객이 시작 스위치를 끄면(\code{RUN}만 내려감) 판정과 상관없이 선다. 이때는 되돌아갈 위치가 없으므로
+감속한 뒤 ``슬롯 밖이고 주기가 끝난 곳''까지 기어 가서 선다. 레지스터에 반쯤 끝난 주기를 남기지 않기 위해서다.
+
+\section{\texorpdfstring{\code{HOME}}{HOME}: 처음 자리로}\label{sec:gk-home}
+
+\Why \code{HOME}은 세 드럼을 모두 첫 위치로 돌리고 기계를 원위치에 세우는 동작이다. 관람객이 드럼을 바꾸기 전에 누르고
+(\ref{sec:gm-brake}절), 비상 정지 뒤에도 반드시 거친다. 할 일은 세 가지다. 원위치를 \emph{하나로} 찾는 것, 가는 동안 타이밍
+신호를 내지 않는 것, 그리고 끝에 레지스터를 깨끗이 비워 두는 것이다.
+
+\Ours \code{HOME} 단추를 100~ms 이상 누르고 있고 \code{RUN}과 \code{STOP\_LATCH}가 모두 0이면 시작한다. 펌웨어는
+\code{HOMING} = 1, \code{TXEN} = 0으로 둔다.
+
+\begin{itemize}
+\item \textbf{계수기가 맞으면}(위치 원판의 계수를 믿을 수 있으면) 짧은 쪽 방향으로 간다. 한 바퀴가 17,576위치이므로 많아야
+그 절반인 8,788위치다. 거꾸로 가는 동안에도 \code{TXEN} = 0이므로 신호가 나가지 않는다.
+\item \textbf{계수기를 모르면} 앞으로(\code{RUN}의 두 배 속도) 찾아간다. 원위치의 표시는 ``세 원점 센서가 모두 높은 동안
+\code{STROBE} 슬롯이 오르는 곳''이다. 세 원점 센서만으로는 안 된다. 주기 축의 0번째 회전 안에서 빠른 드럼이 글자 A를 보이는
+칸이 $k = 0$과 빈 칸 $k = 26$ 둘이기 때문이다(\ref{sec:gm-posdisc}절). 0번째 회전 안에서 찾기 시작했으면 먼저 그 밖으로
+물러난 뒤 찾는다.
+\end{itemize}
+
+\paragraph{끝의 \code{CLEAR} 한 번(\code{HFLUSH}).} 비상 정지는 위치 주기의 어디서나 전원을 끊는다. \code{STROBE} 뒤, \code{CLEAR}
+전에 끊기면 테스트 레지스터의 감지 릴레이가 붙은 채 남는다. 감지 릴레이는 비상 정지로 끊기지 않는 전원(\code{+24V\_L})에 있기
+때문이다. 그대로 \code{HOME}을 마치고 출발하면 첫 \code{STROBE}가 낡은 감지 릴레이 위에 덧붙고, 남은 것이 26선 모두였다면
+위치 0의 정지를 놓친다. 릴레이식 순서기에서 먼저 찾은 문제이고(\ref{sec:v-time}절의 실제 사례), 결정 0003은 ``\code{HOME}은
+끝에 \code{CLEAR}를 정확히 한 번 낸다''는 규칙을 두었다.
+
+기어식은 이 \code{CLEAR}를 따로 만들지 않고 원판의 \code{CLEAR} 슬롯 하나를 빌린다. 위치 이동이나 찾기는 원위치가 아니라
+그보다 한 칸 앞, 곧 앞 회전의 마지막 판정 칸($k = 25$)의 같은 자리(원위치 $-$ 2,000스텝)에서 끝난다. 거기서 3,000~pps로
+원위치까지 기어 가면서(그림~\ref{fig:gk-flush}), 그 칸의 \code{JUDGE} 슬롯이 끝나는 에지에서 \code{TXEN}을 올리고 \code{CLEAR}
+슬롯이 끝나는 에지에서 내린다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=0.0056cm,y=1cm]
+  % cells -5 (k=25), -4..-1 (k=26..29, empty), 0 (k=0); x = steps relative to cell 0 start
+  \foreach \c/\k in {-5/25,-4/26,-3/27,-2/28,-1/29,0/0} {
+    \draw[cgray] (\c*400,-0.2) -- (\c*400,1.3);
+    \node[font=\tiny,text=cgray,anchor=south] at (\c*400+200,1.3) {$k = \k$};
+  }
+  \draw[cgray] (400,-0.2) -- (400,1.3);
+  \draw[->] (-2150,0) -- (480,0);
+  % slots of k=25 and k=0
+  \fill[cbluebg] (-2026,0.7) rectangle (-1953,1.0);
+  \fill[cgreenbg] (-1911,0.7) rectangle (-1827,1.0);
+  \fill[corangebg] (-1806,0.7) rectangle (-1670,1.0);
+  \fill[cbluebg] (-26,0.7) rectangle (47,1.0);
+  \fill[cgreenbg] (89,0.7) rectangle (173,1.0);
+  \node[font=\tiny] at (-1990,0.85) {S}; \node[font=\tiny] at (-1869,0.85) {J}; \node[font=\tiny] at (-1738,0.85) {C};
+  \node[font=\tiny] at (10,0.85) {S};
+  \node[note,anchor=west] at (-1450,0.85) {빈 칸 넷(자리올림)};
+  % TXEN window
+  \fill[credbg] (-1827,0.15) rectangle (-1670,0.45);
+  \node[font=\tiny,text=cred,anchor=west] at (-1650,0.3) {\code{TXEN} = 1 $\Rightarrow$ \code{CLEAR} 한 번};
+  % motion
+  \fill (-2070,0) circle (2pt); \node[font=\tiny,anchor=north] at (-2070,-0.05) {시작};
+  \fill[corange] (-70,0) circle (2.5pt); \node[font=\tiny,anchor=north,text=corange] at (-70,-0.05) {원위치 $-70$};
+  \draw[->,corange,line width=1pt] (-2060,-0.6) -- node[below,font=\tiny,text=corange] {3,000~pps로 2,000스텝, \code{HOMING} = 1} (-80,-0.6);
+\end{tikzpicture}
+\caption{\code{HOME}의 마지막 접근. \code{STROBE} 슬롯(S)은 \code{TXEN} = 0일 때 지나가고, \code{JUDGE}(J)는 \code{HOMING}이
+\code{SEEN}을 지운 채 두므로 어차피 나가지 않는다. \code{CLEAR\_G}는 \code{SEEN}을 보지 않으므로 \code{TXEN}을 올린 동안 \code{CLEAR}
+하나만 나간다. 원위치는 $k = 0$의 \code{STROBE} 슬롯보다 44스텝 앞이다.}
+\label{fig:gk-flush}
+\end{figure}
+
+\begin{lstlisting}[language=Python,caption={\code{firmware\_model.py}: 마지막 접근에서 \code{CLEAR} 한 번만 허가한다(발췌).},label={lst:gk-flush}]
+        elif sig == "SLOT_J":
+            # HOME flush (decision 0003 4.4): on the final approach the timing outputs are enabled from the end of the JUDGE slot
+            # of the last slotted cell (its STROBE slot has passed with TXEN = 0; HOMING keeps SEEN cleared) ...
+            if (not level) and fwd and self.state == "HFLUSH" and not self.flushed and "no_flush" not in self.mut:
+                self.txen = True
+        elif sig == "SLOT_C":
+            if not level and fwd and self.state == "HFLUSH" and self.txen and not self.flushed:
+                self.txen = False           # ... to the end of its CLEAR slot: exactly one CLEAR, then nothing until AT_HOME
+                self.flushed = True
+\end{lstlisting}
+
+\code{TXEN}을 \code{CLEAR} 슬롯이 시작하기 \emph{전}에 올리고 끝난 \emph{뒤}에 내리므로, 나가는 \code{CLEAR}의 폭은 슬롯이 정한다.
+\code{CLEAR} 슬롯은 136스텝이고 3,000~pps에서 45~ms다. L5는 12.5~ms 이상이므로 속도가 10,880~pps 이하이기만 하면 되는데,
+마지막 접근은 그보다 넉넉히 느린 3,000~pps로 간다. 원위치에 서면 세 원점 센서가 모두 높은지 확인하고 \code{AT\_HOME} = 1을 낸다.
+슬롯의 에지를 보지 못했으면(예를 들어 시작점이 어긋나 \code{JUDGE}의 끝을 이미 지났으면) 한 칸 물러나 다시 지나간다.
+
+\paragraph{미끄러진 스텝을 다시 맞춘다.} 비상 정지로 구동기의 전원이 끊기면 축은 마찰로 미끄러져 서고(정격 속도에서 약 180스텝),
+펌웨어는 그 스텝을 세지 못한다. 그래서 \code{HOME}의 이동은 빠른 축의 T 센서 경계를 지날 때마다 ``원판이 말하는 지금 위치''와
+``스텝 수가 말하는 지금 위치''를 비교해 남은 거리를 고친다. 한 칸 미만의 차이만 받는다. 그보다 크면 계수기 자체가 틀린
+것이고, 그것은 끝의 원점 확인이 잡는다. 이 보정을 빼면 원위치가 72스텝 어긋나 \code{STROBE} 슬롯 안에 서는 것을 시뮬레이션이
+찾았다(음성 시험 \code{no\_retarget}).
+
+\paragraph{\code{END}.} 마지막 위치의 \code{CLEAR}가 끝나면 감속해 서고 \code{END} = \code{STOPPED} = 1을 낸다. 이후 \code{RUN}은
+무시하고, \code{HOME}이 푼다. ``마지막 위치''는 \ref{sec:gm-carry}절의 시험 순서 $n = 26Q + k$로 센다. 전체를 돌면 $n = 17{,}575$
+($Q = 675$, $k = 25$)이고, 그때 빠른 드럼은 $(4 \times 25 + 25) \bmod 26 = 21$, 곧 위치 $(l, m, r) = (21, 25, 25)$다. 드럼의 글자
+$(25, 25, 25)$를 마지막으로 여기면 마지막 회전의 $k = 3$에서 서 버려 22위치를 남긴다. 제어 보드의 첫 모델이 실제로 그랬다
+(아래의 실제 사례).
+
+\section{48~V와 비상 정지}\label{sec:gk-safety}
+
+\Why 덮개를 열면 인터록이 모터의 48~V를 끊는다. 덮개를 닫으면 48~V가 돌아온다. 이때 \code{RUN}이 여전히 높다고 드럼이 저절로
+돌기 시작하면 안 된다. 덮개를 닫는 손이 아직 기계 근처에 있다.
+
+\General \ref{sec:relay-latch}절의 시작/정지 회로가 바로 이 성질을 가졌다. 정전 뒤에 전기가 돌아와도 자기 유지가 풀려 있으므로
+기계가 저절로 돌지 않고, 시작 버튼을 다시 눌러야 한다. 공작 기계와 식품 절단기에 요구되는 ``자동 재기동 금지''다.
+
+\Ours 제어 보드는 KM3 접촉기의 보조 접점이 주는 \code{V48\_OK}로 48~V가 있는지 안다. 규칙은 펌웨어의 세 줄이다.
+
+\begin{lstlisting}[language=Python,caption={\code{firmware\_model.py}: 48~V 복귀 규칙(\code{RUNARM}).},label={lst:gk-runarm}]
+        ok48 = self.v48 and self.sw_ok
+        ...
+        elif not ok48:
+            self.runarm = False
+        elif not self.run:
+            self.runarm = True
+\end{lstlisting}
+
+48~V(또는 비상 정지 고리 \code{SW\_OK})가 꺼지면 \code{RUNARM}이 지워지고, 둘 다 있는 동안 \code{RUN}이 \emph{낮아야} 다시 세워진다.
+앞으로 가는 것은 \code{RUN} $\wedge$ \code{RUNARM}일 때뿐이다. 그래서 덮개를 닫은 뒤 시작 스위치를 한 번 껐다 켜야 움직인다.
+
+\paragraph{비상 정지.} 비상 정지는 \code{+24V\_SW} 레일을 끊는다. \code{STROBE}, \code{JUDGE}, \code{CLEAR}와 모터의 \code{PUL}/\code{DIR}/\code{ENA}
+출력단이 모두 이 레일에서 먹으므로 함께 사라진다. 펌웨어는 운동을 잊고 \code{HOME}을 요구한다. 주기가 어디서 끊겼는지 모르기
+때문이다. 그리고 \code{HOME}이 끝날 때까지 \code{HOMING} = 1로 둔다. 이것이 중요하다. 논리 회로는 끊기지 않는 \code{+24V\_L}에 있으므로
+비상 정지가 주기 한가운데를 끊으면 \code{CYC}가 1로 남는다. 그대로 두면 \code{+24V\_SW}가 돌아오는 순간 슬롯 안에 서 있던
+출력이 커넥터에 나타나고, \code{HOME}이 거꾸로 움직이면 지나가는 \code{STROBE} 슬롯에서 \code{STROBE}가 나간다. \code{HOMING}이
+\code{CYC}와 \code{SEEN}을 지운 채 붙들고 있으면 둘 다 일어나지 않고, 끊긴 주기의 \code{CLEAR}는 \code{HOME} 끝의 \code{CLEAR}가
+대신한다. \code{CYC}를 \code{HOMING}으로도 리셋하게 한 것은 74HC02에서 남던 게이트 하나다. 새 부품은 없다.
+
+\section{함께 시뮬레이션해서 검증한다}\label{sec:gk-verify}
+
+\Why 이 보드가 옳은지는 보드만 보아서는 알 수 없다. 게이트의 동작은 기구가 언제 슬롯을 지나는지에 달려 있고, 기구가
+언제 지나는지는 펌웨어가 모터를 어떻게 돌리는지에 달려 있고, 펌웨어는 레지스터가 언제 \code{STOP\_LATCH}를 올리는지에
+달려 있고, 레지스터는 게이트가 낸 신호에 달려 있다. 고리다. 그래서 넷을 함께 돌린다. 이것을 \term{연동 시뮬레이션}{co-simulation}이라
+한다(그림~\ref{fig:gk-cosim}).
+
+\General 자동차 회사는 엔진 제어기의 소프트웨어를 시험할 때 실제 엔진 대신 엔진의 모델을 컴퓨터에서 돌리고, 제어기가
+그 모델을 진짜 엔진으로 알고 움직이게 한다. 소프트웨어만 따로 시험하면 엔진이 어떻게 반응하는지, 그 반응에 소프트웨어가
+다시 어떻게 반응하는지를 볼 수 없기 때문이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    m/.style={blk,font=\footnotesize,minimum width=30mm,minimum height=11mm},
+    ar/.style={->,line width=0.7pt},
+    lab/.style={font=\scriptsize,fill=white,inner sep=1pt,align=center}]
+  \node[m,fill=clight] (mach) at (0,0) {기구 모델\\(슬롯·위치 원판, 스텝)};
+  \node[m,fill=corangebg,draw=corange] (hw) at (5.2,1.3) {게이트\\(넷리스트에서 읽음)};
+  \node[m,fill=cbluebg,draw=cblue] (fw) at (5.2,-1.3) {펌웨어 모델\\(100~$\mu$s마다)};
+  \node[m,fill=cgreenbg,draw=cgreen] (reg) at (10.4,0) {레지스터 모델\\(결정 0001의 지연)};
+  \draw[ar] (mach.north) |- node[lab,pos=0.7] {\code{SLOT\_*}} (hw.west);
+  \draw[ar] ([yshift=-2mm]mach.east) -- ++(1.2,0) |- node[lab,pos=0.75] {센서 에지} ([yshift=2mm]fw.west);
+  \draw[ar] ([yshift=-2mm]fw.west) -| node[lab,pos=0.3,below] {스텝} (mach.south);
+  \draw[ar] (hw.east) -| node[lab,pos=0.3] {커넥터 핀\\\code{STROBE}/\code{JUDGE}/\code{CLEAR}} (reg.north);
+  \draw[ar] (reg.south) |- node[lab,pos=0.7] {\code{STOP\_LATCH}, \code{RUN}} (fw.east);
+  \draw[ar] (fw.north) -- node[lab] {\code{TXEN}, \code{HOMING}} (hw.south);
+  \node[note,anchor=north] at (5.2,-2.3) {검사기는 커넥터 핀의 파형과 레지스터의 판정 기록을 읽는다};
+  \node[blkn,font=\scriptsize] (cad) at (-2.4,1.7) {\code{cad/params.py}};
+  \draw[ar,cgray] (cad) -- (mach);
+\end{tikzpicture}
+\caption{연동 시뮬레이션의 고리. 게이트는 회로도에서 나온 넷리스트로, 기구는 CAD의 슬롯 각도로, 펌웨어는 명세 파일 그대로,
+레지스터는 결정 0001의 릴레이 시간으로 만든다.}
+\label{fig:gk-cosim}
+\end{figure}
+
+\Ours \code{verify\_control.py}와 \code{scenarios.py}가 네 모델을 묶는다.
+
+\begin{itemize}
+\item \textbf{게이트}: 74HC14/08/32/02/74와 RC 소자를 회로도의 \emph{넷리스트에서} 읽어 사건 단위로 푼다. 게이트 지연은 20~ns,
+RC는 부품 값과 슈미트 문턱으로 지연을 계산한다. 회로도에서 선 하나를 잘못 이으면 시뮬레이션에도 그대로 나타난다
+(\ref{sec:v-indep}절의 ``따로 읽기''와 같은 생각이다).
+\item \textbf{기구}: 주기 축의 각도를 스텝으로 갖는다. 슬롯 창은 CAD의 \code{params.py}에서, 위치 원판은 CAD처럼 F, M, S 축에
+있고 F의 원판은 주기 축 한 바퀴에 30칸을 간다. 구동기가 꺼지면 축은 마찰 감속(추정)으로 미끄러져 선다.
+\item \textbf{펌웨어}: \code{firmware\_model.py} 그대로, 100~$\mu$s마다 한 틱.
+\item \textbf{레지스터}: 타이밍 릴레이가 붙고 놓이는 지연(\code{JUDGE}/\code{CLEAR} 2.5--4, 1.5--4~ms), 정지 릴레이의 동작(2.5--5~ms),
+감지 릴레이의 복귀(3--10~ms)를 매번 무작위로 뽑는다. 정지해야 할 위치는 무작위로 정해 둔 ``정답''이다.
+\end{itemize}
+
+레지스터 모델에서 가장 중요한 부분은 \emph{놓친 정지}를 알아내는 곳이다. \code{CLEAR}가 제대로 지우지 못해 감지 릴레이가
+26선 모두로 남아 있으면, 다음 위치가 정지해야 할 위치여도 레지스터는 26선이 살아 있는 것으로 본다.
+
+\begin{lstlisting}[language=Python,caption={\code{verify\_control.py}: 레지스터 모델의 판정(발췌).},label={lst:gk-reg}]
+    def _judge_done(self, tj, w):
+        if self.latched:
+            return
+        line_stop = self.cur_n is not None and self.stop_fn(self.cur_n)
+        if line_stop and self.held and self.k_full:
+            # stale sense relays (latched at an earlier position, never cleared): the register sees 26 live lines
+            self.stale_missed += 1
+            self.missed_stops += 1
+            return
+        want = (not self.held) or line_stop
+        if not want:
+            return
+        if w >= self.d["s_on"]:
+            self.sched.append((tj + self.d["s_on"], "latch"))
+            ...
+        else:
+            self.missed_stops += 1
+\end{lstlisting}
+
+\code{want = (not self.held) or line\_stop}의 앞쪽이 L8의 위험이다. \code{STROBE}를 받지 않아 감지 릴레이가 하나도 붙지 않은
+레지스터(\code{held}가 거짓)를 판정하면 정지가 난다. 정답에 없는 정지이므로 거짓 정지로 센다. 마지막 줄은 L3의 위험이다.
+\code{JUDGE}의 접점 폭 \code{w}가 정지 릴레이의 동작 시간보다 짧으면 정지 릴레이가 붙지 못해 놓친 정지가 된다.
+
+\paragraph{무엇을 확인했나.} 전체 실행(약 23초)의 결과는 \code{README.md} 5절에 있다.
+\begin{itemize}
+\item 정지와 되돌림: 16번의 실행에서 5,216위치를 시험하고 269번 정지했다(무작위 정지 위치, 무작위 릴레이 시간, 무작위 해제
+시각). 거짓 정지 0, 놓친 정지 0, 시험한 위치는 0, 1, 2, \ldots로 반복도 건너뜀도 없었고, \code{POS}가 실제 드럼 위치와 어긋난
+적이 없었다. 기록한 정지 자리 221번이 모두 330--374스텝 안(339--340)이었다.
+\item 커넥터 면의 가장 짧은 값: \code{STROBE} 폭 7.037~ms, \code{JUDGE} 8.094~ms, \code{CLEAR} 13.094~ms, \code{CLEAR} 오름 $-$ \code{JUDGE}
+내림 2.002~ms 등, L1--L6이 모두 하한 위에 있다.
+\item \code{HOME}: 22가지 출발점(반대편, 한 바퀴 끝 근처, 계수기가 틀린 경우, 빈 칸 $k = 26$과 그 앞 등)에서 모두 원위치,
+\code{POS} = (0, 0, 0). \code{HOME} 중에 \code{STROBE}·\code{JUDGE}가 시작한 적 0, \code{CLEAR}는 매번 정확히 한 번(45.4~ms).
+\item 주기 한가운데의 비상 정지 $\to$ \code{HOME} $\to$ 위치 0의 정지: \code{JUDGE} 직후에 끊은 경우와 \code{STROBE}가 오를 때 끊은
+경우 모두, 전원이 돌아와도 \code{HOME} 전 출력 0, 출발 뒤 위치 0에서 정지, 놓친 정지 0.
+\item \code{END}: 전체 한 바퀴와 676위치 구간에서 마지막 위치에 서고 \code{POS} = (21, 25, 25) / (21, 25, 0).
+\end{itemize}
+
+\paragraph{음성 시험 19가지.} \ref{sec:v-mutants}절처럼 일부러 틀린 보드와 틀린 펌웨어를 넣어 반드시 실패가 나오는지 본다.
+넷리스트 변형 11가지(\code{JUDGE}와 \code{CLEAR}의 출력 채널을 바꿈, \code{SEEN}의 리셋을 끊음, \code{TXE} 게이트를 없앰,
+\code{CYC} 유지를 없앰, \code{CYC}를 전원 투입으로만 리셋 등)는 회로도의 넷리스트에서 핀을 옮겨 만든다. 펌웨어 변형 8가지는
+\code{mut} 집합에 이름을 넣어 만든다.
+
+\begin{lstlisting}[language=Python,caption={\code{scenarios.py}: 펌웨어 변형의 목록.},label={lst:gk-mut}]
+def fw_mutants():
+    return [("no_runarm", "48 V restart rule removed"),
+            ("no_txen_return", "return reverse without TXEN off"),
+            ("forward_only", "HOME always searches forward"),
+            ("bad_return", "return target before the STROBE of the same cell"),
+            ("home_index_only", "HOME on the three index sectors alone (26-cell model; false home in the empty cell 26)"),
+            ("no_flush", "HOME without the flush CLEAR"),
+            ("no_retarget", "HOME after an emergency stop without re-referencing the coasted steps"),
+            ("estop_no_homing", "HOMING not held after an emergency stop")]
+\end{lstlisting}
+
+변형마다 그것을 드러낼 시나리오가 정해져 있다. \code{no\_flush}는 비상 정지를 \code{JUDGE} 직후에 걸어 감지 릴레이를 26선 모두로
+남긴 뒤 \code{HOME}과 출발을 돌려, ``위치 0의 정지를 놓침''으로 걸린다. \code{estop\_no\_homing}은 전원이 돌아오는 순간
+\code{JUDGE}가 나가는 것으로, ``\code{CYC}를 전원 투입으로만 리셋''은 \code{HOME} 중 \code{CLEAR}가 두 번 나가는 것으로 걸린다.
+19가지가 모두 검출되어야 검증이 통과한다.
+
+\paragraph{시뮬레이션이 보지 않는 것.} 하드웨어는 논리 수준이고 RC 필터는 이상적인 지연이다. 광센서의 응답, 슬롯 가장자리의
+흔들림, 센서 브래킷의 오차는 넣지 않았다. 구동기는 지령한 스텝을 그대로 따른다(탈조 없음). 가감속 값과 광커플러 지연(30~$\mu$s)은
+추정이다. 이 한계는 슬롯 각도에 남겨 둔 0.5~ms의 공차 여유와 G.2 시제품의 실측(결정 0001 측정 8)이 받는다.
+
+\begin{lesson}{처음 모델은 26칸 기계를 생각했다}
+제어 보드의 첫 펌웨어 모델은 빠른 축의 위치 원판을 주기 축처럼 다뤘다. 슬롯 있는 26칸에만 T 펄스가 오고, 매 회전 $k = 0$에서
+원점이 오고, 빠른 드럼의 글자는 $l = k$라고 본 것이다. 손으로 쓴 26칸 기계의 그림에서는 자연스러운 가정이다. 그런데
+CAD에서 위치 원판은 F 축에 있고, F는 26:30 기어 때문에 주기 축 한 바퀴에 30칸을 간다. 모델을 CAD와 같은 기구로 바꾸어
+연동 시뮬레이션을 돌리자 세 가지가 한꺼번에 드러났다. 두 번째 회전부터 \code{POS}의 $l$이 실제 드럼과 달랐고, \code{END}가
+마지막 회전의 $k = 3$에서 판정되어 22위치를 남겼고, \code{HOME}이 0번째 회전의 빈 칸 $k = 26$(빠른 드럼이 다시 A)에 설 수
+있었다(결정 0002의 E2). CAD는 그대로 두고 펌웨어 모델을 고쳤다. 칸 번호 $k$는 가운데 축의 T 펄스(자리올림 1, 330°)에서
+맞추고, 정지와 \code{END}는 시험 순서 $n = 26Q + k$로 세고, 원점은 ``세 원점 센서가 높은 동안의 \code{STROBE} 슬롯 오름''으로
+정했다. 그리고 ``\code{HOME}을 세 원점 센서만으로''를 음성 시험(\code{home\_index\_only})으로 남겨, 누가 옛 가정으로 되돌리면
+빈 칸에서의 거짓 원점으로 걸리게 했다. 기구의 모델을 손으로 다시 적지 않고 CAD에서 읽어 온 것이 이 오류를 찾게 했다.
+\end{lesson}
+
+\section{정리}
+
+\begin{itemize}
+\item 제어 보드는 타이밍 신호의 조건화와 모터 구동만 한다. 판정은 레지스터의 릴레이가 한다. 보드에 릴레이는 없다.
+\item 타이밍 경로에는 펌웨어가 없다. 광센서 $\to$ RC $\to$ 슈미트 트리거 $\to$ 게이트 $\to$ 고측 구동기 $\to$ 핀. 슬롯이 시간을
+정하고, Pico는 \code{TXEN}과 \code{HOMING}으로 허가만 한다.
+\item \code{CYC}는 시작한 주기를 끝내게 하고(L7), \code{SEEN}은 \code{STROBE} 없는 \code{JUDGE}를 막는다(L8). \code{SEEN}은
+\code{STOP\_LATCH}의 \emph{내려가는 에지}에서만 지운다.
+\item 모터는 펄스/방향으로 구동하고 Pico가 사다리꼴 가감속을 만든다. 남은 거리 $d$에서 속도는 $\sqrt{2ad}$를 넘지 않는다.
+\item 정지하면 \code{CLEAR}가 끝나는 에지를 센서로 잡고 그 10스텝 뒤에 선다. 거꾸로 갈 때는 \code{TXEN}을 내린다. 재출발은 다음
+위치부터다.
+\item \code{HOME}은 원점을 ``세 원점 센서 + \code{STROBE} 슬롯''으로 하나로 찾고, 마지막 접근에서 \code{CLEAR} 슬롯 하나만 허가해
+레지스터를 비운다. 미끄러진 스텝은 위치 원판의 경계에서 다시 맞춘다.
+\item 48~V가 돌아와도 \code{RUN}을 한 번 내렸다 올려야 움직인다. 비상 정지 뒤에는 \code{HOME}이 끝날 때까지 \code{HOMING}이
+\code{CYC}와 \code{SEEN}을 지운 채 붙든다.
+\item 넷리스트에서 읽은 게이트, 펌웨어 모델, CAD에서 읽은 기구, 레지스터 모델을 함께 돌려 L1--L9와 정지·\code{HOME}·\code{END}를
+확인하고, 틀린 보드와 틀린 펌웨어 19가지가 모두 걸리는지 본다.
+\end{itemize}
