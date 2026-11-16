@@ -1,3 +1,123 @@
 \chapter{릴레이에서 FPGA로: 대응표}\label{ch:relay-to-fpga}
 
-(작성 예정)
+E부까지 릴레이식 봄베를 부품 하나하나로 지었다. 접점으로 논리를 만들고, 자기 유지로 기억을 만들고, 순서기로
+박자를 쳤다. F부는 그 기계를 FPGA로 옮긴다. 옮기면서 그대로 남는 것이 많고, 바뀌는 것은 몇 가지뿐이다. 그런데
+그 몇 가지가 FPGA 설계를 처음 하는 사람이 가장 자주 걸려 넘어지는 곳이다. 이 장은 F부의 지도다. 릴레이식의 부품과
+생각이 FPGA에서 무엇이 되는지를 한 표에 모으고, 무엇이 그대로이고 무엇이 바뀌는지를 정리한다. 이어지는 여섯 장이
+이 표의 줄을 하나씩 자세히 본다.
+
+\section{FPGA는 무엇인가}\label{sec:rf-what}
+
+\Relay 릴레이식 봄베를 만드는 일은 부품을 고르고, 회로도를 그리고, 기판에 부품을 꽂고, 기판 사이를 리본 케이블로
+잇는 일이었다. 릴레이는 6유닛에서 3,455개다(테스트 레지스터 제외, 보고서의 릴레이 수 표). 회로를 바꾸려면 기판을
+다시 만든다.
+
+\Why \term{FPGA}{field-programmable gate array}는 부품과 배선이 미리 잔뜩 들어 있는 칩이다. 안에는 작은 논리
+부품(\term{LUT}{look-up table}), 1비트 기억 소자(\term{플립플롭}{flip-flop}), 작은 메모리, 그리고 이것들을 서로 잇는
+배선과 스위치가 수만에서 수십만 개씩 들어 있다. 설계자는 ``어느 부품을 어떻게 이을지''를 글로 적고, 도구가 그 글을
+읽어 칩 안의 스위치를 정한다. 그 설정을 칩에 넣으면 칩이 그 회로가 된다. 다른 설정을 넣으면 다른 회로가 된다.
+
+\General 레고 판과 같다. 판에는 블록과 꽂을 자리가 이미 다 있고, 설계도대로 끼우면 무엇이든 된다. 다만 블록의
+수와 꽂을 자리는 판마다 정해져 있다.
+
+\Ours 이 프로젝트의 FPGA 엔진 한 대는 LUT 약 4만 개를 쓰고(\ref{ch:lesson}장), 대상 보드의 칩에 두 대가 들어간다.
+릴레이 수천 개와 기판 수십 장이 하던 일을 칩 하나가, 약 10만 배 빠르게 한다(\ref{sec:f-cost}절).
+
+\section{대응표}\label{sec:rf-table}
+
+표~\ref{tab:rf-map}의 왼쪽은 C부와 E부에서 본 릴레이식(과 기어식)의 것이고, 오른쪽은 FPGA에서 그것이 되는 것이다.
+마지막 열이 그 줄을 다루는 장이다.
+
+\begin{table}[ht]
+\centering
+\caption{릴레이식에서 FPGA로. 왼쪽 열의 절 번호는 이미 읽은 곳, 오른쪽 열의 장 번호는 F부와 G부에서 읽을 곳이다.}
+\label{tab:rf-map}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X l}
+\toprule
+릴레이식 · 기어식 & FPGA & 다루는 곳 \\
+\midrule
+\multicolumn{3}{l}{\textit{회로를 적는다}} \\
+회로도와 기판 배선 & HDL 코드. 배선도를 글로 적은 것 & \ref{ch:hdl}장 \\
+접점의 직렬·병렬, NC 접점 (\ref{sec:relay-logic}절) & AND, OR, NOT 게이트. 칩 안에서는 LUT & \ref{ch:hdl}장, \ref{ch:resources}장 \\
+같은 단을 여러 벌 (유닛마다 시프터 넉 장) & 반복문이 만드는 회로의 사본 & \ref{ch:hdl}장 \\
+모든 릴레이가 동시에 움직인다 & 모든 게이트가 동시에 동작한다 & \ref{sec:concurrent}절 \\
+\midrule
+\multicolumn{3}{l}{\textit{기억과 박자}} \\
+자기 유지 릴레이 (\ref{sec:relay-latch}절) & 플립플롭 & \ref{ch:sync}장 \\
+\code{CK}/\code{NCK} 두 상, 마스터--슬레이브 계수기 (\ref{sec:relay-counter}절) & 클럭 에지에서만 바뀌는 레지스터 & \ref{ch:sync}장 \\
+순서기의 링 계수기 (\ref{sec:t-sequencer}절), 슬롯 원판 (\ref{sec:t-gear}절) & 상태 기계 & \ref{sec:fsm}절 \\
+\midrule
+\multicolumn{3}{l}{\textit{크기와 시간}} \\
+릴레이 수, 기판 장수 & LUT와 플립플롭의 수 & \ref{ch:resources}장 \\
+이진 시프터: 회전의 선택 (\ref{sec:relay-shifter}절) & 선택 회로는 비싸다 & \ref{sec:mux-cost}절 \\
+로터 배선 카드의 구리 & 메모리에 담은 치환표 & \ref{ch:resources}장 \\
+최악의 릴레이 시간에서도 L1--L9 (\ref{sec:t-bounds}절) & 최악의 경로 지연도 한 클럭 안에 & \ref{sec:timing}절 \\
+\midrule
+\multicolumn{3}{l}{\textit{봄베의 일}} \\
+전류가 이어진 선에 저절로 퍼진다 (\ref{sec:f-current}절) & 클럭마다 한 걸음씩, 고정점까지 (\ref{sec:f-rounds}절) & \ref{ch:rtl-core}장, \ref{ch:lesson}장 \\
+감지 릴레이 26개 (\ref{sec:t-register}절) & \code{test\_q != FULL} & \ref{ch:fpga-engine}장 \\
+대각선 보드의 구리 배선 & 스위치 없는 고정 배선 & \ref{ch:fpga-engine}장 \\
+정지하면 서서 조작자를 기다린다 & 정지를 FIFO에 넣고 계속 간다 & \ref{sec:handshake}절, \ref{ch:fpga-engine}장 \\
+\midrule
+\multicolumn{3}{l}{\textit{옳은지 확인한다}} \\
+넷리스트 시뮬레이션으로 기준 모델과 대조 (\ref{ch:boardverify}장) & 시뮬레이션과 테스트벤치로 기준 모델과 대조 & \ref{ch:verify}장 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{그대로인 것}\label{sec:rf-same}
+
+\begin{itemize}
+\item \textbf{계산.} 676가닥의 선, 연결, 테스트 레지스터의 판정이 그대로다. 같은 메뉴에서 같은 정지가 나와야 한다
+(\ref{sec:f-same}절).
+\item \textbf{0과 1은 전압이다.} 릴레이식은 24~V와 0~V, FPGA는 칩 안의 낮은 전압이다. 둘 다 ``전압이 있으면 1''이다.
+\item \textbf{모든 부품이 동시에 동작한다.} 릴레이는 코일에 전류가 오면 언제든 넘어가고, 게이트는 입력이 바뀌면 언제든
+출력을 바꾼다. 어느 쪽에도 ``차례''가 없다. 차례가 필요하면 박자를 따로 만든다.
+\item \textbf{기억은 되먹임이다.} 자기 유지 릴레이는 자기 접점으로 자기 코일을 붙든다. 플립플롭도 안에서는 출력이
+자기 입력을 붙드는 고리다.
+\item \textbf{시간 규칙은 최악의 경우로 확인한다.} 릴레이식은 가장 느린 릴레이와 가장 빠른 릴레이를 함께 넣어 L1--L9를
+확인했다. FPGA도 가장 느린 경로를 찾아 클럭과 견준다.
+\item \textbf{기준 모델과 대조한다.} 릴레이 기판도 FPGA 회로도 Rust 모델을 정답표로 삼는다.
+\end{itemize}
+
+\section{바뀌는 것}\label{sec:rf-diff}
+
+\paragraph{방향.} 접점은 양방향의 길이다. 전류는 접점을 어느 쪽으로든 지난다. 게이트에는 방향이 있다. 입력이 출력을
+정할 뿐 출력이 입력을 바꾸지 못한다. 릴레이식에서는 방향 없는 길이 공짜로 전류를 퍼뜨려 주었지만, FPGA에서는 그
+길을 그대로 옮기면 꺼지지 않는 고리가 된다. 그래서 상태를 레지스터에 담고 클럭마다 한 걸음씩 퍼뜨린다(\ref{sec:f-rounds}절).
+봄베의 둘째 일이 공짜에서 비싼 일로 바뀌는 지점이 여기다.
+
+\paragraph{시간의 크기와 박자의 근거.} 릴레이의 지연은 밀리초이고 개체마다 두 배씩 다르며 최소를 모른다. 그래서
+규칙을 하한으로 적고 박자를 넉넉하게 잡았다(위치당 63~ms). FPGA 안의 지연은 나노초이고, 도구가 모든 경로의 지연을
+계산해 준다. 그래서 박자를 지연에 바짝 붙여 잡을 수 있다(50~MHz, 한 클럭 20~ns). 확인하는 사람이 설계자에서 도구로
+바뀐다.
+
+\paragraph{크기의 셈법.} 릴레이식에서 비용은 거의 릴레이의 개수다. 비트 하나에 릴레이 하나, 선택 한 번에 접점 몇 개를
+센다. FPGA에서는 부품 하나하나가 싸고 많아서 개수를 세며 설계하지 않는다. 대신 \emph{어떤 구조로 적었는가}가 크기를
+정한다. 같은 계산이 적는 방법에 따라 칩 세 개 분량이 되기도 하고 삼분의 일이 되기도 한다(\ref{ch:lesson}장).
+
+\paragraph{고치는 비용.} 릴레이 회로를 고치려면 기판을 다시 만든다. FPGA 회로를 고치려면 코드를 고치고 도구를 다시
+돌린다. 대신 도구가 오래 걸린다. 이 프로젝트의 대상 보드에서 엔진 한 대짜리 설계는 약 52분, 두 대짜리는 약 4시간이
+걸렸다. 그래서 FPGA 쪽에서도 칩에 올리기 전에 시뮬레이션으로 기준 모델과 대조하는 일이 중심이 된다(\ref{ch:verify}장).
+
+\section{F부를 읽는 법}\label{sec:rf-read}
+
+\begin{itemize}
+\item \ref{ch:hdl}장: 접점 회로도를 글로 적으면 HDL이 된다. 반복문이 회로의 사본을 만들고, 모든 것이 동시에 동작한다.
+\item \ref{ch:sync}장: 자기 유지와 \code{CK} 펄스가 플립플롭과 클럭이 된다. 순서기가 상태 기계가 된다.
+\item \ref{ch:resources}장: 릴레이의 개수가 LUT와 플립플롭의 개수가 된다. 시프터가 비쌌던 이유가 FPGA에서도 같다.
+\item \ref{ch:pipeline}장: 최악의 릴레이 시간으로 정한 박자가 타이밍 클로저가 된다. 파이프라인으로 박자를 빠르게 한다.
+\item \ref{ch:verify}장: 시뮬레이션으로 기준 모델과 대조한다. 시뮬레이션이 알려 주지 않는 것도 있다.
+\item \ref{ch:lesson}장: 전류가 공짜로 하던 퍼뜨림을 회로로 지을 때 실제로 일어난 일. 같은 계산이 LUT 40만 개에서 4만 개가 된 사례다.
+\end{itemize}
+
+\section{정리}
+
+\begin{itemize}
+\item FPGA는 부품과 배선 스위치가 미리 들어 있는 칩이고, 설계자가 적은 글이 그 스위치를 정한다.
+\item 접점은 게이트로, 자기 유지는 플립플롭으로, 순서기는 상태 기계로, 릴레이 수는 LUT 수로, 최악의 릴레이 시간은
+최악의 경로 지연으로 옮겨 간다.
+\item 크게 바뀌는 것은 넷이다. 방향(양방향의 길 $\to$ 한 방향의 게이트), 시간의 크기와 박자의 근거, 크기의 셈법, 고치는 비용.
+\item 그중 방향이 봄베에 가장 중요하다. 전류가 공짜로 하던 이어진 선 찾기를 FPGA에서는 회로로 지어야 한다.
+\end{itemize}
