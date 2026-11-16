@@ -1,0 +1,954 @@
+\chapter{에니그마의 수학}\label{ch:enigma-math}
+
+% ---------- 이 장 전용 ----------
+\newcommand{\amL}[1]{\mathtt{#1}}        % 수식 안의 글자
+\newcommand{\amcyc}[1]{(\mathtt{#1})}    % 순환 표기
+\tikzset{
+  amlt/.style={ltr,minimum size=5.5mm,font=\footnotesize\ttfamily},
+  amcl/.style={font=\scriptsize\ttfamily,text=cgray},
+  amcell/.style={draw,minimum width=7.5mm,minimum height=5.5mm,inner sep=0pt,font=\footnotesize\ttfamily},
+}
+
+에니그마는 키를 누를 때마다 다른 규칙으로 글자를 바꾸는 암호기다. 이 장은 그 규칙을 수식으로 적고, 같은 것을
+그림으로 그린다. 규칙이 어떤 조각으로 이루어지는지, 조각을 맞추면 왜 ``되돌아오고 제자리가 없는'' 규칙이
+되는지, 키의 경우의 수가 얼마나 되는지를 차례로 본다. 다음 장(\ref{ch:cryptanalysis}장)은 해독자가 이 성질을
+어떻게 이용했는지를, 그다음 두 장(\ref{ch:connect}장, \ref{ch:find}장)은 봄베가 그것을 어떻게 전선으로
+바꾸었는지를 본다. B부의 \ref{ch:rust-enigma}장은 이 장의 식을 Rust로 옮긴 것이다.
+
+수식마다 같은 내용을 그린 그림을 붙였다. 26글자로 그리면 선이 너무 많아 읽을 수 없으므로, 그림의 대부분은
+글자가 \texttt{A}--\texttt{F} 여섯 개뿐인 \emph{작은 에니그마}로 그린다. 작은 에니그마에서는 26 대신 6으로 나눈
+나머지를 쓴다. 원리는 같다. 실제 에니그마의 배선을 쓴 그림에는 캡션에 그렇다고 적었다.
+
+\begin{keybox}[title={이 장의 기호}]
+\small
+\begin{tabular}{@{}l@{\quad}p{0.72\linewidth}@{}}
+$x \in \mathbb{Z}_{26}$ & 글자. $\amL{A}=0,\ \amL{B}=1,\ \ldots,\ \amL{Z}=25$. 덧셈과 뺄셈은 26으로 나눈 나머지로 한다. \\
+$fg$ & 치환의 합성. \emph{오른쪽부터} 읽는다. $(fg)(x) = f(g(x))$, 곧 $g$를 먼저 한다. \\
+$\tau$ & 한 칸 밀기. $\tau(x) = x+1$, $\tau^{s}(x) = x+s$, $\tau^{-s}(x) = x-s$. \\
+$W$ & 로터 안의 고정 배선. 로터가 돌지 않았을 때의 치환. \\
+$s$ & 로터의 코어 위치. 창에 보이는 글자에서 링 설정을 뺀 값. \\
+$R,\ M,\ L$ & 오른쪽·가운데·왼쪽 로터가 지금 위치에서 만드는 치환. 각각 $\tau^{-s}W\tau^{s}$ 꼴. \\
+$\rho_k = LMR$ & $k$번째 글자를 칠 때 로터 셋을 가는 방향으로 지나는 치환($R$이 먼저). \\
+$U$ & 반사판. \\
+$\Scr_k = \rho_k^{-1}U\rho_k$ & $k$번째 글자의 스크램블러. \\
+$\Stk$ & 플러그보드. 하루 동안 고정. \\
+$E_k = \Stk\,\Scr_k\,\Stk$ & $k$번째 글자의 암호화. \\
+\end{tabular}
+
+밀기는 $\tau$로, 로터 셋은 $\rho_k$로 적는다. 프로젝트 보고서도 로터 셋을 $\rho$로 적는다.
+\end{keybox}
+
+% ====================================================================
+\section{글자와 치환}\label{sec:am-perm}
+
+글자를 수로 바꾸어 놓으면 계산이 쉬워진다. \texttt{A}를 0, \texttt{B}를 1, \ldots, \texttt{Z}를 25로 놓고,
+덧셈과 뺄셈은 26으로 나눈 나머지로 한다. 그러면 \texttt{Z} 다음은 \texttt{A}다($25+1 = 0$). \texttt{A}에서 한 칸
+거꾸로 가면 \texttt{Z}다($0-1 = 25$). 시계의 숫자가 12 다음에 1로 돌아오는 것과 같다. 이 26개 수의 모임을
+$\mathbb{Z}_{26}$이라 적는다.
+
+\term{치환}{permutation}은 글자마다 글자 하나를 정해 주는 규칙인데, 서로 다른 글자에는 서로 다른 글자를 정해
+준다. 그러면 26글자가 결과로 정확히 한 번씩 나온다. 빠지는 글자도 겹치는 글자도 없다.
+
+치환을 적는 방법은 셋이다(그림~\ref{fig:am-perm}). 첫째는 \term{두 줄 표}{two-row notation}다. 윗줄에 입력을,
+아랫줄에 그 결과를 적는다. 둘째는 화살표다. 글자를 두 열로 세우고 왼쪽 열의 글자에서 오른쪽 열의 결과로 화살표를
+긋는다. 치환이면 왼쪽의 모든 글자에서 화살표가 하나씩 나가고, 오른쪽의 모든 글자에 화살표가 하나씩 들어온다.
+셋째는 \term{순환}{cycle} 표기다. 어떤 글자에서 시작해 화살표를 계속 따라가면 언젠가 처음 글자로 돌아온다. 그
+고리를 괄호에 적는다. $\amcyc{A\,B\,D}$는 \texttt{A}$\to$\texttt{B}$\to$\texttt{D}$\to$\texttt{A}라는 뜻이다. 자기
+자신으로 가는 글자는 길이 1의 순환이고, 보통 적지 않는다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % (가) 두 줄 표
+  \node at (0,-1.6) {$W=\begin{pmatrix}
+      \amL{A}&\amL{B}&\amL{C}&\amL{D}&\amL{E}&\amL{F}\\
+      \amL{B}&\amL{D}&\amL{F}&\amL{A}&\amL{C}&\amL{E}
+    \end{pmatrix}$};
+  \node[note] at (0,-3.9) {(가) 두 줄 표};
+  % (나) 두 열과 화살표
+  \foreach \l [count=\i from 0] in {A,B,C,D,E,F} {
+    \node[amlt] (p\l) at (3.8,-0.64*\i) {\l};
+    \node[amlt] (q\l) at (5.8,-0.64*\i) {\l};
+  }
+  \foreach \a/\b in {A/B,B/D,C/F,D/A,E/C,F/E} { \draw[->] (p\a) -- (q\b); }
+  \node[note] at (3.8,0.6) {$x$};
+  \node[note] at (5.8,0.6) {$W(x)$};
+  \node[note] at (4.8,-3.9) {(나) 두 열 사이의 화살표};
+  % (다) 순환
+  \node[amlt] (cA) at (8.6,-0.9) {A};
+  \node[amlt] (cB) at (9.3,-2.1) {B};
+  \node[amlt] (cD) at (7.9,-2.1) {D};
+  \node[amlt] (cC) at (11.2,-0.9) {C};
+  \node[amlt] (cF) at (11.9,-2.1) {F};
+  \node[amlt] (cE) at (10.5,-2.1) {E};
+  \draw[->] (cA) to[bend left=20] (cB);
+  \draw[->] (cB) to[bend left=20] (cD);
+  \draw[->] (cD) to[bend left=20] (cA);
+  \draw[->] (cC) to[bend left=20] (cF);
+  \draw[->] (cF) to[bend left=20] (cE);
+  \draw[->] (cE) to[bend left=20] (cC);
+  \node at (8.6,-2.9) {$\amcyc{A\,B\,D}$};
+  \node at (11.2,-2.9) {$\amcyc{C\,F\,E}$};
+  \node[note] at (9.9,-3.9) {(다) 순환};
+\end{tikzpicture}
+\caption{같은 치환을 적는 세 방법(작은 에니그마, 글자 여섯 개). 이 치환 $W$는 이 장 내내 작은 로터의 배선으로
+쓴다. (가)의 한 열이 (나)의 화살표 하나이고, (나)의 화살표를 끝까지 따라가면 (다)의 고리가 된다.
+$W = \amcyc{A\,B\,D}\amcyc{C\,F\,E}$.}
+\label{fig:am-perm}
+\end{figure}
+
+\paragraph{합성.} 치환 둘을 잇달아 하는 것을 \term{합성}{composition}이라 한다. $g$를 먼저 하고 $f$를 하는 것을
+$fg$로 적는다.
+\begin{equation}
+  (fg)(x) = f\bigl(g(x)\bigr) \label{eq:am-compose}
+\end{equation}
+함수의 합성과 같은 순서라서 \emph{오른쪽부터} 읽는다. 그림으로는 열을 셋 세우고 화살표를 두 번 따라가는 것이다.
+순서를 바꾸면 결과가 대개 달라진다. 그림~\ref{fig:am-compose}에서 $\tau$는 모든 글자를 한 칸 미는 치환
+$\tau(x) = x+1$이다. $W\tau$는 \texttt{A}를 \texttt{D}로, $\tau W$는 \texttt{A}를 \texttt{C}로 보낸다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % (가) 밀기 tau: 원
+  \foreach \l [count=\i from 0] in {A,B,C,D,E,F} {
+    \node[amlt] (t\l) at ({1.3+1.2*cos(90-60*\i)},{-1.6+1.2*sin(90-60*\i)}) {\l};
+  }
+  \foreach \a/\b in {A/B,B/C,C/D,D/E,E/F,F/A} { \draw[->] (t\a) to[bend left=22] (t\b); }
+  \node[note] at (1.3,-1.6) {$\tau$\\한 칸씩};
+  \node[note] at (1.3,-3.75) {(가) 밀기 $\tau$};
+  % (나) W tau: tau 먼저
+  \foreach \c/\x in {0/3.9,1/5.5,2/7.1} {
+    \foreach \l [count=\i from 0] in {A,B,C,D,E,F} { \node[amlt] (m\c\l) at (\x,-0.62*\i) {\l}; }
+  }
+  \foreach \a/\b in {A/B,B/C,C/D,D/E,E/F,F/A} { \draw[->,cgray] (m0\a) -- (m1\b); }
+  \foreach \a/\b in {A/B,B/D,C/F,D/A,E/C,F/E} { \draw[->,cgray] (m1\a) -- (m2\b); }
+  \draw[->,live] (m0A) -- (m1B);
+  \draw[->,live] (m1B) -- (m2D);
+  \node[note] at (4.7,0.55) {$\tau$};
+  \node[note] at (6.3,0.55) {$W$};
+  \node[note] at (5.5,-3.75) {(나) $W\tau$: $\tau$ 먼저};
+  % (다) tau W: W 먼저
+  \foreach \c/\x in {0/9.3,1/10.9,2/12.5} {
+    \foreach \l [count=\i from 0] in {A,B,C,D,E,F} { \node[amlt] (n\c\l) at (\x,-0.62*\i) {\l}; }
+  }
+  \foreach \a/\b in {A/B,B/D,C/F,D/A,E/C,F/E} { \draw[->,cgray] (n0\a) -- (n1\b); }
+  \foreach \a/\b in {A/B,B/C,C/D,D/E,E/F,F/A} { \draw[->,cgray] (n1\a) -- (n2\b); }
+  \draw[->,live] (n0A) -- (n1B);
+  \draw[->,live] (n1B) -- (n2C);
+  \node[note] at (10.1,0.55) {$W$};
+  \node[note] at (11.7,0.55) {$\tau$};
+  \node[note] at (10.9,-3.75) {(다) $\tau W$: $W$ 먼저};
+\end{tikzpicture}
+\caption{밀기와 합성(작은 에니그마). (가) $\tau$는 글자를 원 위에서 한 칸씩 민다. \texttt{F} 다음은 \texttt{A}다.
+(나) $W\tau$는 오른쪽의 $\tau$를 먼저 한다. \texttt{A}$\to$\texttt{B}$\to$\texttt{D}. (다) 순서를 바꾼 $\tau W$는
+\texttt{A}$\to$\texttt{B}$\to$\texttt{C}다. 합성은 순서에 따라 다르다.}
+\label{fig:am-compose}
+\end{figure}
+
+\paragraph{역치환.} 치환 $f$의 화살표를 모두 거꾸로 돌린 것도 치환이다. 이것을 \term{역치환}{inverse} $f^{-1}$이라
+한다. $f$가 $x$를 $y$로 보내면 $f^{-1}$은 $y$를 $x$로 보낸다. 모든 글자를 제자리에 두는 치환을
+\term{항등 치환}{identity} $\mathrm{id}$라 하면 $f^{-1}f = ff^{-1} = \mathrm{id}$다. 그림~\ref{fig:am-perm}의 $W$를
+거꾸로 읽으면 $W^{-1} = \amcyc{A\,D\,B}\amcyc{C\,E\,F}$다. 순환을 반대 방향으로 돈다. 밀기의 역은 한 칸 당기기
+$\tau^{-1}(x) = x-1$이다.
+
+합성의 역은 순서가 뒤집힌다.
+\begin{equation}
+  (fg)^{-1} = g^{-1} f^{-1} \label{eq:am-inv-product}
+\end{equation}
+$fg$는 $g$ 다음에 $f$를 한 것이므로, 되돌릴 때는 나중에 한 $f$를 먼저 되돌려야 한다. 곱해 보면 확인된다.
+$(fg)(g^{-1}f^{-1}) = f(gg^{-1})f^{-1} = ff^{-1} = \mathrm{id}$.
+
+\Why 에니그마의 한 순간은 배선이다. 전선 하나는 접점 하나를 접점 하나에 잇고, 두 전선이 한 접점에서 만나지
+않는다. 그러므로 ``입력 접점에서 출력 접점으로''의 규칙은 치환이다. 그리고 전선은 양쪽으로 통한다. 같은 배선을
+거꾸로 지나는 전류는 역치환을 따른다. 에니그마의 전류는 로터를 갈 때 한 번, 올 때 한 번 지나므로 이 두 사실이
+이 장 전체에 쓰인다.
+
+\General 프로그래머에게 치환은 0--25를 한 번씩 담은 길이 26의 배열 \code{p}다. \code{p[x]}가 $x$의 결과다.
+합성 $fg$는 \code{f[g[x]]}이고, 역치환은 모든 $x$에 대해 \code{inv[p[x]] = x}로 채운 배열이다. 양말을 신고 신발을
+신었으면 신발을 먼저 벗어야 한다는 것이 식~\eqref{eq:am-inv-product}다.
+
+{\setlength{\emergencystretch}{2em}%
+\Ours Rust 모델은 로터마다 이 배열을 두 개 갖는다(\ref{ch:rust-enigma}장). \code{forward}는 $W$이고
+\code{backward}는 미리 계산해 둔 $W^{-1}$이다.\par}
+
+% ====================================================================
+\section{로터 한 개}\label{sec:am-rotor}
+
+\term{로터}{rotor}는 양면에 접점이 26개씩 있는 원판이다. 원판 안의 전선이 입력 쪽(자판 쪽)의 접점 하나를 출력
+쪽(반사판 쪽)의 접점 하나에 잇는다. 이 배선은 만들 때 정해지고 바뀌지 않는다. 로터가 돌지 않은 상태에서 이 배선이
+만드는 치환을 $W$로 적는다. 실제 로터 I의 배선은 다음과 같다(프로젝트의 배선표 \code{data/wirings/enigma.txt}).
+
+\begin{center}
+\small\setlength{\tabcolsep}{1.7pt}
+\begin{tabular}{r*{26}{c}}
+\textrm{입력} & \texttt{A}&\texttt{B}&\texttt{C}&\texttt{D}&\texttt{E}&\texttt{F}&\texttt{G}&\texttt{H}&\texttt{I}&\texttt{J}&\texttt{K}&\texttt{L}&\texttt{M}&\texttt{N}&\texttt{O}&\texttt{P}&\texttt{Q}&\texttt{R}&\texttt{S}&\texttt{T}&\texttt{U}&\texttt{V}&\texttt{W}&\texttt{X}&\texttt{Y}&\texttt{Z} \\
+$W_{\mathrm{I}}$ & \texttt{E}&\texttt{K}&\texttt{M}&\texttt{F}&\texttt{L}&\texttt{G}&\texttt{D}&\texttt{Q}&\texttt{V}&\texttt{Z}&\texttt{N}&\texttt{T}&\texttt{O}&\texttt{W}&\texttt{Y}&\texttt{H}&\texttt{X}&\texttt{U}&\texttt{S}&\texttt{P}&\texttt{A}&\texttt{I}&\texttt{B}&\texttt{R}&\texttt{C}&\texttt{J} \\
+\end{tabular}
+\end{center}
+
+\paragraph{돌아간 로터.} 로터는 키를 칠 때마다 돈다. 로터가 돌면 배선은 그대로인데 배선이 닿는 자리가 바뀐다.
+기계 쪽의 접점(전류가 들어오고 나가는 고정된 자리)은 움직이지 않기 때문이다. 로터가 $s$칸 돌아가 있으면 기계의
+$x$번 자리는 로터의 $x+s$번 접점에 닿는다. 전류는 그 접점에서 배선을 따라 로터의 $W(x+s)$번 접점으로 가고, 그
+접점은 기계 쪽에서 보면 $s$칸 덜 간 자리, 곧 $W(x+s)-s$번 자리에 있다. 이것을 치환으로 적으면 다음과 같다.
+\begin{equation}
+  R \;=\; \tau^{-s}\, W\, \tau^{s}, \qquad R(x) \;=\; W(x+s) - s \label{eq:am-rotor}
+\end{equation}
+오른쪽부터 읽으면 \emph{밀고}($\tau^{s}$), \emph{배선을 지나고}($W$), \emph{되돌린다}($\tau^{-s}$).
+그림~\ref{fig:am-rotor}는 이것을 바퀴를 펼친 모습으로, 그림~\ref{fig:am-conj}는 같은 것을 세 번의 화살표로 그린
+것이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \dx/\ttl in {0/{$s=0$},6.6/{$s=1$}} {
+    \begin{scope}[xshift=\dx cm]
+      \draw[fill=cbluebg,draw=cblue,rounded corners=2pt] (0.75,0.4) rectangle (3.25,-3.5);
+      \node[font=\small\bfseries] at (2.0,0.75) {로터, \ttl};
+      \node[note] at (0,0.75) {입력};
+      \node[note] at (4.0,0.75) {출력};
+      \foreach \l [count=\i from 0] in {A,B,C,D,E,F} {
+        \node[amlt] at (0,-0.62*\i) {\l};
+        \node[amlt] at (4.0,-0.62*\i) {\l};
+        \draw (0.275,-0.62*\i) -- (0.9,-0.62*\i);
+        \draw (3.1,-0.62*\i) -- (3.725,-0.62*\i);
+        \fill (0.9,-0.62*\i) circle (1.4pt);
+        \fill (3.1,-0.62*\i) circle (1.4pt);
+      }
+    \end{scope}
+  }
+  % s = 0: 로터 접점 a..f가 기계의 A..F와 같은 자리
+  \foreach \l [count=\i from 0] in {a,b,c,d,e,f} {
+    \node[amcl] at (1.15,-0.62*\i) {\l};
+    \node[amcl] at (2.85,-0.62*\i) {\l};
+  }
+  \foreach \u/\v in {0/1,1/3,2/5,3/0,4/2,5/4} { \draw[cblue!55] (1.35,-0.62*\u) -- (2.65,-0.62*\v); }
+  \draw[live] (0.275,0) -- (0.9,0);
+  \draw[live] (1.35,0) -- (2.65,-0.62);
+  \draw[live] (3.1,-0.62) -- (3.725,-0.62);
+  \node[note] at (2.0,-4.05) {\texttt{A}$\to$\texttt{a}$\to$\texttt{b}$\to$\texttt{B}\\$R = W$};
+  % s = 1: 로터가 한 칸 돌아 접점 b가 기계의 A 자리에 온다
+  \begin{scope}[xshift=6.6cm]
+    \foreach \l [count=\i from 0] in {b,c,d,e,f,a} {
+      \node[amcl] at (1.15,-0.62*\i) {\l};
+      \node[amcl] at (2.85,-0.62*\i) {\l};
+    }
+    \foreach \u/\v in {0/2,1/4,2/5,3/1,4/3,5/0} { \draw[cblue!55] (1.35,-0.62*\u) -- (2.65,-0.62*\v); }
+    \draw[live] (0.275,0) -- (0.9,0);
+    \draw[live] (1.35,0) -- (2.65,-1.24);
+    \draw[live] (3.1,-1.24) -- (3.725,-1.24);
+    \node[note] at (2.0,-4.05) {\texttt{A}$\to$\texttt{b}$\to$\texttt{d}$\to$\texttt{C}\\$R = \tau^{-1}W\tau$};
+  \end{scope}
+\end{tikzpicture}
+\caption{돌아간 로터(작은 에니그마, 배선은 그림~\ref{fig:am-perm}의 $W$). 바퀴를 펼쳐 그렸으므로 맨 아래 줄과 맨
+윗줄은 원래 이웃이다. 파란 상자 안의 작은 글자는 로터 자신의 접점 이름이고, 바깥의 동그라미는 움직이지 않는 기계의
+자리다. 배선(상자 안의 선)은 두 그림에서 같다. 왼쪽($s=0$)에서는 접점 \texttt{a}가 기계의 \texttt{A} 자리에 있다.
+오른쪽($s=1$)에서는 로터가 한 칸 돌아 접점 \texttt{b}가 \texttt{A} 자리에 왔고, 그래서 같은 \texttt{A}가
+\texttt{C}로 나간다.}
+\label{fig:am-rotor}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \c/\x in {0/0,1/1.7,2/3.4,3/5.1} {
+    \foreach \l [count=\i from 0] in {A,B,C,D,E,F} { \node[amlt] (k\c\l) at (\x,-0.62*\i) {\l}; }
+  }
+  \foreach \a/\b in {A/B,B/C,C/D,D/E,E/F,F/A} { \draw[->,cgray] (k0\a) -- (k1\b); }
+  \foreach \a/\b in {A/B,B/D,C/F,D/A,E/C,F/E} { \draw[->,cgray] (k1\a) -- (k2\b); }
+  \foreach \a/\b in {A/F,B/A,C/B,D/C,E/D,F/E} { \draw[->,cgray] (k2\a) -- (k3\b); }
+  \draw[->,live] (k0A) -- (k1B);
+  \draw[->,live] (k1B) -- (k2D);
+  \draw[->,live] (k2D) -- (k3C);
+  \node[note] at (0.85,0.55) {$\tau$ (밀기)};
+  \node[note] at (2.55,0.55) {$W$};
+  \node[note] at (4.25,0.55) {$\tau^{-1}$ (되돌리기)};
+  \node at (8.9,-1.55) {$\begin{array}{r@{\;}l}
+      W &= \amcyc{A\,B\,D}\,\amcyc{C\,F\,E}\\[3pt]
+        & \quad\big\downarrow\ \text{글자마다 한 칸 당긴다}\\[3pt]
+      \tau^{-1}W\tau &= \amcyc{F\,A\,C}\,\amcyc{B\,E\,D}
+    \end{array}$};
+\end{tikzpicture}
+\caption{식~\eqref{eq:am-rotor}를 화살표로 읽은 것($s=1$, 작은 에니그마). 세 번 따라가면 \texttt{A}$\to$\texttt{B}%
+$\to$\texttt{D}$\to$\texttt{C}다. 여섯 글자를 모두 따라가면 $\tau^{-1}W\tau$는 \texttt{A}$\to$\texttt{C},
+\texttt{B}$\to$\texttt{E}, \texttt{C}$\to$\texttt{F}, \texttt{D}$\to$\texttt{B}, \texttt{E}$\to$\texttt{D},
+\texttt{F}$\to$\texttt{A}이고, 그림~\ref{fig:am-rotor}의 오른쪽과 같다. 오른쪽의 식은 같은 결과를 순환으로 본 것이다.
+$W$의 순환에서 글자마다 한 칸씩 당기면 된다.}
+\label{fig:am-conj}
+\end{figure}
+
+실제 로터 I으로 해 보면 이렇다. $s=0$이면 \texttt{A}는 $W_{\mathrm{I}}(\amL{A}) = \amL{E}$로 간다. $s=1$이면 먼저
+한 칸 밀려 \texttt{B}가 되고, 배선을 지나 $W_{\mathrm{I}}(\amL{B}) = \amL{K}$가 되고, 한 칸 되돌아 \texttt{J}가
+된다. 같은 로터, 같은 입력인데 위치 하나 차이로 결과가 다르다.
+
+돌아오는 전류는 같은 로터를 반사판 쪽에서 자판 쪽으로 지난다. 그 치환은 $R$의 역이고,
+식~\eqref{eq:am-inv-product}와 $(\tau^{s})^{-1} = \tau^{-s}$에서
+\begin{equation}
+  R^{-1} = \bigl(\tau^{-s}W\tau^{s}\bigr)^{-1} = \tau^{-s}\,W^{-1}\,\tau^{s} \label{eq:am-rotor-inv}
+\end{equation}
+이다. 돌아오는 길도 ``밀고, 배선을 거꾸로 지나고, 되돌린다''이다. 배선표만 $W^{-1}$로 바뀐다.
+
+\paragraph{켤레는 이름 바꾸기다.} $g^{-1}\pi g$ 꼴의 치환을 $\pi$의 \term{켤레}{conjugate}라 한다.
+식~\eqref{eq:am-rotor}의 로터는 $W$의 켤레다($g = \tau^{s}$). 켤레에는 쓸모 있는 성질이 하나 있다. $\pi$가 $a$를 $b$로
+보내면
+\[
+  \bigl(g^{-1}\pi g\bigr)\bigl(g^{-1}(a)\bigr) = g^{-1}\bigl(\pi(a)\bigr) = g^{-1}(b)
+\]
+이므로 $g^{-1}\pi g$는 $g^{-1}(a)$를 $g^{-1}(b)$로 보낸다. 곧
+\begin{equation}
+  \pi \text{의 순환 } (a_1\ a_2\ \cdots\ a_m) \quad\Longrightarrow\quad
+  g^{-1}\pi g \text{의 순환 } \bigl(g^{-1}(a_1)\ \ g^{-1}(a_2)\ \cdots\ g^{-1}(a_m)\bigr) \label{eq:am-rename}
+\end{equation}
+이다. 켤레는 순환 속의 글자 \emph{이름만} 바꾼다. 순환의 개수와 길이는 그대로다. 로터에서는 $g^{-1} = \tau^{-s}$이므로
+글자마다 $s$칸 당기면 된다. 그림~\ref{fig:am-conj}의 오른쪽이 이것이다. 이 성질은 이 장에서 두 번 더 쓰인다
+(\ref{sec:am-properties}절, \ref{sec:am-m4}절). 치환 이론으로 에니그마를 푼 레예프스키의 방법도 이런 성질에
+기댄다(\ref{ch:cryptanalysis}장)~\cite{rejewski1980application}.
+
+\paragraph{창 글자, 링 설정, 코어 위치.} 실제 로터의 바깥에는 글자 26개가 새겨진 \term{링}{ring}이 끼워져 있다.
+기계의 작은 창으로 보이는 것은 이 링의 글자다. 링은 배선이 든 속(코어)에 대해 돌려서 고정할 수 있고, 얼마나
+돌려 두었는가를 \term{링 설정}{ring setting} $r$이라 한다. 창 글자를 $p$라 하면 배선이 실제로 돌아가 있는 양은
+\begin{equation}
+  s = p - r \label{eq:am-core}
+\end{equation}
+이다. 이 $s$를 \term{코어 위치}{core position}라 한다. 식~\eqref{eq:am-rotor}에 들어가는 것은 $s$뿐이다. 그러므로
+창 글자와 링 설정을 같은 만큼 함께 바꾸면 치환이 같다(그림~\ref{fig:am-ring}).
+
+링에는 \term{노치}{notch}라는 홈도 하나 붙어 있다. 노치는 이 로터가 왼쪽 이웃을 언제 밀지 정한다
+(\ref{sec:am-stepping}절). 노치는 링에 붙어 있으므로 창 글자를 따라 움직인다. 그래서 링 설정이 따로 영향을 주는
+것은 \emph{로터가 넘어가는 시점}뿐이다. 봄베가 찾는 것도 창 글자나 링 설정이 아니라 코어 위치다~\cite[4]{us6812report1944}.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % (가) 창 B, 링 A
+  \node[font=\small\bfseries,anchor=west] at (-2.3,1.15) {(가) 창 \texttt{B}, 링 설정 \texttt{A}: $s = 1-0 = 1$};
+  \node[font=\footnotesize,anchor=east] at (-0.55,0) {링 글자};
+  \node[font=\footnotesize,anchor=east] at (-0.55,-0.7) {코어 접점};
+  \foreach \l [count=\i from 0] in {B,C,D,E,F,A} { \node[amcell,fill=white] at (0.85*\i,0) {\l}; }
+  \foreach \l [count=\i from 0] in {b,c,d,e,f,a} { \node[amcell,fill=cbluebg] at (0.85*\i,-0.7) {\l}; }
+  \node[amcell,fill=corangebg,draw=corange] at (1.7,0) {D};
+  \draw[cblue,line width=1.4pt] (-0.45,0.35) rectangle (0.45,-0.35);
+  \node[font=\scriptsize,text=cblue] at (0,0.6) {창};
+  \node[note,anchor=west,align=left] at (5.0,-0.35) {노치 글자 \texttt{D}가 창에 오기까지 2칸};
+  % (나) 창 C, 링 B
+  \begin{scope}[yshift=-2.6cm]
+    \node[font=\small\bfseries,anchor=west] at (-2.3,1.15) {(나) 창 \texttt{C}, 링 설정 \texttt{B}: $s = 2-1 = 1$};
+    \node[font=\footnotesize,anchor=east] at (-0.55,0) {링 글자};
+    \node[font=\footnotesize,anchor=east] at (-0.55,-0.7) {코어 접점};
+    \foreach \l [count=\i from 0] in {C,D,E,F,A,B} { \node[amcell,fill=white] at (0.85*\i,0) {\l}; }
+    \foreach \l [count=\i from 0] in {b,c,d,e,f,a} { \node[amcell,fill=cbluebg] at (0.85*\i,-0.7) {\l}; }
+    \node[amcell,fill=corangebg,draw=corange] at (0.85,0) {D};
+    \draw[cblue,line width=1.4pt] (-0.45,0.35) rectangle (0.45,-0.35);
+    \node[font=\scriptsize,text=cblue] at (0,0.6) {창};
+    \node[note,anchor=west,align=left] at (5.0,-0.35) {노치 글자 \texttt{D}가 창에 오기까지 1칸};
+  \end{scope}
+\end{tikzpicture}
+\caption{창 글자, 링 설정, 코어 위치(작은 에니그마, 노치는 링의 \texttt{D}에 있다고 놓았다). 칸 하나가 기계의 자리
+하나이고, 맨 왼쪽 칸이 창 밑이다. 링은 코어에 대해 링 설정만큼 돌려 끼워져 있다. (가)와 (나)는 창 글자도 링
+설정도 다르지만 코어 접점의 줄(파랑)이 같다. 그러므로 치환이 같다. 다른 것은 주황색 노치의 자리, 곧 이 로터가 이웃을
+미는 시점뿐이다.}
+\label{fig:am-ring}
+\end{figure}
+
+\Why 배선은 코어 안에 있다. 전류가 어느 접점으로 들어가 어디로 나오는지는 코어가 얼마나 돌았는가로만 정해진다.
+링의 글자는 사람이 읽는 눈금이고, 눈금을 코어에 대해 어디에 붙여 두었는지는 전류가 알 길이 없다.
+
+\General 식~\eqref{eq:am-rotor}의 ``바꾸고, 하고, 되돌린다''는 프로그램에서 흔하다. 협정 세계시(UTC)로 정해 둔
+규칙을 서울 시각에 적용하려면 서울 시각에서 9시간을 빼 UTC로 바꾸고, 규칙을 적용하고, 다시 9시간을 더한다.
+규칙 자체($W$)는 하나이고, 기준이 몇 칸 어긋나 있는가($s$)만 바뀐다.
+
+\Ours 이 식은 세 기계에 세 가지 모양으로 들어 있다. Rust 모델의 \code{through} 함수는 식~\eqref{eq:am-rotor}를
+오른쪽부터 계산한다(\ref{sec:through}절, 그림~\ref{fig:g-through}). 기어식의 드럼은 실제로 도는 원판이어서
+그림~\ref{fig:am-rotor}를 그대로 몸으로 한다(\ref{sec:gm-drum}절). 릴레이식에는 도는 것이 없고, $\tau^{s}$와
+$\tau^{-s}$를 릴레이 시프터로, $W$를 움직이지 않는 배선으로 만든다(\ref{sec:relay-shifter}절. 그 장의 $S(p)$가 이
+장의 $\tau^{p}$다). FPGA의 \code{rotor\_fwd} 함수도 같은 세 토막이다(\ref{ch:rtl-scrambler}장).
+
+% ====================================================================
+\section{반사판}\label{sec:am-reflector}
+
+\term{반사판}{reflector}은 한쪽 면에만 접점이 26개 있고, 그 접점들을 전선 13가닥으로 둘씩 묶은 판이다. 전류는
+반사판의 한 접점으로 들어가 전선을 따라 그 짝 접점으로 나온다. 반사판은 돌지 않는다. 반사판의 치환 $U$는 두
+성질을 갖는다.
+\begin{equation}
+  U\bigl(U(x)\bigr) = x, \qquad U(x) \neq x \qquad (\text{모든 } x) \label{eq:am-reflector}
+\end{equation}
+짝의 짝은 자기 자신이고, 어떤 접점도 자기 자신과 묶여 있지 않다.
+
+두 번 하면 제자리로 오는 치환, 곧 $\pi^2 = \mathrm{id}$인 치환을 \term{대합}{involution}이라 한다. 대합의 순환은
+길이가 1 아니면 2다. 길이 3 이상의 고리가 있으면 두 번 따라가도 처음 글자로 돌아오지 않기 때문이다. 자기
+자신으로 가는 글자 $\pi(x) = x$를 \term{고정점}{fixed point}이라 한다. 반사판은 \emph{고정점이 없는 대합}이다.
+26글자가 남김없이 길이 2의 순환 13개로 나뉜다(그림~\ref{fig:am-reflector}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=8mm,y=1cm]
+  \foreach \l [count=\i from 0] in {A,B,C,D,E,F} { \node[font=\footnotesize\ttfamily] at (\i,0) {\l}; }
+  \foreach \a/\b in {0/4,1/3,2/5} {
+    \pgfmathsetmacro\h{0.35+0.18*(\b-\a)}
+    \draw[corange,line width=0.9pt] (\a,0.22) .. controls (\a,\h) and (\b,\h) .. (\b,0.22);
+  }
+  \node[note] at (2.5,-0.5) {(가) 작은 반사판 $U = \amcyc{A\,E}\amcyc{B\,D}\amcyc{C\,F}$};
+\end{tikzpicture}
+
+\medskip
+\begin{tikzpicture}[x=5.2mm,y=1cm]
+  \foreach \l [count=\i from 0] in {A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z} {
+    \node[font=\footnotesize\ttfamily] at (\i,0) {\l};
+  }
+  \foreach \a/\b [count=\n] in {0/24,1/17,2/20,3/7,4/16,5/18,6/11,8/15,9/23,10/13,12/14,19/25,21/22} {
+    \pgfmathsetmacro\h{0.3+0.085*(\b-\a)}
+    \ifodd\n \def\amcc{cblue}\else \def\amcc{corange}\fi
+    \draw[draw=\amcc,line width=0.8pt] (\a,0.22) .. controls (\a,\h) and (\b,\h) .. (\b,0.22);
+  }
+  \node[note] at (12.5,-0.5) {(나) 실제 반사판 B: 13쌍};
+\end{tikzpicture}
+\caption{반사판은 글자를 둘씩 묶는다. 호 하나가 전선 하나이고, 호에는 방향이 없다. 들어간 쪽의 반대쪽 끝으로
+나오며, 그 끝에서 들어가면 처음 글자로 나온다(대합). 어떤 호도 한 글자에서 시작해 같은 글자로 끝나지 않는다(고정점
+없음). (나)는 프로젝트 배선표의 반사판 B다. \texttt{A}--\texttt{Y}, \texttt{B}--\texttt{R}, \texttt{C}--\texttt{U},
+\texttt{D}--\texttt{H}, \texttt{E}--\texttt{Q}, \texttt{F}--\texttt{S}, \texttt{G}--\texttt{L}, \texttt{I}--\texttt{P},
+\texttt{J}--\texttt{X}, \texttt{K}--\texttt{N}, \texttt{M}--\texttt{O}, \texttt{T}--\texttt{Z}, \texttt{V}--\texttt{W}.
+색은 호를 구별하려고 번갈아 칠했을 뿐이다.}
+\label{fig:am-reflector}
+\end{figure}
+
+반사판이 될 수 있는 배선이 몇 가지인지도 셀 수 있다. 아직 짝이 없는 글자 가운데 맨 앞 글자의 짝을 고르는 일을
+되풀이하면 된다. 처음에는 25가지, 다음에는 23가지, \ldots, 마지막에는 1가지이므로
+$25 \times 23 \times \cdots \times 3 \times 1 = 7{,}905{,}853{,}580{,}625$가지다.
+
+\General 인터넷 게시판에서 줄거리를 가릴 때 쓰는 ROT13은 모든 글자를 13칸 미는 치환 $\tau^{13}$이다. 두 번 하면
+26칸, 곧 제자리이므로 대합이다. $x + 13 \neq x$이므로 고정점도 없다. 그래서 ROT13은 암호화와 복호화가 같은
+조작이다. 에니그마가 같은 성질을 얻는 방법은 \ref{sec:am-properties}절에서 본다.
+
+% ====================================================================
+\section{스크램블러}\label{sec:am-scrambler}
+
+이제 조각을 잇는다. 키를 누르면 전류는 오른쪽 로터 $R$, 가운데 로터 $M$, 왼쪽 로터 $L$을 차례로 지나 반사판
+$U$에서 돌아 나오고, 왼쪽, 가운데, 오른쪽 로터를 거꾸로 지난다. 가는 길의 로터 셋을 하나로 묶으면
+\[
+  \rho_k = L\,M\,R
+\]
+이다($R$이 먼저다. 합성은 오른쪽부터 읽는다). 아래 첨자 $k$는 $k$번째 글자를 칠 때라는 뜻이다. 로터는 키마다 도므로
+$L$, $M$, $R$ 각자의 코어 위치가 $k$에 따라 다르다. 오는 길은 같은 로터를 반대 순서와 반대 방향으로 지나므로
+식~\eqref{eq:am-inv-product}에 의해 $R^{-1}M^{-1}L^{-1} = \rho_k^{-1}$이다. 로터와 반사판을 묶은 이 부분을
+\term{스크램블러}{scrambler}라 하고, 그 치환을 $\Scr_k$로 적는다.
+\begin{equation}
+  \Scr_k \;=\; \rho_k^{-1}\, U\, \rho_k \;=\; R^{-1}M^{-1}L^{-1}\; U\; L\,M\,R \label{eq:am-scr}
+\end{equation}
+그림~\ref{fig:am-path}는 전체 경로에 각 단의 기호를 붙인 것이다. 식을 오른쪽 끝에서부터 읽는 순서가 전류가 지나는
+순서다. 그림에서도 가는 길은 오른쪽에서 왼쪽으로 간다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkn,minimum height=26mm,minimum width=12mm] (U) at (0,0) {$U$};
+  \node[blkb,minimum height=26mm,minimum width=12mm] (L) at (2.0,0) {};
+  \node[blkb,minimum height=26mm,minimum width=12mm] (M) at (3.7,0) {};
+  \node[blkb,minimum height=26mm,minimum width=12mm] (R) at (5.4,0) {};
+  \node[blko,minimum height=26mm,minimum width=12mm] (P) at (7.3,0) {};
+  \foreach \n/\x in {L/2.0,M/3.7,R/5.4} {
+    \node at (\x,0.6) {$\n$};
+    \node at (\x,-0.6) {$\n^{-1}$};
+  }
+  \node at (7.3,0.6) {$\Stk$};
+  \node at (7.3,-0.6) {$\Stk$};
+  \node[note] at (0,1.6) {반사판};
+  \node[note] at (2.0,1.6) {왼쪽};
+  \node[note] at (3.7,1.6) {가운데};
+  \node[note] at (5.4,1.6) {오른쪽};
+  \node[note] at (7.3,1.6) {플러그보드};
+  \node[blk,minimum width=15mm] (K) at (9.4,0.6) {자판 $p$};
+  \node[blk,minimum width=15mm] (Lp) at (9.4,-0.6) {램프 $c$};
+  % 가는 길
+  \draw[live,->] (K.west) -- ($(P.east)+(0,0.6)$);
+  \draw[live,->] ($(P.west)+(0,0.6)$) -- ($(R.east)+(0,0.6)$);
+  \draw[live,->] ($(R.west)+(0,0.6)$) -- ($(M.east)+(0,0.6)$);
+  \draw[live,->] ($(M.west)+(0,0.6)$) -- ($(L.east)+(0,0.6)$);
+  \draw[live,->] ($(L.west)+(0,0.6)$) -- ($(U.east)+(0,0.6)$);
+  % 오는 길
+  \draw[line width=1.1pt,draw=cred,->] ($(U.east)+(0,-0.6)$) -- ($(L.west)+(0,-0.6)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(L.east)+(0,-0.6)$) -- ($(M.west)+(0,-0.6)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(M.east)+(0,-0.6)$) -- ($(R.west)+(0,-0.6)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(R.east)+(0,-0.6)$) -- ($(P.west)+(0,-0.6)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(P.east)+(0,-0.6)$) -- (Lp.west);
+  % 묶음
+  \draw[decorate,decoration={brace,amplitude=5pt,mirror}] (1.4,-1.5) -- (6.0,-1.5)
+    node[midway,below=6pt] {$\rho_k = L\,M\,R$};
+  \draw[decorate,decoration={brace,amplitude=5pt,mirror}] (-0.6,-2.4) -- (6.0,-2.4)
+    node[midway,below=6pt] {$\Scr_k = \rho_k^{-1}\,U\,\rho_k$ {\footnotesize (키마다 바뀐다)}};
+  \node[note] at (7.3,-1.8) {$\Stk$: 하루 동안 고정};
+  \node at (4.4,-3.75) {$E_k \;=\; \Stk\;R^{-1}M^{-1}L^{-1}\;U\;L\,M\,R\;\Stk$};
+\end{tikzpicture}
+\caption{에니그마의 신호 경로와 각 단의 기호. 파란 길(가는 길)은 플러그보드, 오른쪽, 가운데, 왼쪽 로터 순이고,
+빨간 길(오는 길)은 그 역순이다. 블록 하나를 갈 때와 올 때 지나며, 올 때는 역치환이 된다. 맨 아래 식을 오른쪽에서
+왼쪽으로 읽으면 전류가 지나는 순서다.}
+\label{fig:am-path}
+\end{figure}
+
+로터가 하나뿐인 작은 에니그마로 계산해 보자(그림~\ref{fig:am-scrambler}). 로터는 $s=0$의 $W$이고 반사판은
+그림~\ref{fig:am-reflector}(가)의 $U$다. \texttt{A}는 $W$를 지나 \texttt{B}가 되고, 반사판에서 \texttt{D}로
+바뀌고, $W$의 같은 배선을 거꾸로 지나 \texttt{B}가 된다. 여섯 글자를 모두 하면
+\[
+  \Scr = W^{-1}\,U\,W = \amcyc{A\,B}\amcyc{C\,E}\amcyc{D\,F}
+\]
+이다. 반사판처럼 글자가 둘씩 묶였다. 이것이 우연이 아니라는 것이 \ref{sec:am-properties}절의 내용이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \draw[fill=cbluebg,draw=cblue,rounded corners=2pt] (0.55,0.4) rectangle (2.45,-3.5);
+  \node[font=\small] at (1.5,0.7) {로터 $W$};
+  \node[font=\small] at (4.0,0.7) {반사판 $U$};
+  \foreach \l [count=\i from 0] in {A,B,C,D,E,F} {
+    \node[amlt] (k\l) at (0,-0.62*\i) {\l};
+    \node[amlt] (r\l) at (3.0,-0.62*\i) {\l};
+  }
+  \foreach \a/\b in {A/B,B/D,C/F,D/A,E/C,F/E} { \draw[cgray] (k\a) -- (r\b); }
+  \foreach \a/\b in {0/4,1/3,2/5} {
+    \pgfmathsetmacro\w{0.5+0.28*(\b-\a)}
+    \draw[cgray] (3.275,-0.62*\a) .. controls (3.275+\w,-0.62*\a) and (3.275+\w,-0.62*\b) .. (3.275,-0.62*\b);
+  }
+  % A를 쳤을 때의 길
+  \draw[live,->] (kA) -- (rB);
+  \draw[line width=1.1pt,corange,->] (3.275,-0.62) .. controls (4.335,-0.62) and (4.335,-1.86) .. (3.275,-1.86);
+  \draw[line width=1.1pt,cred,->] (rD) -- (kB);
+  \draw[live,<-] (kA.west) -- ++(-0.6,0) node[left,font=\footnotesize] {들어감};
+  \draw[line width=1.1pt,cred,->] (kB.west) -- ++(-0.6,0) node[left,font=\footnotesize] {나옴};
+  \node[note,anchor=west,align=left] at (5.0,-0.3) {\textcolor{cblue}{\texttt{A}$\to$\texttt{B}: $W$}};
+  \node[note,anchor=west,align=left] at (5.0,-0.9) {\textcolor{corange}{\texttt{B}$\to$\texttt{D}: $U$}};
+  \node[note,anchor=west,align=left] at (5.0,-1.5) {\textcolor{cred}{\texttt{D}$\to$\texttt{B}: $W^{-1}$ (같은 선을 거꾸로)}};
+  \node[note,anchor=west,align=left] at (5.0,-2.5) {\texttt{B}를 치면 같은 길을 거꾸로 지나\\\texttt{A}가 나온다};
+\end{tikzpicture}
+\caption{로터 하나짜리 작은 스크램블러 $\Scr = W^{-1}UW$. 회색 선이 로터 배선과 반사판의 전선 전부다. \texttt{A}를
+치면 파랑, 주황, 빨강의 길로 \texttt{B}가 나온다. 오는 길(빨강)은 새 배선이 아니라 로터의 \emph{다른} 선
+(\texttt{B}--\texttt{D})을 거꾸로 지난 것이다. 반사판이 다른 선으로 돌려보내기 때문이다.}
+\label{fig:am-scrambler}
+\end{figure}
+
+\Ours Rust 모델의 \code{scramble} 함수는 식~\eqref{eq:am-scr}를 오른쪽부터 한 줄씩 적은 것이다. \code{r.forward},
+\code{m.forward}, \code{l.forward}, 반사판 표, \code{l.backward}, \code{m.backward}, \code{r.backward} 순이다
+(코드~\ref{lst:press}). 봄베의 드럼 세 개 한 벌은 플러그보드가 없는 이 스크램블러 하나다(\ref{sec:c-scrambler}절).
+
+% ====================================================================
+\section{플러그보드와 암호화 식}\label{sec:am-plugboard}
+
+군용 에니그마에는 자판과 로터 사이에 \term{플러그보드}{plugboard, 독일어 Steckerbrett}가
+있다~\cite{jackson-bh02,cryptomuseum-enigma-history}. 글자마다 소켓이 있고, 케이블 하나로 두 소켓을 이으면 두 글자가
+맞바뀐다. 케이블을 꽂지 않은 글자는 그대로 지나간다. 케이블이 $n$개이면 $2n$글자가 둘씩 맞바뀌고 $26-2n$글자는
+제자리다(그림~\ref{fig:am-plugboard}). 플러그보드의 치환 $\Stk$는 대합이지만 반사판과 달리 고정점이 있을 수 있다.
+\[
+  \Stk\bigl(\Stk(x)\bigr) = x \qquad (\text{모든 } x)
+\]
+서로 이어진 두 글자를 \term{스테커}{Stecker} 짝이라 한다. 케이블이 없는 글자는 자기 자신과 짝이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % (가) 소켓과 케이블
+  \foreach \l [count=\i from 0] in {A,B,C,D,E,F} {
+    \draw[fill=white] (0.9*\i,-1.0) circle (0.17);
+    \node[font=\footnotesize\ttfamily] at (0.9*\i,-0.55) {\l};
+  }
+  \draw[corange,line width=1.6pt] (0,-1.17) .. controls (0,-2.0) and (1.8,-2.0) .. (1.8,-1.17);
+  \draw[corange,line width=1.6pt] (2.7,-1.17) .. controls (2.7,-1.8) and (3.6,-1.8) .. (3.6,-1.17);
+  \node[note] at (2.25,-2.45) {꽂지 않은 \texttt{B}, \texttt{F}는 그대로};
+  \node[note] at (2.25,-3.75) {(가) 소켓과 케이블 두 개};
+  % (나) 두 열
+  \foreach \l [count=\i from 0] in {A,B,C,D,E,F} {
+    \node[amlt] (s\l) at (7.0,-0.62*\i) {\l};
+    \node[amlt] (t\l) at (9.0,-0.62*\i) {\l};
+  }
+  \foreach \a/\b in {B/B,F/F} { \draw[->,cgray] (s\a) -- (t\b); }
+  \foreach \a/\b in {A/C,C/A,D/E,E/D} { \draw[->,corange,line width=0.9pt] (s\a) -- (t\b); }
+  \node[note] at (8.0,-3.75) {(나) $\Stk = \amcyc{A\,C}\amcyc{D\,E}$};
+\end{tikzpicture}
+\caption{플러그보드(작은 에니그마, 케이블 둘). (가) 케이블 하나가 두 소켓을 잇는다. (나) 같은 것을 화살표로 그리면
+이어진 두 글자가 엇갈리고 나머지는 곧게 지나간다. 엇갈린 화살표는 늘 짝을 이루므로 두 번 지나면 제자리다.}
+\label{fig:am-plugboard}
+\end{figure}
+
+전류는 플러그보드를 갈 때 한 번, 올 때 한 번 지난다(그림~\ref{fig:am-path}). 그러므로 평문 글자 $p$를 $k$번째로
+칠 때 램프에 켜지는 암호문 글자 $c$는
+\begin{equation}
+  c = \Stk\Bigl(\Scr_k\bigl(\Stk(p)\bigr)\Bigr), \qquad
+  E_k = \Stk\,\Scr_k\,\Stk = \Stk\,\rho_k^{-1}\,U\,\rho_k\,\Stk \label{eq:am-enigma}
+\end{equation}
+이다. 이것이 에니그마의 암호화 식이다. 이 문서의 나머지는 모두 이 식에서 출발한다.
+
+작은 에니그마에 플러그보드 $\Stk = \amcyc{A\,C}\amcyc{D\,E}$를 달고 \texttt{A}를 쳐 보자(그림~\ref{fig:am-toy-path}).
+플러그보드에서 \texttt{C}, 로터에서 \texttt{F}, 반사판에서 \texttt{C}, 로터를 거꾸로 지나 \texttt{E}, 플러그보드에서
+\texttt{D}다. 여섯 글자를 모두 하면 $E = \amcyc{A\,D}\amcyc{B\,C}\amcyc{E\,F}$이다. 이번에도 둘씩 묶였다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \l [count=\i from 0] in {A,C,F,C,E,D} {
+    \node[ltr] (t\i) at (1.8*\i,0) {\l};
+    \node[ltr] (b\i) at (1.8*\i,-1.4) {\l};
+  }
+  \foreach \a/\b/\f in {0/1/\Stk,1/2/W,2/3/U,3/4/W^{-1},4/5/\Stk} {
+    \draw[->,live] (t\a) -- node[above,font=\footnotesize] {$\f$} (t\b);
+  }
+  \foreach \a/\b/\f in {5/4/\Stk,4/3/W,3/2/U,2/1/W^{-1},1/0/\Stk} {
+    \draw[->,line width=1.1pt,cred] (b\a) -- node[below,font=\footnotesize] {$\f$} (b\b);
+  }
+  \node[note,anchor=west] at (9.45,0) {\texttt{A}를 치면 \texttt{D}};
+  \node[note,anchor=east] at (-0.45,-1.4) {\texttt{D}를 치면 \texttt{A}};
+\end{tikzpicture}
+\caption{작은 에니그마의 키 한 번($\Stk = \amcyc{A\,C}\amcyc{D\,E}$, 로터 $W$는 $s=0$, 반사판 $U$). 위 줄은
+\texttt{A}를 친 경우다. 아래 줄은 같은 설정에서 \texttt{D}를 친 경우인데, 위 줄을 오른쪽에서 왼쪽으로 거슬러
+간다. 같은 자리에서 위 줄의 $W$가 아래 줄에서는 $W^{-1}$이 된다.}
+\label{fig:am-toy-path}
+\end{figure}
+
+\Why 플러그보드가 식의 양 끝에 같은 $\Stk$로 나오는 것은 자판과 램프가 플러그보드의 같은 쪽에 붙어 있기
+때문이다. 들어가는 전류와 나오는 전류가 같은 소켓 판을 지난다.
+
+\General 키보드 설정에서 두 키의 역할을 맞바꾼 것과 같다. 바꾼 두 키만 서로 다른 글자를 내고, 나머지 키는 그대로다.
+바꾼 설정을 한 번 더 적용하면 원래대로 돌아온다.
+
+\Ours Rust 모델의 \code{press} 함수 마지막 줄이 식~\eqref{eq:am-enigma}다(코드~\ref{lst:press}). 플러그보드를 만드는
+\code{Plugboard::connect}는 한 글자를 두 번 쓰거나 자기 자신과 잇는 것을 거부한다. 그래서 만들어진 $\Stk$는 늘
+대합이다. 봄베의 대각선 보드는 $\Stk$가 대합이라는 이 한 가지 사실을 배선으로 옮긴 것이다(\ref{sec:c-diagonal}절).
+
+% ====================================================================
+\section{두 성질: 되돌아오고, 제자리가 없다}\label{sec:am-properties}
+
+작은 에니그마에서 $\Scr$와 $E$가 반사판처럼 둘씩 묶였다. 실제 에니그마에서도 모든 위치, 모든 플러그보드에서
+그렇다. 증명은 몇 줄이다.
+
+\paragraph{성질 1: 되돌아온다.} $\Scr_k$와 $E_k$는 대합이다.
+\begin{equation}
+  \Scr_k^2 = \mathrm{id}, \qquad E_k^2 = \mathrm{id} \label{eq:am-invol}
+\end{equation}
+\emph{증명.} 가운데의 $\rho_k\rho_k^{-1}$이 지워진다.
+$\Scr_k^2 = \rho_k^{-1}U\rho_k\,\rho_k^{-1}U\rho_k = \rho_k^{-1}UU\rho_k = \rho_k^{-1}\rho_k = \mathrm{id}$.
+$E_k$도 같다. $\Stk\Stk = \mathrm{id}$이므로
+$E_k^2 = \Stk\Scr_k\Stk\,\Stk\Scr_k\Stk = \Stk\Scr_k\Scr_k\Stk = \Stk\Stk = \mathrm{id}$.
+
+\paragraph{성질 2: 제자리가 없다.} 어떤 글자도 자기 자신으로 암호화되지 않는다.
+\begin{equation}
+  \Scr_k(x) \neq x, \qquad E_k(x) \neq x \qquad (\text{모든 } x) \label{eq:am-nofix}
+\end{equation}
+\emph{증명.} $\Scr_k(x) = x$라 하자. 양쪽에 $\rho_k$를 하면 $U(\rho_k(x)) = \rho_k(x)$, 곧 $\rho_k(x)$가 $U$의
+고정점이다. $U$에는 고정점이 없으므로 모순이다. $E_k(x) = x$라 하면 양쪽에 $\Stk$를 해서
+$\Scr_k(\Stk(x)) = \Stk(x)$, 곧 $\Stk(x)$가 $\Scr_k$의 고정점이다. 방금 본 대로 모순이다.
+
+그림으로 보면 두 성질은 화살표의 모양이다(그림~\ref{fig:am-involution}). 대합은 모든 화살표에 돌아오는 화살표가
+짝지어 있는 치환이고, 고정점이 없다는 것은 제자리로 도는 고리가 없다는 것이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \cx/\p in {0/a,4.8/b,9.6/c} {
+    \foreach \l [count=\i from 0] in {A,B,C,D,E,F} {
+      \node[amlt] (\p\l) at ({\cx+1.15*cos(90-60*\i)},{1.15*sin(90-60*\i)}) {\l};
+    }
+  }
+  % (가) W
+  \foreach \x/\y in {A/B,B/D,D/A,C/F,F/E,E/C} { \draw[->] (a\x) to[bend left=12] (a\y); }
+  % (나) S = (A C)(D E)
+  \draw[<->,corange,line width=0.9pt] (bA) -- (bC);
+  \draw[<->,corange,line width=0.9pt] (bD) -- (bE);
+  \draw[->,cgray] (bB) to[out=65,in=-5,min distance=6mm] (bB);
+  \draw[->,cgray] (bF) to[out=185,in=115,min distance=6mm] (bF);
+  % (다) Scr = (A B)(C E)(D F)
+  \draw[<->,cblue,line width=0.9pt] (cA) -- (cB);
+  \draw[<->,cblue,line width=0.9pt] (cC) -- (cE);
+  \draw[<->,cblue,line width=0.9pt] (cD) -- (cF);
+  \node[note] at (0,-1.95) {(가) 로터 $W$\\두 번 가도 제자리가 아니다};
+  \node[note] at (4.8,-1.95) {(나) 플러그보드 $\Stk$\\대합. 고정점 \texttt{B}, \texttt{F}};
+  \node[note] at (9.6,-1.95) {(다) 스크램블러 $\Scr$\\대합. 고정점 없음};
+\end{tikzpicture}
+\caption{치환의 모양(작은 에니그마). (가) $W = \amcyc{A\,B\,D}\amcyc{C\,F\,E}$는 화살표가 세 글자를 돌아 두 번
+따라가도 돌아오지 않는다. 대합이 아니다. (나) $\Stk = \amcyc{A\,C}\amcyc{D\,E}$는 모든 화살표가 양방향이다. 대합이지만
+\texttt{B}와 \texttt{F}는 제자리로 도는 고리(고정점)다. (다) $\Scr = \amcyc{A\,B}\amcyc{C\,E}\amcyc{D\,F}$는 대합이고
+고정점이 없다. 에니그마의 $\Scr_k$와 $E_k$는 늘 (다)의 모양이다.}
+\label{fig:am-involution}
+\end{figure}
+
+\paragraph{이름 바꾸기로 보기.} 식~\eqref{eq:am-rename}을 쓰면 두 성질을 한꺼번에 볼 수 있다. $\Stk^{-1} = \Stk$이므로
+\[
+  E_k = \Stk\,\rho_k^{-1}\,U\,\rho_k\,\Stk = (\rho_k\Stk)^{-1}\; U\; (\rho_k\Stk)
+\]
+이고, $E_k$는 $U$의 켤레다. 켤레는 순환의 글자 이름만 바꾸므로 $E_k$도 $U$처럼 길이 2의 순환 13개로 이루어진다.
+작은 에니그마에서 $\Scr = \amcyc{A\,B}\amcyc{C\,E}\amcyc{D\,F}$의 글자를 $\Stk$로 바꾸면(\texttt{A}와 \texttt{C},
+\texttt{D}와 \texttt{E}를 맞바꾸면) $\amcyc{C\,B}\amcyc{A\,D}\amcyc{E\,F}$, 곧 앞에서 계산한 $E$가 나온다.
+
+\paragraph{결과.} 이 두 성질에서 다음이 나온다.
+\begin{enumerate}
+\item \textbf{같은 기계가 암호화와 복호화를 한다.} $c = E_k(p)$이면 $E_k(c) = E_k(E_k(p)) = p$다. 받는 쪽은 같은
+키로 기계를 맞추고 암호문을 치기만 하면 평문이 램프에 켜진다.
+\item \textbf{관계 하나가 사실 둘이다.} 같은 위치에서 \texttt{W}가 \texttt{I}로 바뀌면 \texttt{I}는 \texttt{W}로
+바뀐다. 해독자에게는 방향이 없는 관계가 된다.
+\item \textbf{어떤 글자도 자기 자신이 되지 않는다.} 추정한 평문을 암호문 밑에 놓았을 때 위아래가 같은 글자인 자리가
+하나라도 있으면 그 놓는 자리는 틀렸다. 해독자는 이것으로 크립의 자리를 추린다(\ref{ch:cryptanalysis}장).
+\end{enumerate}
+
+마지막으로 식~\eqref{eq:am-enigma}의 양쪽에 $\Stk$를 하면 플러그보드가 한쪽으로 모인다.
+\begin{equation}
+  \Stk(c) = \Scr_k\bigl(\Stk(p)\bigr) \label{eq:am-moved}
+\end{equation}
+$\Scr_k$는 로터 순서와 코어 위치만 정하면 계산할 수 있다. 그러면 이 식은 ``$p$의 스테커 짝을 알면 $c$의 스테커 짝이
+나온다''는 추론이 된다. 봄베는 이 추론을 전선으로 만든 기계다(\ref{ch:cryptanalysis}장, \ref{sec:c-scrambler}절).
+
+\begin{keybox}[title={이 절의 요점}]
+$U$가 고정점 없는 대합이면, 그것을 어떤 치환으로 감싸도($g^{-1}Ug$) 고정점 없는 대합이다. 에니그마의 암호화
+$E_k = (\rho_k\Stk)^{-1}U(\rho_k\Stk)$가 그런 꼴이므로 (1)~암호화와 복호화가 같고, (2)~어떤 글자도 자기 자신이
+되지 않는다. 앞의 것은 운용을 편하게 했고, 뒤의 것은 해독자에게 단서가 되었다.
+\end{keybox}
+
+% ====================================================================
+\section{키가 한 번 눌릴 때}\label{sec:am-stepping}
+
+키를 누르면 \emph{먼저} 로터가 움직이고, 그다음에 접점이 닫혀 전류가 흐른다. 그러므로 $k$번째 글자는 로터가 $k$번
+움직인 뒤의 위치에서 암호화된다. 움직이는 규칙은 셋이다.
+
+\begin{enumerate}
+\item 오른쪽 로터는 키마다 한 칸 간다.
+\item 오른쪽 로터의 창에 노치 글자가 보이고 있었으면, 가운데 로터도 한 칸 간다.
+\item 가운데 로터의 창에 노치 글자가 보이고 있었으면, 왼쪽 로터가 한 칸 가고 가운데 로터 \emph{자신도} 한 칸 간다.
+\end{enumerate}
+
+규칙 3 때문에 가운데 로터는 두 키 연달아 움직이는 일이 생긴다. 규칙 2로 노치 자리에 들어선 다음 키에서 규칙 3으로
+또 움직이기 때문이다. 이것을 \term{이중 스테핑}{double stepping}이라 한다. ``노치 글자가 보이고 있었으면''은 움직이기
+\emph{전}의 창 글자를 말한다. 그림~\ref{fig:am-stepping}은 로터 I-II-III을 창 글자 \texttt{ADU}에서 시작해 키를 네 번
+누른 경우다. 로터 III의 노치 글자는 \texttt{V}, 로터 II는 \texttt{E}다. 프로젝트 보고서가 소프트웨어 모델로 확인한
+예다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    cell/.style={draw=cgray,minimum width=9mm,minimum height=6mm,font=\ttfamily,fill=white}]
+  \foreach \k/\l/\m/\r in {0/A/D/U,1/A/D/V,2/A/E/W,3/B/F/X,4/B/F/Y} {
+    \node[cell] at (2.4*\k,0) {\l};
+    \node[cell] at (2.4*\k,-0.75) {\m};
+    \node[cell] at (2.4*\k,-1.5) {\r};
+  }
+  % 이번 키에 움직인 칸
+  \node[cell,fill=cbluebg] at (2.4,-1.5) {V};
+  \node[cell,fill=cbluebg] at (4.8,-0.75) {E};
+  \node[cell,fill=cbluebg] at (4.8,-1.5) {W};
+  \node[cell,fill=cbluebg] at (7.2,0) {B};
+  \node[cell,fill=credbg] at (7.2,-0.75) {F};
+  \node[cell,fill=cbluebg] at (7.2,-1.5) {X};
+  \node[cell,fill=cbluebg] at (9.6,-1.5) {Y};
+  % 노치 자리
+  \draw[corange,line width=1.3pt] (2.4-0.45,-1.5-0.3) rectangle (2.4+0.45,-1.5+0.3);
+  \draw[corange,line width=1.3pt] (4.8-0.45,-0.75-0.3) rectangle (4.8+0.45,-0.75+0.3);
+  % 줄과 열의 이름
+  \node[font=\footnotesize,anchor=east] at (-0.7,0) {왼쪽 $L$ (I)};
+  \node[font=\footnotesize,anchor=east] at (-0.7,-0.75) {가운데 $M$ (II)};
+  \node[font=\footnotesize,anchor=east] at (-0.7,-1.5) {오른쪽 $R$ (III)};
+  \node[note] at (0,0.7) {누르기 전};
+  \foreach \k in {1,2,3,4} {
+    \node[note] at (2.4*\k,0.7) {$k=\k$};
+    \node at (2.4*\k,-2.3) {$\Scr_{\k}$};
+    \node[text=cgray] at (2.4*\k,-2.9) {$\Stk$};
+  }
+  \foreach \k in {0,1,2,3} { \draw[->,cgray] (2.4*\k+0.85,0.7) -- (2.4*\k+1.8,0.7); }
+  \node[font=\footnotesize,anchor=east] at (-0.7,-2.3) {스크램블러};
+  \node[font=\footnotesize,anchor=east] at (-0.7,-2.9) {플러그보드};
+  \node[note] at (2.4,-3.75) {오른쪽이\\노치 \texttt{V}에 옴};
+  \node[note] at (4.8,-3.75) {그래서 가운데가\\밀려 노치 \texttt{E}에};
+  \node[note,text=cred] at (7.2,-3.75) {이중 스테핑:\\가운데와 왼쪽};
+\end{tikzpicture}
+\caption{로터 I-II-III의 전진. 열 하나가 키 한 번이고, 칸의 글자는 그 글자를 암호화할 때 창에 보이는 글자다. 파란
+칸은 그 키에 움직인 로터, 주황 테두리는 노치 글자가 창에 온 로터다. $k=3$에서 가운데 로터는 $k=2$에 이어 두 번
+연달아 움직였다(빨강). 스크램블러는 키마다 다른 치환이고 플러그보드는 그대로다.}
+\label{fig:am-stepping}
+\end{figure}
+
+\Why 노치는 링에 붙어 있으므로 넘어가는 시점은 창 글자로 정해진다. 반면 치환은 코어 위치로 정해진다
+(\ref{sec:am-rotor}절). 그래서 링 설정은 치환에는 영향을 주지 않고 넘어가는 시점만 바꾼다.
+
+\paragraph{짧은 구간에서는.} 가운데 로터는 오른쪽 로터가 한 바퀴(26칸) 돌 때 한 번쯤 움직인다. 그러므로 글자 몇
+개에서 수십 개의 구간 안에서는 오른쪽 로터만 움직이는 경우가 많다. 그런 구간에서 $k$번째 글자의 오른쪽 로터는 코어
+위치가 $s_R + k$이고
+\[
+  R_k = \tau^{-(s_R+k)}\, W_R\, \tau^{s_R+k}, \qquad \Scr_k = \rho_k^{-1} U \rho_k,\quad \rho_k = L\,M\,R_k
+\]
+이며 $L$과 $M$은 고정이다. 스크램블러는 글자마다 바뀌지만, 처음 위치 하나를 정하면 구간 전체의 $\Scr_k$가 모두
+정해진다. 봄베의 설계는 이 가정에 선다. 가정이 깨지는 경우의 처리는 \ref{ch:rust-bombe}장에서 본다.
+
+한편 플러그보드 $\Stk$는 하루 동안 그대로다. 그래서 식~\eqref{eq:am-enigma}을 글자마다 쓰면, 매번 다른 $\Scr_k$와
+\emph{같은} 미지수 $\Stk$로 된 식이 글자 수만큼 생긴다. 해독은 이 연립식에서 출발한다(\ref{ch:cryptanalysis}장).
+
+\paragraph{주기.} 노치가 하나씩인 로터 I--V로 끼우면, 세 로터가 처음 위치로 돌아오기까지의 키 수는 $26^3 = 17{,}576$이 아니라 $26 \times 25 \times 26
+= 16{,}900$이다. 가운데 로터가 한 바퀴(26칸)를 도는 동안 한 칸은 이중 스테핑으로 거저 가므로, 한 바퀴에 오른쪽 로터의
+25바퀴, 곧 $25 \times 26 = 650$키가 걸린다. 왼쪽 로터는 650키마다 한 칸 가므로 26칸에 $26 \times 650 = 16{,}900$키다.
+
+\General 자동차의 주행 거리계와 같다. 아랫자리가 한 바퀴 돌면 윗자리가 하나 오른다. 다른 점은 둘이다. 넘어가는 시점이
+0이 아니라 로터마다 정해진 노치 글자이고, 가운데 자리가 윗자리를 올리면서 자기도 한 번 더 오른다.
+
+\Ours Rust 모델의 \code{step}이 세 규칙 그대로다(코드~\ref{lst:step}). 두 로터의 노치 여부를 \emph{먼저} 읽어 두고
+움직이는 것이 ``움직이기 전의 창 글자''를 코드로 적은 것이다. \code{press}가 \code{step}을 먼저 부르고 암호화를 하는
+것이 ``먼저 움직인다''이다.
+
+% ====================================================================
+\section{키의 크기}\label{sec:am-keyspace}
+
+하루의 키는 로터 순서, 링 설정, 시작 위치, 플러그보드의 네 부분이다. 표~\ref{tab:am-keyspace}는 Enigma I의 경우의
+수다. 반사판의 선택은 넣지 않았다(프로젝트 보고서의 표와 같다).
+
+\begin{table}[ht]
+\centering
+\caption{Enigma I 하루 키의 경우의 수. 셋째 줄 아래의 들여 쓴 줄은 링과 시작 위치를 합쳤을 때 실제로 다른
+경우다.}
+\label{tab:am-keyspace}
+\small
+\begin{tabularx}{\linewidth}{l>{\raggedright\arraybackslash}Xl}
+\toprule
+설정 & 정하는 것 & 경우의 수 \\
+\midrule
+로터 순서 & 로터 I--V 가운데 셋을 골라 끼우는 순서 & $5 \cdot 4 \cdot 3 = 60$ \\
+링 설정 & 세 로터의 링 $r$ & $26^3 = 17{,}576$ \\
+시작 위치 & 전문을 시작할 때 창에 보이는 세 글자 $p$ & $26^3 = 17{,}576$ \\
+\quad 둘을 합친 실질 & 코어 위치 $26^3$ $\times$ 오른쪽·가운데 로터가 넘어가는 시점 $26^2$ & $26^5 \approx 1.2\times10^{7}$ \\
+플러그보드 & 케이블 10개 & \rule[-2.2ex]{0pt}{5.6ex}$\dfrac{26!}{6!\,10!\,2^{10}} \approx 1.5\times10^{14}$ \\
+\midrule
+곱 & 위 넷을 그대로 곱한 것 & $\approx 2.8\times10^{24}$ \\
+ & 링과 시작 위치를 실질 $26^5$로 센 것 & $\approx 1.1\times10^{23}$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{플러그보드.} 케이블 $n$개의 플러그보드가 몇 가지인지 세어 보자(그림~\ref{fig:am-plugcount}). 칸 $2n$개를
+둘씩 묶어 놓고, 두 칸이 케이블 하나의 양 끝이라고 하자. 칸을 앞에서부터 서로 다른 글자로 채우는 방법은
+$26 \times 25 \times \cdots \times (27-2n) = 26!/(26-2n)!$가지다. 그런데 이렇게 세면 같은 플러그보드를 여러 번 센다.
+케이블의 순서를 바꾸어 적어도($n!$가지) 같은 플러그보드이고, 케이블 하나의 두 끝을 바꾸어 적어도(케이블마다 2가지,
+모두 $2^n$가지) 같은 플러그보드다. 그러므로
+\begin{equation}
+  N(n) = \frac{26!}{(26-2n)!\;\, n!\;\, 2^{n}} \label{eq:am-plugcount}
+\end{equation}
+이다. 이 문서는 프로젝트 보고서의 키 표를 따라 케이블을 10개로 센다.
+$N(10) = 26!/(6!\,10!\,2^{10}) = 150{,}738{,}274{,}937{,}250 \approx 1.5 \times 10^{14}$이다. 덧붙여 $N(n)$이 가장 큰
+것은 케이블 11개일 때로 $N(11) = 205{,}552{,}193{,}096{,}250 \approx 2.1\times10^{14}$이다. 케이블 13개($N(13)$)는
+26글자를 모두 짝짓는 경우이므로 \ref{sec:am-reflector}절의 반사판 수 $7{,}905{,}853{,}580{,}625$와 같다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % (가) 칸 채우기
+  \foreach \x/\l in {0/A,0.75/C,1.75/D,2.5/E,4.5/{},5.6/{}} {
+    \draw[fill=white] (\x,0) rectangle ++(0.65,0.55);
+    \node[font=\small\ttfamily] at (\x+0.325,0.275) {\l};
+  }
+  \foreach \a/\b/\t in {0/0.75/{케이블 1},1.75/2.5/{케이블 2},4.5/5.6/{케이블 $n$}} {
+    \draw[cgray,dashed,rounded corners=2pt] (\a-0.08,-0.08) rectangle (\b+0.73,0.63);
+    \node[note] at ({(\a+\b)/2+0.325},0.9) {\t};
+  }
+  \node at (3.8,0.275) {$\cdots$};
+  \foreach \x/\c in {0/26,0.75/25,1.75/24,2.5/23,4.5/28-2n,5.6/27-2n} {
+    \node[font=\scriptsize] at (\x+0.325,-0.3) {$\c$};
+  }
+  \node[note,anchor=west] at (6.7,0.275) {$\displaystyle 26 \cdot 25 \cdots (27-2n) = \frac{26!}{(26-2n)!}$};
+  \node[font=\small\bfseries,anchor=west] at (-0.3,1.45) {(가) 칸을 앞에서부터 채운다};
+  % (나) 같은 플러그보드의 여덟 가지 표기
+  \node[font=\small\bfseries,anchor=west] at (-0.3,-1.05) {(나) 같은 플러그보드의 여덟 가지 표기 ($n=2$)};
+  \foreach \t [count=\i from 0] in {AC\,DE,CA\,DE,AC\,ED,CA\,ED} { \node[font=\small\ttfamily] at (0.6+1.6*\i,-1.65) {\t}; }
+  \foreach \t [count=\i from 0] in {DE\,AC,ED\,AC,DE\,CA,ED\,CA} { \node[font=\small\ttfamily] at (0.6+1.6*\i,-2.2) {\t}; }
+  \draw[decorate,decoration={brace,amplitude=5pt}] (6.25,-1.4) -- (6.25,-2.45);
+  \node[note,anchor=west,align=left] at (6.5,-1.925) {케이블의 순서 $2!$, 양 끝의 순서 $2^2$\\$2! \times 2^2 = 8$가지 표기가 모두\\$\Stk = \amcyc{A\,C}\amcyc{D\,E}$ 하나다};
+\end{tikzpicture}
+\caption{플러그보드의 경우의 수 세기. (가) 칸 $2n$개를 앞에서부터 채우는 방법의 수. 칸 밑의 수는 그 칸에 올 수 있는
+글자의 수다. (나) 그렇게 세면 같은 플러그보드가 $n!\,2^n$번 세어진다. 작은 에니그마(글자 여섯 개)에서 케이블 둘이면
+$6!/(2!\,2!\,2^2) = 45$가지다.}
+\label{fig:am-plugcount}
+\end{figure}
+
+\paragraph{링과 시작 위치.} 표에서 링 설정과 시작 위치는 각각 $26^3$가지이지만 둘을 합친 $26^6$가지가 모두 다른
+암호화를 주지는 않는다. 치환을 정하는 것은 세 로터의 코어 위치 $s = p - r$뿐이고(식~\eqref{eq:am-core}), 링이
+따로 하는 일은 넘어가는 시점을 정하는 것뿐이다(\ref{sec:am-stepping}절). 그런데 왼쪽 로터는 넘겨 줄 이웃이 없다.
+왼쪽 로터의 링은 아무 시점도 정하지 않으므로 코어 위치 안에 흡수된다. 남는 것은 코어 위치 $26^3$가지와, 오른쪽
+로터와 가운데 로터가 각각 언제 넘어가는가의 $26^2$가지, 모두 $26^5$가지다. 링이 실질적으로 더하는 것은 $26^3$이
+아니라 $26^2$다.
+
+넘어가는 시점이 다른 두 설정도 넘어감이 일어나기 전까지는 같은 글자를 낸다. 크립처럼 짧은 구간에서는 링의 차이가
+아예 보이지 않을 때가 많다. 봄베가 링 설정을 찾지 않고 코어 위치만 찾는 것은 이 때문이다(\ref{sec:am-rotor}절).
+
+\paragraph{무차별 대입.} 봄베의 눈으로 보면 모르는 것은 로터 순서 60가지, 코어 위치 $26^3 = 17{,}576$가지, 그리고
+플러그보드다. 셋을 곱하면 $60 \times 17{,}576 \times 1.5 \times 10^{14} \approx 1.6 \times 10^{20}$이다. 1초에 10억 개를
+시험해도 약 5천 년이 걸린다. 경우의 수의 거의 전부가 플러그보드에서 나온다. 그러므로 플러그보드를 하나씩 대입해서는
+안 되고, 플러그보드를 \emph{추론하는} 방법이 필요하다. 식~\eqref{eq:am-moved}가 그 실마리이고, 다음 장이 그 방법을
+본다(\ref{ch:cryptanalysis}장).
+
+\General 숫자 네 자리 자물쇠는 $10^4$가지다. 한 자리를 늘리면 10배가 되듯, 에니그마에서 케이블 하나를 더 꽂는 것은
+경우의 수를 곱으로 늘린다. 표의 여러 줄도 서로 곱해진다. 한 부분을 알아내면 그 부분의 수만큼 \emph{나누어} 줄어든다는
+뜻이기도 하다. 해독은 늘 큰 수를 작은 곱들로 쪼개는 일이다.
+
+% ====================================================================
+\section{M4: 네 번째 로터}\label{sec:am-m4}
+
+독일 해군 U보트 부대의 M4는 왼쪽 로터와 반사판 사이에 네 번째 로터(그리스 로터)를 더하고, 반사판을 얇은 것으로
+바꾸었다~\cite{wenger1944history,cryptomuseum-m4}. 그리스 로터는 Beta와 Gamma 두 가지이고 프로젝트의 배선표에 있다.
+그리스 로터 $G$는 키를 쳐도 움직이지 않는다. 그 코어 위치를 $s_G$라 하면 $G = \tau^{-s_G}W_G\tau^{s_G}$다.
+
+전류는 왼쪽 로터를 지난 뒤 $G$, 얇은 반사판 $U_{\mathrm{thin}}$, $G^{-1}$을 지나 왼쪽 로터로 돌아온다
+(그림~\ref{fig:am-m4}). 이 세 단을 하나로 보면
+\begin{equation}
+  U' = G^{-1}\, U_{\mathrm{thin}}\, G \label{eq:am-m4}
+\end{equation}
+이다. $U_{\mathrm{thin}}$은 고정점 없는 대합이고 $U'$은 그 켤레이므로, $U'$도 고정점 없는 대합이다
+(\ref{sec:am-properties}절의 증명이 그대로 통한다). 곧 M4는 \emph{반사판을 26가지 가운데 하나로 고를 수 있는 3로터
+에니그마}와 같다. 이 장의 식은 $U$를 $U'$으로 바꾸기만 하면 모두 성립한다. 프로젝트의 배선표로 $s_G$를 26가지로
+바꾸어 보면 26개의 $U'$이 모두 다르다.
+
+특히 Beta를 코어 위치 0에 둔 얇은 반사판 B는 3로터 기종의 반사판 B와 같고, Gamma와 얇은 반사판 C는 반사판 C와
+같다. Rust 모델은 이 등가성을 시험으로 확인한다(\ref{ch:rust-enigma}장). 해독자에게는 시험할 위치가 로터 순서
+하나당 $26^3$에서 $26^4$으로 26배 늘어난 것이다~\cite{wenger1944history}.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[blkn,minimum height=20mm,minimum width=12mm] (Ut) at (-0.3,0) {$U_{\mathrm{thin}}$};
+  \node[blkg,minimum height=20mm,minimum width=12mm] (G) at (1.8,0) {};
+  \node[blkb,minimum height=20mm,minimum width=12mm] (L) at (3.6,0) {};
+  \node[blkb,minimum height=20mm,minimum width=12mm] (M) at (5.2,0) {};
+  \node[blkb,minimum height=20mm,minimum width=12mm] (R) at (6.8,0) {};
+  \foreach \n/\x in {G/1.8,L/3.6,M/5.2,R/6.8} {
+    \node at (\x,0.5) {$\n$};
+    \node at (\x,-0.5) {$\n^{-1}$};
+  }
+  \node[note] at (-0.3,1.3) {얇은 반사판};
+  \node[note] at (1.8,1.3) {그리스 로터};
+  \node[note] at (3.6,1.3) {왼쪽};
+  \node[note] at (5.2,1.3) {가운데};
+  \node[note] at (6.8,1.3) {오른쪽};
+  \draw[live,->] (8.2,0.5) -- ($(R.east)+(0,0.5)$);
+  \draw[live,->] ($(R.west)+(0,0.5)$) -- ($(M.east)+(0,0.5)$);
+  \draw[live,->] ($(M.west)+(0,0.5)$) -- ($(L.east)+(0,0.5)$);
+  \draw[live,->] ($(L.west)+(0,0.5)$) -- ($(G.east)+(0,0.5)$);
+  \draw[live,->] ($(G.west)+(0,0.5)$) -- ($(Ut.east)+(0,0.5)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(Ut.east)+(0,-0.5)$) -- ($(G.west)+(0,-0.5)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(G.east)+(0,-0.5)$) -- ($(L.west)+(0,-0.5)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(L.east)+(0,-0.5)$) -- ($(M.west)+(0,-0.5)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(M.east)+(0,-0.5)$) -- ($(R.west)+(0,-0.5)$);
+  \draw[line width=1.1pt,draw=cred,->] ($(R.east)+(0,-0.5)$) -- (8.2,-0.5);
+  \node[note,anchor=west] at (8.25,0.5) {플러그보드에서};
+  \node[note,anchor=west] at (8.25,-0.5) {플러그보드로};
+  \draw[cpurple,dashed,rounded corners=3pt] (-1.25,-1.2) rectangle (2.75,1.75);
+  \node[note,text=cpurple] at (0.75,-1.75) {$U' = G^{-1}\,U_{\mathrm{thin}}\,G$\\돌지 않으므로 반사판 하나처럼 동작};
+\end{tikzpicture}
+\caption{M4의 신호 경로(플러그보드는 생략). 그리스 로터 $G$는 움직이지 않으므로, 점선 안의 두 단은 늘 같은
+치환 $U'$을 만든다. $U'$은 고정점 없는 대합이어서 3로터 에니그마의 반사판과 같은 역할을 한다. $G$의 코어 위치에 따라
+$U'$이 26가지다.}
+\label{fig:am-m4}
+\end{figure}
+
+% ====================================================================
+\section{정리}
+
+\begin{itemize}
+\item 글자는 $\mathbb{Z}_{26}$의 수이고, 배선은 치환이다. 합성은 오른쪽부터 읽고, 합성의 역은 순서가 뒤집힌다.
+\item $s$칸 돌아간 로터는 $R = \tau^{-s}W\tau^{s}$, 곧 ``밀고, 배선을 지나고, 되돌린다''이다. $s$는 창 글자에서 링
+설정을 뺀 코어 위치이고, 링 설정이 따로 하는 일은 넘어가는 시점뿐이다.
+\item 켤레 $g^{-1}\pi g$는 $\pi$의 순환에서 글자 이름만 바꾼다. 순환의 개수와 길이는 그대로다.
+\item 반사판 $U$는 고정점 없는 대합(13쌍)이다. 스크램블러는 $\Scr_k = \rho_k^{-1}U\rho_k$, 암호화는
+$E_k = \Stk\,\Scr_k\,\Stk$(식~\eqref{eq:am-enigma})다.
+\item $E_k$는 $U$의 켤레이므로 고정점 없는 대합이다. 같은 기계가 암호화와 복호화를 하고, 어떤 글자도 자기 자신이
+되지 않는다(\ref{sec:am-properties}절).
+\item 로터는 암호화 전에 움직인다. 오른쪽은 키마다, 가운데는 노치에서, 가운데는 이중 스테핑으로 두 번 연달아
+움직이기도 한다. 스크램블러는 키마다 바뀌고 플러그보드는 하루 동안 그대로다.
+\item 플러그보드는 케이블 10개에서 $1.5 \times 10^{14}$가지로 키의 경우의 수를 거의 다 차지한다. 그래서 대입이 아니라
+추론이 필요하고, 그 실마리는 $\Stk(c) = \Scr_k(\Stk(p))$다.
+\item M4의 그리스 로터와 얇은 반사판은 합쳐서 26가지 반사판 가운데 하나처럼 동작한다.
+\end{itemize}

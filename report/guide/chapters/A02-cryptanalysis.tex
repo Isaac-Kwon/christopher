@@ -1,0 +1,826 @@
+\chapter{해독: 크립에서 정지까지}\label{ch:cryptanalysis}
+
+앞 장(\ref{ch:enigma-math}장)은 에니그마를 치환의 합성으로 적었다. 크립 위치 $k$의 평문 글자 $p$는
+$c = \Stk(\Scr_k(\Stk(p)))$로 암호화된다(식~\eqref{eq:am-enigma}). 이 장은 그 식 하나에서 출발해 해독자가 키를
+찾아가는 논리를 따라간다. 암호문과, 평문의 일부에 대한 짐작만 있을 때 플러그보드를 하나하나 대입하지 않고
+어떻게 걸러 내는가. 끝은 봄베의 \emph{정지}와 그 뒤의 \emph{체킹}이다.
+
+이 장에는 전선도 회로도 나오지 않는다. 나오는 것은 식과 그림이다. 단계마다 식 하나와 그림 하나를 짝지어, 같은 내용을
+두 번 읽을 수 있게 했다. 작은 예는 \ref{ch:connect}장과 \ref{ch:find}장에서 다시 만날 글자 여섯 개짜리 봄베를 쓴다.
+다음 두 장은 여기서 본 추론을 전선과 전압으로 다시 만든다.
+
+\section{무차별 대입으로는 안 된다}\label{sec:ac-brute}
+
+\Why 하루의 키는 로터 순서, 코어 위치(창 글자와 링 설정이 함께 정하는 로터의 실제 회전량), 플러그보드로 이루어진다
+(\ref{sec:am-keyspace}절). 셋의 경우의 수는 크기가 전혀 다르다. Enigma~I에서 로터 순서는 60가지인데, 이 프로젝트는
+반사판(B, C) 두 종까지 로터 순서에 넣어 120가지로 센다(\ref{ch:14-rust-search}장의 표와 같다). 이 120가지와 코어 위치는 $26^3 = 17{,}576$가지이므로, 둘을 합쳐 2,109,120가지다. 케이블 10개를 꽂는 플러그보드는
+그 혼자서
+\[
+  \frac{26!}{6!\,10!\,2^{10}} = 150{,}738{,}274{,}937{,}250 \approx 1.5 \times 10^{14}
+\]
+가지다. 전부를 대입하려면 두 수의 곱, 약 $3.2 \times 10^{20}$가지를 시험해야 한다(그림~\ref{fig:ac-keyspace}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=4.5mm,y=1cm]
+  \foreach \e in {0,2,...,20} {
+    \draw[cgray!35] (\e,0.35) -- (\e,-2.45);
+    \node[note,font=\scriptsize] at (\e,-2.7) {$10^{\e}$};
+  }
+  \fill[cblue] (0,-0.18) rectangle (6.32,0.18);
+  \node[anchor=east,font=\footnotesize] at (-0.4,0) {로터 순서 $\times$ 코어 위치};
+  \node[anchor=west,font=\footnotesize] at (6.5,0) {2,109,120};
+  \fill[corange] (0,-1.18) rectangle (14.18,-0.82);
+  \node[anchor=east,font=\footnotesize] at (-0.4,-1) {플러그보드(10쌍)};
+  \node[anchor=west,font=\footnotesize] at (14.4,-1) {$1.5\times10^{14}$};
+  \fill[cred] (0,-2.18) rectangle (20.5,-1.82);
+  \node[anchor=east,font=\footnotesize] at (-0.4,-2) {전부 대입};
+  \node[anchor=west,font=\footnotesize] at (20.7,-2) {$3.2\times10^{20}$};
+\end{tikzpicture}
+\caption{Enigma~I의 키를 나눈 크기(가로축은 로그 눈금). 봄베가 훑는 것은 파란 막대뿐이고, 주황 막대는 논리로 걸러 낸다.}
+\label{fig:ac-keyspace}
+\end{figure}
+
+시간으로 바꿔 보면 차이가 실감 난다. \ref{sec:am-keyspace}절은 초당 10억 번이라는 넉넉한 가정으로 어림했다. 여기서는
+이 프로젝트의 실제 속도로 다시 본다. Rust 모델은 PC 한 대에서 초당 약 1,000만 위치를 시험한다(보고서 7장).
+파란 막대 전체는 0.2초쯤이다. 같은 빠르기로 빨간 막대를 시험한다면 약 $3 \times 10^{13}$초, 곧 100만 년쯤
+걸린다. 1940년대의 기계는 이보다 훨씬 느렸다.
+
+그래서 해독의 첫 착상은 \emph{키를 둘로 가르는 것}이다. 로터 순서와 코어 위치는 수가 적으니 기계로 하나씩 훑는다.
+플러그보드는 대입하지 않고, 위치마다 ``이 위치에서 말이 되는 플러그보드가 있을 수 있는가''를 논리로 따진다.
+이 장의 나머지는 그 논리가 어디서 오는지를 본다.
+
+\Ours 일의 양을 실제로 세는 코드는 \ref{sec:s-count}절에 있다. 그 표의 ``전체 위치''가 파란 막대다.
+
+\section{크립과 정렬}\label{sec:ac-crib}
+
+논리에는 재료가 필요하다. 그 재료가 \term{크립}{crib}, 곧 평문에 들어 있으리라고 짐작하는 문구다. 독일군 전문은
+형식이 정해져 있어 이런 짐작이 가능했다. 예로 \texttt{WETTERVORHERSAGE}(일기예보, 16글자)를 쓴다. 이 예의
+암호문(121글자)과 결과는 모두 보고서 3장과 7장의 것이다.
+
+크립이 암호문의 어디에 놓이는지는 모른다. 하지만 놓을 수 없는 자리는 안다. 에니그마는 어떤 글자도 자기 자신으로
+바꾸지 않는다(\ref{sec:am-properties}절). 크립을 시작 자리 $o$에 놓으면 크립의 $k$번째 글자 $p_k$ 아래에 암호문 글자
+$c_{o+k}$가 온다. 둘이 같은 자리가 하나라도 있으면 그 $o$는 불가능하다(그림~\ref{fig:ac-align}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=4.6mm,y=5.5mm,font=\ttfamily\small]
+  \node[anchor=east,font=\small] at (-0.8,0) {암호문};
+  \node[anchor=east,font=\small] at (-0.8,-1) {크립};
+  \foreach \c [count=\i from 0] in {F,L,O,G,G,S,L,V,I,X,B,T,V,W,V,E} { \node at (\i,0) {\c}; }
+  \foreach \c [count=\i from 0] in {W,E,T,T,E,R,V,O,R,H,E,R,S,A,G,E} { \node at (\i,-1) {\c}; }
+  \draw[cred,line width=0.9pt,rounded corners=1pt] (14.5,0.5) rectangle (15.5,-1.5);
+  \node[anchor=west,font=\small,text=cred] at (16.2,-0.5) {자리 2: 불가능 (\texttt{E} 아래 \texttt{E})};
+  \begin{scope}[yshift=-17mm]
+  \node[anchor=east,font=\small] at (-0.8,0) {암호문};
+  \node[anchor=east,font=\small] at (-0.8,-1) {크립};
+  \foreach \c [count=\i from 0] in {I,L,Z,L,I,I,U,F,M,W,A,J,N,W,T,U} { \node at (\i,0) {\c}; }
+  \foreach \c [count=\i from 0] in {W,E,T,T,E,R,V,O,R,H,E,R,S,A,G,E} { \node at (\i,-1) {\c}; }
+  \foreach \i in {1,...,16} { \node[font=\tiny\rmfamily,text=cgray] at (\i-1,-1.8) {\i}; }
+  \node[anchor=west,font=\small,text=cgreen] at (16.2,-0.5) {자리 28: 가능 (실제 자리)};
+  \end{scope}
+\end{tikzpicture}
+\caption{크립 정렬(보고서 3장의 예). 같은 글자가 위아래로 겹치는 자리는 배제된다. 아래 줄의 작은 숫자는 크립 안의
+위치 $k$다. 자리 28에는 겹치는 글자가 없다.}
+\label{fig:ac-align}
+\end{figure}
+
+\Why 이 검사가 얼마나 걸러 내는지 어림할 수 있다. 틀린 자리에서는 위아래 글자가 서로 무관하다고 보면, 한 자리에서
+우연히 겹치지 않을 확률은 $25/26$이다. 16글자가 모두 겹치지 않아야 살아남으므로
+\begin{equation}
+  \Pr(\text{틀린 자리가 살아남음}) \approx \left(\frac{25}{26}\right)^{16} \approx 0.53 . \label{eq:ac-survive}
+\end{equation}
+예제 전문에서 크립을 놓을 수 있는 자리는 $121 - 16 + 1 = 106$곳이고, 이 검사로 46곳이 지워져 60곳이 남는다(보고서 3장).
+어림으로는 틀린 자리 105곳 가운데 약 56곳이 살아남고 실제 자리 하나를 더해 약 57곳이니, 실제 60곳과 비슷하다.
+
+이 검사는 싸지만 약하다. 자리의 절반쯤만 지운다. 크립이 길수록 더 지우지만, 정렬만으로 답이 나오지는 않는다.
+남은 자리마다 아래의 논리를 다시 적용한다.
+
+\Ours \code{possible\_offsets}(\ref{ch:rust-menu}장)가 이 검사를 한 줄로 한다.
+
+\section{플러그보드를 한쪽으로 넘기기}\label{sec:ac-move}
+
+크립을 한 자리에 놓으면 ``크립 위치 $k$에서 $p$가 $c$가 되었다''는 사실이 글자 수만큼 생긴다. 사실 하나는
+식~\eqref{eq:am-enigma}다.
+\[
+  c = \Stk\bigl(\Scr_k(\Stk(p))\bigr).
+\]
+이 식에는 모르는 것이 둘 섞여 있다. $\Scr_k$는 로터 순서와 코어 위치를 정하면 계산할 수 있다. 봄베가 하나씩
+훑을 것이므로 ``안다''고 놓는다. $\Stk$는 끝까지 모른다. 그런데 $\Stk$가 양쪽 끝에 하나씩 있다.
+
+\Why 플러그보드는 쌍을 맞바꾸므로 두 번 지나면 제자리다. $\Stk(\Stk(x)) = x$다. 식의 양변에 $\Stk$를 씌우면
+오른쪽 바깥의 $\Stk$가 지워진다.
+\begin{equation}
+  \Stk(c) = \Scr_k\bigl(\Stk(p)\bigr). \label{eq:ac-moved}
+\end{equation}
+모르는 것이 한쪽으로 모였다. 남은 식은 ``$p$의 짝을 스크램블러에 넣으면 $c$의 짝이 나온다''이다
+(그림~\ref{fig:ac-path}, \ref{fig:ac-square}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    unk/.style={draw=corange,fill=corangebg,minimum size=7mm,rounded corners=1pt,font=\small,inner sep=2pt}]
+  \node[ltr] (p) at (0,0) {$p$};
+  \node[blko,minimum width=10mm] (s1) at (1.7,0) {$\Stk$};
+  \node[unk] (u1) at (3.4,0) {?};
+  \node[blkb,minimum width=12mm] (sc) at (5.2,0) {$\Scr_k$};
+  \node[unk] (u2) at (7.0,0) {?};
+  \node[blko,minimum width=10mm] (s2) at (8.7,0) {$\Stk$};
+  \node[ltr] (c) at (10.4,0) {$c$};
+  \draw[->] (p) -- (s1); \draw[->] (s1) -- (u1); \draw[->] (u1) -- (sc);
+  \draw[->] (sc) -- (u2); \draw[->] (u2) -- (s2); \draw[->] (s2) -- (c);
+  \node[note,above=1mm of u1] {$\Stk(p)$};
+  \node[note,above=1mm of u2] {$\Stk(c)$};
+  \node[note,anchor=east] at (-0.5,0) {(a)};
+  \node[unk] (v1) at (3.4,-1.8) {$x$};
+  \node[blkb,minimum width=12mm] (sc2) at (5.2,-1.8) {$\Scr_k$};
+  \node[unk,anchor=west] (v2) at (6.65,-1.8) {$\Scr_k(x)$};
+  \draw[->] (v1) -- (sc2); \draw[->] (sc2) -- (v2);
+  \draw[cgray,dashed] (u1) -- (v1); \draw[cgray,dashed] (u2) -- (u2 |- v2.north);
+  \node[note,below=1mm of v1] {가설 $\Stk(p)=x$};
+  \node[note,below=1mm of v2] {귀결 $\Stk(c)=\Scr_k(x)$};
+  \node[note,anchor=east] at (-0.5,-1.8) {(b)};
+\end{tikzpicture}
+\caption{(a) 에니그마 안의 전류의 길. 주황 칸 둘은 모르는 글자다. 오른쪽 칸이 $\Stk(c)$인 것은 거기에 $\Stk$를
+씌우면 $c$가 되기 때문이다. (b) 양 끝의 $\Stk$를 떼어 낸 꼴, 식~\eqref{eq:ac-moved}. 주황 칸 하나를 짐작하면 다른
+하나는 계산된다.}
+\label{fig:ac-path}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node (p) at (0,0) {$p$};
+  \node (c) at (4.6,0) {$c$};
+  \node (Sp) at (0,-2.2) {$\Stk(p)$};
+  \node (Sc) at (4.6,-2.2) {$\Stk(c)$};
+  \draw[->,cgray] (p) -- node[above,note] {크립 위치 $k$의 에니그마} (c);
+  \draw[<->,corange,line width=0.9pt] (p) -- node[left,text=corange] {$\Stk$} (Sp);
+  \draw[<->,corange,line width=0.9pt] (c) -- node[right,text=corange] {$\Stk$} (Sc);
+  \draw[->,cblue,line width=1.1pt] (Sp) -- node[below,text=cblue] {$\Scr_k$} (Sc);
+  \node[note,anchor=west,align=left] at (6.0,-1.1) {위: 해독자가 보는 것 ($p$와 $c$)\\
+     아래: 해독자가 계산할 수 있는 것 ($\Scr_k$)\\
+     세로: 모르는 것 ($\Stk$, 양방향)};
+\end{tikzpicture}
+\caption{같은 내용을 네모로 그린 것. 전류는 왼쪽 아래로, 아래쪽을 건너, 오른쪽 위로 간다. 세로 화살표가 양쪽을
+향하는 것은 $\Stk$를 거꾸로 지나도 $\Stk$이기 때문이다. 그래서 오른쪽 아래 모서리는 ``$\Stk(p)$를 $\Scr_k$로 보낸
+것''이자 ``$c$를 $\Stk$로 보낸 것''이다. 이것이 식~\eqref{eq:ac-moved}다.}
+\label{fig:ac-square}
+\end{figure}
+
+식~\eqref{eq:ac-moved}가 주는 것은 \emph{추론}이다. ``$\Stk(p) = x$라면 $\Stk(c) = \Scr_k(x)$다.'' 앞으로
+``글자 $X$의 짝은 $y$다'', 곧 $\Stk(X) = y$라는 진술을 \term{가설}{hypothesis}이라 부른다. 글자가 26개이고 짝의
+후보가 26개이므로 가설은 $26 \times 26 = 676$개다. 식~\eqref{eq:ac-moved}는 가설 하나에서 다른 가설 하나를 끌어내는
+규칙이다.
+
+이 규칙은 거꾸로도 쓸 수 있다. $\Scr_k$도 되돌릴 수 있는 치환이어서($\Scr_k(\Scr_k(y)) = y$,
+\ref{sec:am-properties}절) 식~\eqref{eq:ac-moved}의 양변에 $\Scr_k$를 씌우면 $\Stk(p) = \Scr_k(\Stk(c))$가 된다.
+``$\Stk(c) = y$라면 $\Stk(p) = \Scr_k(y)$다.'' 평문 쪽에서 출발하든 암호문 쪽에서 출발하든 같은 규칙이다. 이 대칭이
+뒤에서 여러 번 쓰인다.
+
+\General 두 사람의 나이 차가 3살인 것을 알면, 한 사람의 나이를 짐작하는 순간 다른 사람의 나이가 정해진다. 어느
+쪽 나이를 먼저 짐작해도 된다. 식~\eqref{eq:ac-moved}는 ``나이 차'' 대신 치환 $\Scr_k$가 두 글자의 짝을 묶는다.
+
+\Ours \ref{ch:find}장의 작은 봄베에서 크립 위치 1의 스크램블러는 $\Scr_1 = \mathtt{a}\leftrightarrow\mathtt{b}$,
+$\mathtt{c}\leftrightarrow\mathtt{f}$, $\mathtt{d}\leftrightarrow\mathtt{e}$이고, 크립 위치 1에서 \texttt{A}가 \texttt{B}가
+되었다. 그러면 ``$\Stk(\mathtt{A}) = \mathtt{d}$라면 $\Stk(\mathtt{B}) = \Scr_1(\mathtt{d}) = \mathtt{e}$''다. 봄베는 이
+추론 하나를 전선 한 가닥으로 만든다. 그림~\ref{fig:c-scr}(\ref{sec:c-scrambler}절)의 파란 선이 바로 이 추론이다.
+Rust 모델의 체킹 단계도 이 식을 그대로 쓴다(\ref{ch:rust-check}장의 \code{extend\_with\_crib}).
+
+\section{메뉴}\label{sec:ac-menu}
+
+크립 16글자는 식~\eqref{eq:ac-moved}를 16개 준다. 이것을 한눈에 보려고 그래프를 그린다. 글자를 점으로 놓고, 크립
+위치 $k$에서 $p$가 $c$가 되었으면 두 점을 선으로 잇고 선에 $k$를 적는다. 이 그래프가 \term{메뉴}{menu}다.
+선에는 방향이 없다. 앞 절의 끝에서 본 대로 식~\eqref{eq:ac-moved}는 양쪽으로 읽히기 때문이다
+(그림~\ref{fig:ac-edge}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[ltr] (E) at (0,0) {E};
+  \node[ltr] (I) at (3,0) {I};
+  \draw (E) -- node[above,font=\scriptsize,text=cgray] {5} (I);
+  \node[note,anchor=north] at (1.5,-0.45) {크립 위치 5: 평문 \texttt{E}, 암호문 \texttt{I}};
+  \node[anchor=west,align=left,font=\small] (eq) at (4.2,0) {$\Stk(\mathtt{I}) = \Scr_5\bigl(\Stk(\mathtt{E})\bigr)$\\[3pt]
+    $\Stk(\mathtt{E}) = \Scr_5\bigl(\Stk(\mathtt{I})\bigr)$};
+  \draw[decorate,decoration={brace,amplitude=4pt}] ([xshift=1mm]eq.north east) -- ([xshift=1mm]eq.south east)
+    node[midway,right=5pt,note,align=left] {같은 식\\(어느 끝에서든)};
+\end{tikzpicture}
+\caption{메뉴의 선 하나. 그림~\ref{fig:ac-align}의 자리 28에서 크립의 다섯째 글자 \texttt{E} 아래에 \texttt{I}가 있다.
+선은 식~\eqref{eq:ac-moved} 하나이고, 방향이 없다.}
+\label{fig:ac-edge}
+\end{figure}
+
+그림~\ref{fig:g-menu}는 자리 28에 놓은 크립 전체로 만든 메뉴다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    ed/.style={line width=0.6pt},
+    lp/.style={line width=1.4pt,draw=cblue},
+    el/.style={font=\scriptsize,fill=white,inner sep=1pt,text=cgray}]
+  \node[ltr,fill=corangebg,draw=corange,line width=1pt] (E) at (0,0) {E};
+  \node[ltr] (I) at (2,1.2) {I};
+  \node[ltr] (W) at (4,0) {W};
+  \node[ltr] (A) at (2,-1.2) {A};
+  \node[ltr] (L) at (-2,1.2) {L};
+  \node[ltr] (T) at (-4,1.2) {T};
+  \node[ltr] (Z) at (-6,1.9) {Z};
+  \node[ltr] (G) at (-6,0.5) {G};
+  \node[ltr] (U) at (-2,-1.2) {U};
+  \node[ltr] (V) at (-4,-1.2) {V};
+  \node[ltr] (R) at (4,2.3) {R};
+  \node[ltr] (M) at (6,2.9) {M};
+  \node[ltr] (J) at (6,1.7) {J};
+  \node[ltr] (H) at (6,0) {H};
+  \draw[lp] (E) -- node[el] {5} (I);
+  \draw[lp] (I) -- node[el] {1} (W);
+  \draw[lp] (W) -- node[el] {14} (A);
+  \draw[lp] (A) -- node[el] {11} (E);
+  \draw[ed] (E) -- node[el] {2} (L);
+  \draw[ed] (L) -- node[el] {4} (T);
+  \draw[ed] (T) -- node[el] {3} (Z);
+  \draw[ed] (T) -- node[el] {15} (G);
+  \draw[ed] (E) -- node[el] {16} (U);
+  \draw[ed] (U) -- node[el] {7} (V);
+  \draw[ed] (I) -- node[el] {6} (R);
+  \draw[ed] (R) -- node[el] {9} (M);
+  \draw[ed] (R) -- node[el] {12} (J);
+  \draw[ed] (W) -- node[el] {10} (H);
+  \node[note,text=corange,anchor=east,font=\scriptsize] at (-0.42,0) {테스트 글자};
+  \node[note,text=cblue] at (2,0) {루프};
+\end{tikzpicture}
+\caption{그림~\ref{fig:ac-align}의 자리 28에서 만든 메뉴(보고서 3장). 글자 14개, 선 14개, 루프 1개(파랑).
+선의 숫자는 크립 위치 $k$다. 크립 16글자 가운데 이 덩어리에 이어지지 않는 두 관계(\texttt{O}--\texttt{F},
+\texttt{S}--\texttt{N})는 뺐다.}
+\label{fig:g-menu}
+\end{figure}
+
+메뉴를 보면 쓸모 있는 부분과 없는 부분이 갈린다.
+
+\begin{itemize}
+\item \textbf{덩어리.} 추론은 선을 따라서만 간다. 그러므로 서로 이어진 글자들의 \term{덩어리}{connected component}
+하나 안에서만 가설이 서로 영향을 준다. \texttt{O}--\texttt{F} 선은 \texttt{E}의 짝에 대해 아무것도 말해 주지 않는다.
+봄베는 가장 큰 덩어리를 쓴다.
+\item \textbf{루프.} \texttt{E}--\texttt{I}--\texttt{W}--\texttt{A}--\texttt{E}처럼 출발한 글자로 돌아오는 길이
+\term{루프}{loop}다. 다음 절에서 보듯 걸러 내는 힘은 루프에서 나온다. 덩어리 하나의 루프 수는
+(선 수) $-$ (글자 수) $+$ 1이다. 이 메뉴는 $14 - 14 + 1 = 1$이다.
+\end{itemize}
+
+같은 전문에서 크립을 23글자(\texttt{WETTERVORHERSAGEFUERDIE})로 늘리고 선 14개를 골라 만든 메뉴는 글자 11개, 루프
+4개다(\ref{ch:rust-menu}장). 선의 수(곧 필요한 스크램블러의 수)는 같은데 루프가 넷이다. 이 차이가 어떤 결과를 낳는지는
+\ref{sec:ac-stop}절에서 본다.
+
+\Ours 메뉴를 만들고 루프를 세고 선을 고르는 코드가 \ref{ch:rust-menu}장이다. 루프 수의 공식이 왜 그런지도 그 장의
+그림~\ref{fig:g-loops}에 있다.
+
+\section{루프의 조건}\label{sec:ac-loop}
+
+\Why 메뉴의 길 하나를 따라가 보자. 글자 $X_0$에서 크립 위치 $k_1$의 선으로 $X_1$에 가고, $k_2$의 선으로 $X_2$에
+가고, \ldots, $k_n$의 선으로 $X_n$에 간다. 선마다 식~\eqref{eq:ac-moved}를 쓰면(방향은 상관없다)
+\[
+  \Stk(X_1) = \Scr_{k_1}\bigl(\Stk(X_0)\bigr),\quad
+  \Stk(X_2) = \Scr_{k_2}\bigl(\Stk(X_1)\bigr),\quad \ldots
+\]
+이고, 이것을 차례로 대입하면 $\Stk(X_n) = \Scr_{k_n} \cdots \Scr_{k_2}\Scr_{k_1}\bigl(\Stk(X_0)\bigr)$다. 치환의 합성은
+오른쪽부터 적용한다(\ref{ch:enigma-math}장). 길이 출발점으로 돌아오면, 곧 $X_n = X_0$이면 이렇게 된다.
+
+\begin{keybox}[title={루프의 조건}]
+루프 $X_0 \to X_1 \to \cdots \to X_n = X_0$의 선이 크립 위치 $k_1, \ldots, k_n$이면, 맞는 로터 순서와 코어 위치에서
+\begin{equation}
+  \Stk(X_0) = P\bigl(\Stk(X_0)\bigr), \qquad P = \Scr_{k_n} \cdots \Scr_{k_2}\, \Scr_{k_1}. \label{eq:ac-loop}
+\end{equation}
+즉 $\Stk(X_0)$는 스크램블러들의 곱 $P$의 \term{고정점}{fixed point}이어야 한다.
+\end{keybox}
+
+$P$는 위치만 정하면 계산되는 치환이다. 위치마다 $P$를 계산해 고정점을 보면, $X_0$의 짝이 될 수 있는 글자가 고정점들로
+좁혀진다. 고정점이 하나도 없으면 이 위치에서는 메뉴를 만족하는 플러그보드가 없다.
+
+얼마나 좁혀지는가. 틀린 위치에서 $P$를 아무렇게나 섞인 치환으로 보면, 글자 하나가 $P$로 자기 자신에 갈 확률은
+$1/26$이다. 그래서 가설 26개 가운데 루프를 통과하는 것은 평균 하나다(무작위 순열의 고정점 수의 평균은 정확히 1이다).
+루프 하나가 후보를 약 26분의 1로 줄인다. 루프가 여럿이면 짝은 모든 루프의 $P$에 공통인 고정점이어야 하므로 루프마다
+다시 26분의 1이 곱해진다.
+
+\Ours 작은 봄베(\ref{ch:find}장)의 메뉴는 루프 하나, \texttt{A}--\texttt{B}--\texttt{C}--\texttt{A}다. 크립 위치 1, 2, 3의
+선에 스크램블러 $\Scr_1$, $\Scr_2$, $\Scr_3$이 걸린다. \ref{ch:connect}장과 \ref{ch:find}장의 그림도 같은 이름을 쓴다. 글자가 여섯뿐이므로 $P = \Scr_3\Scr_2\Scr_1$을 손으로 계산할 수 있다. 드럼 위치 1에서
+\[
+  \Scr_1 = (\mathtt{ab})(\mathtt{cf})(\mathtt{de}),\quad \Scr_2 = (\mathtt{ab})(\mathtt{cd})(\mathtt{ef}),\quad
+  \Scr_3 = (\mathtt{ac})(\mathtt{be})(\mathtt{df})
+\]
+이다. $(\mathtt{ab})$는 \texttt{a}와 \texttt{b}를 맞바꾼다는 뜻이다. \texttt{a}를 넣으면 $\Scr_1$이 \texttt{b}로,
+$\Scr_2$가 \texttt{a}로, $\Scr_3$이 \texttt{c}로 보내므로 $P(\mathtt{a}) = \mathtt{c}$다. 여섯 글자를 모두 하면
+\[
+  P = (\mathtt{a}\,\mathtt{c}\,\mathtt{b}\,\mathtt{e})\,(\mathtt{d})\,(\mathtt{f})
+\]
+이다. \texttt{a}$\to$\texttt{c}$\to$\texttt{b}$\to$\texttt{e}$\to$\texttt{a}로 도는 순환 하나와 고정점 \texttt{d},
+\texttt{f}다. 그러므로 $\Stk(\mathtt{A})$는 \texttt{d}나 \texttt{f}만 될 수 있다. 드럼 위치 2에서는 $\Scr_3$만
+$(\mathtt{ac})(\mathtt{bd})(\mathtt{ef})$로 바뀌고,
+\[
+  P = (\mathtt{a}\,\mathtt{c}\,\mathtt{f}\,\mathtt{b}\,\mathtt{d}\,\mathtt{e})
+\]
+로 여섯 글자가 한 순환을 이룬다. 고정점이 없으므로 위치 2는 버린다(그림~\ref{fig:ac-loop}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    el/.style={font=\scriptsize,fill=white,inner sep=1pt,text=cgray},
+    fx/.style={ltr,fill=cgreenbg,draw=cgreen,line width=0.9pt}]
+  % 메뉴
+  \node[ltr] (A) at (0,0) {A};
+  \node[ltr] (B) at (2,0) {B};
+  \node[ltr] (C) at (1,1.6) {C};
+  \draw[line width=1.2pt,cblue] (A) -- node[el] {1} (B) -- node[el] {2} (C) -- node[el] {3} (A);
+  \node[note] at (1,-0.8) {메뉴};
+  % 드럼 위치 1
+  \begin{scope}[xshift=4.2cm]
+    \node[ltr] (a) at (0,1.4) {a};
+    \node[ltr] (c) at (1.3,1.4) {c};
+    \node[ltr] (b) at (1.3,0.1) {b};
+    \node[ltr] (e) at (0,0.1) {e};
+    \draw[->] (a) -- (c); \draw[->] (c) -- (b); \draw[->] (b) -- (e); \draw[->] (e) -- (a);
+    \node[fx] (d) at (2.5,0.1) {d};
+    \node[fx] (f) at (3.4,0.1) {f};
+    \path (d) edge[->,loop,out=130,in=50,min distance=6mm,cgreen,line width=0.8pt] (d);
+    \path (f) edge[->,loop,out=130,in=50,min distance=6mm,cgreen,line width=0.8pt] (f);
+    \node[note] at (1.7,-0.8) {드럼 위치 1: 고정점 \texttt{d}, \texttt{f}};
+  \end{scope}
+  % 드럼 위치 2
+  \begin{scope}[xshift=10.4cm,yshift=0.75cm]
+    \foreach \l/\ang in {a/90,c/30,f/-30,b/-90,d/-150,e/150} { \node[ltr] (q\l) at (\ang:1.05) {\l}; }
+    \draw[->] (qa) -- (qc); \draw[->] (qc) -- (qf); \draw[->] (qf) -- (qb);
+    \draw[->] (qb) -- (qd); \draw[->] (qd) -- (qe); \draw[->] (qe) -- (qa);
+    \node[note] at (0,-1.55) {드럼 위치 2: 고정점 없음};
+  \end{scope}
+\end{tikzpicture}
+\caption{왼쪽은 작은 봄베의 메뉴, 오른쪽 둘은 같은 루프의 곱을 화살표로 그린 것이다(${P = \Scr_3\Scr_2\Scr_1}$).
+화살표 하나가 ``루프를 한 바퀴 돌면 이 글자가 저 글자가 된다''이다. 초록 글자는 한 바퀴 돌아 제자리로 오는 고정점이고,
+$\Stk(\mathtt{A})$가 될 수 있는 것은 이것뿐이다.}
+\label{fig:ac-loop}
+\end{figure}
+
+\paragraph{가설 하나로 모두를 시험한다.} 고정점을 찾으려고 26글자를 하나씩 넣어 볼 필요는 없다. 아무 가설이나
+하나를 넣고 귀결을 끝까지 따라가면 된다. 드럼 위치 1에서 $\Stk(\mathtt{A}) = \mathtt{a}$를 넣고 루프를 계속 돌면
+그림~\ref{fig:ac-orbit}이 된다. 한 바퀴마다 $\Stk(\mathtt{A})$의 새 값이 나오고, 네 바퀴 만에 처음의 \texttt{a}로
+돌아온다. 나온 값은 \texttt{a}, \texttt{c}, \texttt{b}, \texttt{e}, 곧 $P$에서 \texttt{a}가 속한 순환이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=2.0cm,y=-9mm,
+    lb/.style={font=\scriptsize,text=cgray,above}]
+  \node[font=\small] at (0,-0.95) {$\Stk(\mathtt{A})$};
+  \node[font=\small] at (1,-0.95) {$\Stk(\mathtt{B})$};
+  \node[font=\small] at (2,-0.95) {$\Stk(\mathtt{C})$};
+  \node[font=\small] at (3,-0.95) {$\Stk(\mathtt{A})$};
+  \foreach \r/\x/\y/\z/\w in {0/a/b/a/c,1/c/f/e/b,2/b/a/b/e,3/e/d/c/a} {
+    \node[ltr,draw=cred,line width=0.9pt] (n\r0) at (0,\r) {\x};
+    \node[ltr] (n\r1) at (1,\r) {\y};
+    \node[ltr] (n\r2) at (2,\r) {\z};
+    \node[ltr] (n\r3) at (3,\r) {\w};
+    \draw[->] (n\r0) -- node[lb] {$\Scr_1$} (n\r1);
+    \draw[->] (n\r1) -- node[lb] {$\Scr_2$} (n\r2);
+    \draw[->] (n\r2) -- node[lb] {$\Scr_3$} (n\r3);
+    \ifnum\r<3 \node[note,anchor=west] at (3.25,\r) {$\Rightarrow$ 다음 줄의 처음}; \fi
+  }
+  \node[note,anchor=west,text=cgreen] at (3.25,3) {$\Rightarrow$ 처음의 \texttt{a}로 돌아옴};
+  \node[note,text=cred,anchor=north,align=center] at (0,3.55) {\texttt{A}의 짝이 넷:\\\texttt{a}, \texttt{c}, \texttt{b}, \texttt{e}};
+\end{tikzpicture}
+\caption{드럼 위치 1에서 가설 $\Stk(\mathtt{A}) = \mathtt{a}$를 넣고 루프를 네 바퀴 따라간 것. 줄 하나가 한 바퀴이고,
+줄 끝의 값이 다음 줄의 처음이 된다. 빨간 칸이 \texttt{A}의 짝으로 나온 값이다.}
+\label{fig:ac-orbit}
+\end{figure}
+
+이 넷은 서로에게서 끌어낸 것이다. 그리고 앞 절에서 본 대로 추론은 거꾸로도 성립하므로, 넷 가운데 어느 것에서
+출발해도 나머지 셋이 나온다. 그러니 넷은 함께 참이거나 함께 거짓이다. 함께 참일 수는 없다. 한 글자의 짝은 하나뿐이다.
+그러므로 넷은 모두 거짓이다. 거짓일지도 모르는 가설 하나를 넣었을 뿐인데, 가설 넷이 한꺼번에 지워졌다. 남은 것은
+순환 밖에 있던 \texttt{d}와 \texttt{f}, 곧 고정점이다.
+
+일반적으로 적으면 이렇다. 가설 $\Stk(X_0) = x$에서 출발한 귀결은 $x, P(x), P^2(x), \ldots$이고, 이것은 $P$의 순환
+하나다. 순환의 길이가 2 이상이면 그 순환의 가설은 모두 거짓이고, 길이가 1이면(고정점) 살아남는다. 루프가 여럿이거나
+루프에 다른 가지가 붙은 메뉴에서도 같다. 가설 하나에서 끌어낼 수 있는 것을 모두 모은 \emph{무리}는 함께 서고 함께
+넘어진다. 테스트 글자에 대한 가설 26개가 모두 어느 무리에선가 지워지면, 이 위치에는 메뉴를 만족하는 플러그보드가
+없다. 루프가 테스트 글자를 지나지 않아도 된다. 같은 덩어리에 있으면 테스트 글자에서 그 루프까지 가는 길을 따라
+가설이 옮겨 가고, 같은 길로 돌아오기 때문이다.
+
+튜링이 설계한 봄베~\cite{jackson-bh06,ellsbury1998bombe}가 위치마다 하는 일이 이것이다. 가설 하나를 넣고 귀결을
+퍼뜨린 다음, 테스트 글자의 26개 가설이 모두 지워졌는지를 본다. 넣은 가설이 맞든 틀리든 상관없다.
+
+\Ours 그림~\ref{fig:ac-orbit}에서 나온 값을 글자별로 모으면 \texttt{A}는 \texttt{a}, \texttt{b}, \texttt{c}, \texttt{e},
+\texttt{B}는 \texttt{a}, \texttt{b}, \texttt{d}, \texttt{f}, \texttt{C}는 \texttt{a}, \texttt{b}, \texttt{c}, \texttt{e}다. \ref{ch:find}장의 그림~\ref{fig:f-groups}에서 전압을 건 선과
+함께 켜지는 파란 덩어리 12가닥이 정확히 이것이다. 루프를 ``돌리는'' 것을 전류가 한꺼번에 하는 것이다.
+
+\section{대각선 보드: 짝은 서로를 가리킨다}\label{sec:ac-diagonal}
+
+지금까지 쓴 사실은 식~\eqref{eq:ac-moved}와 ``짝은 하나뿐''이었다. 플러그보드에 대해 아직 쓰지 않은 사실이 하나 있다.
+케이블 하나가 두 글자를 맞바꾸므로
+\begin{equation}
+  \Stk(X) = y \iff \Stk(Y) = x \label{eq:ac-sym}
+\end{equation}
+이다. ``$X$의 짝이 $y$''와 ``$Y$의 짝이 $x$''는 같은 말이다. 글자와 짝을 맞바꾼 \emph{거울쌍}이다
+(그림~\ref{fig:ac-mirror}의 위). 이것도 추론 규칙이다. 그런데 식~\eqref{eq:ac-moved}와 성격이 다르다. 메뉴의 선을
+따라가지 않고, 한 글자에 대한 가설을 \emph{다른 글자}에 대한 가설로 옮긴다. 귀결에 메뉴의 다른 글자가 짝으로 나오면
+그 글자의 가설로 건너가 다시 퍼진다. 루프가 하던 일, 곧 추론을 출발한 곳으로 되돌려 보내는 일을 루프가 없는 곳에서도
+한다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    hy/.style={draw,rounded corners=1.5pt,fill=white,minimum height=7mm,minimum width=19mm,font=\small,inner sep=2pt},
+    lb/.style={font=\scriptsize,text=cgray,above}]
+  % (a) 거울쌍
+  \node[hy,draw=corange,fill=corangebg] (m1) at (2.3,1.6) {$\Stk(\mathtt{B}) = \mathtt{c}$};
+  \node[hy,draw=corange,fill=corangebg] (m2) at (6.7,1.6) {$\Stk(\mathtt{C}) = \mathtt{b}$};
+  \draw[<->,corange,line width=0.9pt] (m1) -- node[above,font=\scriptsize,text=corange] {같은 말} (m2);
+  \node[note,anchor=west] at (8.0,1.6) {글자와 짝을 맞바꾼 쌍, 식~\eqref{eq:ac-sym}};
+  \node[note,anchor=east] at (-1.1,1.6) {(a)};
+  % (b) 작은 봄베의 예
+  \node[hy] (h0) at (0,0) {$\Stk(\mathtt{A}) = \mathtt{f}$};
+  \node[hy] (h1) at (2.9,0) {$\Stk(\mathtt{B}) = \mathtt{c}$};
+  \node[hy,draw=cred,line width=0.9pt] (h2) at (5.8,0) {$\Stk(\mathtt{C}) = \mathtt{d}$};
+  \node[hy,draw=cgreen,line width=0.9pt] (h3) at (8.7,0) {$\Stk(\mathtt{A}) = \mathtt{f}$};
+  \draw[->] (h0) -- node[lb] {$\Scr_1$} (h1);
+  \draw[->] (h1) -- node[lb] {$\Scr_2$} (h2);
+  \draw[->] (h2) -- node[lb] {$\Scr_3$} (h3);
+  \node[note,text=cgreen,anchor=north] at (8.7,-0.45) {루프는 닫힌다};
+  \node[hy,draw=cred,line width=0.9pt,fill=credbg] (h4) at (2.9,-1.7) {$\Stk(\mathtt{C}) = \mathtt{b}$};
+  \draw[->,corange,line width=0.9pt] (h1) -- node[right,font=\scriptsize,text=corange] {거울쌍} (h4);
+  \draw[cred,dashed,line width=0.8pt] (h4.east) -| (h2.south);
+  \node[note,text=cred,anchor=west] at (6.0,-1.3) {\texttt{C}의 짝이 둘 (\texttt{d}, \texttt{b}): 모순};
+  \node[note,anchor=east] at (-1.1,0) {(b)};
+\end{tikzpicture}
+\caption{(a) 플러그보드의 대칭. (b) 작은 봄베의 드럼 위치 1에서 가설 ${\Stk(\mathtt{A}) = \mathtt{f}}$. 루프만 보면 한 바퀴
+돌아 \texttt{f}로 돌아오므로(고정점) 살아남는다. 그러나 도중에 나온 $\Stk(\mathtt{B}) = \mathtt{c}$의 거울쌍
+$\Stk(\mathtt{C}) = \mathtt{b}$가 이미 나온 $\Stk(\mathtt{C}) = \mathtt{d}$와 부딪친다.}
+\label{fig:ac-mirror}
+\end{figure}
+
+\Why 그림~\ref{fig:ac-mirror}(b)가 그 효과다. 작은 봄베의 드럼 위치 1에서 루프의 조건을 통과한 것은 \texttt{d}와
+\texttt{f} 둘이었다. 그런데 $\Stk(\mathtt{A}) = \mathtt{f}$에서 $\Stk(\mathtt{B}) = \Scr_1(\mathtt{f}) = \mathtt{c}$,
+$\Stk(\mathtt{C}) = \Scr_2(\mathtt{c}) = \mathtt{d}$가 나오고, $\Stk(\mathtt{B}) = \mathtt{c}$의 거울쌍은
+$\Stk(\mathtt{C}) = \mathtt{b}$다. \texttt{C}의 짝이 둘이니 이 가설은 거짓이다. 루프가 놓친 모순을 거울쌍이 잡았다.
+남는 것은 \texttt{d} 하나이고, 이것이 작은 봄베를 만들 때 쓴 실제 플러그보드 \texttt{A}$\leftrightarrow$\texttt{D},
+\texttt{B}$\leftrightarrow$\texttt{E}, \texttt{C}$\leftrightarrow$\texttt{F}의 값이다. 참인 가설은 거울쌍을 더해도
+지워지지 않는다. $\Stk(\mathtt{A}) = \mathtt{d}$의 귀결 $\Stk(\mathtt{B}) = \mathtt{e}$, $\Stk(\mathtt{C}) = \mathtt{f}$의
+거울쌍은 \texttt{D}, \texttt{E}, \texttt{F}에 대한 가설이고 메뉴의 어느 것과도 부딪치지 않는다.
+
+이 사실을 기계에 넣은 것이 웰치먼의 \term{대각선 보드}{diagonal board}다~\cite{welchman1986bomba,carter2010bombe}.
+튜링의 처음 설계는 루프가 세 개 이상인 메뉴가 있어야 제대로 쓸 수 있었는데, 대각선 보드를 넣자 루프가 하나뿐이거나
+특수한 경우에는 없어도 되었다~\cite{carter2010bombe}. 대각선 보드를 단 첫 기계는 1940년 8월에
+가동되었다~\cite{jackson-bh01,cryptomuseum-bombe}. 그림~\ref{fig:g-menu}의 메뉴(루프 1개)를 실제 로터 순서에 걸면,
+대각선 보드 없이는 17,576 위치 전부에서 정지하고 대각선 보드가 있으면 2곳에서만 정지한다(보고서 3장).
+
+\Ours \ref{ch:find}장의 그림은 단순하게 하려고 대각선 보드를 빼고 그렸다. 그래서 그 장의 위치 1에서는 \texttt{d}와
+\texttt{f}가 함께 꺼진 채 남는다. 대각선 보드를 넣으면 주황 덩어리(\texttt{A}$\to$\texttt{f})가 파란 덩어리와
+이어져 \texttt{f}도 켜진다. 대각선 보드를 전선으로 만드는 법은 \ref{sec:c-diagonal}절, Rust 모델에서는
+\code{propagate}의 여섯 줄이다(\ref{sec:propagate}절).
+
+\section{정지와 거짓 정지}\label{sec:ac-stop}
+
+이제 봄베가 위치마다 내리는 판정을 적을 수 있다. 테스트 글자 $T$를 하나 고르고, $T$에 대한 가설 하나를 넣어 귀결을
+모두 모은다. 귀결이 $T$의 가설 26개를 \emph{모두} 덮으면 이 위치를 버린다. 하나라도 남으면 기계가 멈춘다. 이것이
+\term{정지}{stop}다. 1차 자료는 정지 조건을 ``입력에 통전되지 않은 점이 있는 것''으로 적는다~\cite[32]{us6812report1944}.
+테스트 글자로는 선이 가장 많이 모이는 글자를 골랐다~\cite[7]{us6812report1944}.
+
+\Why 이 판정은 한쪽으로만 믿을 수 있다.
+
+\begin{itemize}
+\item \textbf{맞는 위치는 버려지지 않는다.} 맞는 로터 순서와 코어 위치에서는 모든 추론이 참이다. 참인 가설에서는 참인
+것만 나온다. 그러면 거짓인 가설에서 참인 가설이 나올 수도 없다. 그런 길이 있다면 추론을 거꾸로 따라 참에서 거짓이
+나오기 때문이다. 그러므로 $T$의 참인 짝은 어떤 거짓 가설의 귀결에도 들지 않고, 26개가 다 덮이는 일은 없다.
+\item \textbf{멈췄다고 맞는 위치는 아니다.} 틀린 위치에서도 모순이 우연히 드러나지 않으면 멈춘다. 이것이
+\term{거짓 정지}{false stop}다. 정지는 답이 아니라 \emph{후보}다.
+\end{itemize}
+
+그림~\ref{fig:ac-register}는 작은 봄베에서 테스트 글자 \texttt{A}의 가설 여섯 개가 어떻게 되었는지를 칸으로 그린 것이다.
+칠한 칸이 지워진 가설이다. 이 칸 줄을 기계에서는 \term{테스트 레지스터}{test register}라 부른다(\ref{sec:f-register}절).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=6mm,y=-8mm,
+    on/.style={draw=white,fill=cblue,minimum size=5.6mm,inner sep=0pt,font=\ttfamily\small,text=white},
+    off/.style={draw=cred,line width=0.9pt,fill=white,minimum size=5.6mm,inner sep=0pt,font=\ttfamily\small,text=cred}]
+  \foreach \r in {0,1,2} {
+    \foreach \l [count=\i from 0] in {a,b,c,d,e,f} { \node[on] at (\i,\r) {\l}; }
+  }
+  \node[off] at (3,0) {d}; \node[off] at (5,0) {f};
+  \node[off] at (3,1) {d};
+  \node[anchor=east,font=\footnotesize] at (-0.8,0) {드럼 위치 1, 대각선 보드 없음};
+  \node[anchor=east,font=\footnotesize] at (-0.8,1) {드럼 위치 1, 대각선 보드 있음};
+  \node[anchor=east,font=\footnotesize] at (-0.8,2) {드럼 위치 2};
+  \node[anchor=west,font=\footnotesize] at (5.8,0) {정지: 후보 \texttt{d}, \texttt{f}};
+  \node[anchor=west,font=\footnotesize] at (5.8,1) {정지: 후보 \texttt{d}};
+  \node[anchor=west,font=\footnotesize] at (5.8,2) {다음 위치로};
+\end{tikzpicture}
+\caption{작은 봄베에서 가설 $\Stk(\mathtt{A}) = \mathtt{a}$를 넣었을 때 테스트 글자 \texttt{A}의 여섯 가설. 파란 칸은
+지워진 가설, 빨간 테두리 칸은 남은 가설이다. 맨 아래 줄처럼 여섯 칸이 다 칠해지면 그 위치를 버린다.}
+\label{fig:ac-register}
+\end{figure}
+
+\paragraph{거짓 정지는 얼마나 나오는가.} 대각선 보드가 없을 때는 앞 절들의 논리로 어림할 수 있다. 메뉴의 덩어리에
+루프가 $L$개 있다고 하자.
+
+\begin{itemize}
+\item $L = 0$이면 추론이 테스트 글자로 돌아오지 않는다. 가설 하나에서 $T$의 가설은 그 자신 하나만 나오므로 모든 위치에서
+정지한다.
+\item $L = 1$이면 귀결은 넣은 가설이 속한 $P$의 순환이다. 26칸이 다 덮이려면 $P$가 26글자를 한 순환으로 돌아야 한다.
+무작위 순열이 그럴 확률은 $25!/26! = 1/26$이다. 그러니 위치의 약 $25/26$, 곧 약 16,900곳에서 정지한다.
+\item $L \geq 2$이면 거짓 정지는 대개 모든 루프에 공통인 고정점이 있을 때 생긴다. 글자 하나가 $L$개 루프를 모두 통과할
+확률이 약 $(1/26)^L$이고 글자가 26개이므로, 로터 순서 하나의 17,576 위치에서
+\begin{equation}
+  \text{거짓 정지} \approx 17{,}576 \times 26 \times \left(\frac{1}{26}\right)^{L} = 17{,}576 \times 26^{\,1-L}. \label{eq:ac-falsestop}
+\end{equation}
+\end{itemize}
+
+표~\ref{tab:ac-estimate}가 이 어림과 보고서 7장의 측정을 나란히 놓은 것이다. 루프 하나가 정지를 약 26분의 1로
+줄인다는 것이 그대로 보인다. 대각선 보드가 없으면 루프가 세 개는 있어야 정지가 수십 개로 줄어든다. 튜링의 처음
+설계에 루프가 세 개 이상 필요했다는 기록~\cite{carter2010bombe}과 맞는 산수다.
+
+\begin{table}[ht]
+\centering
+\caption{로터 순서 하나(17,576 위치)에서의 거짓 정지 수. 측정은 글자 12개의 무작위 메뉴를 경우마다 400번 돌린
+평균이다(보고서 7장). 어림은 이 절의 계산이다.}
+\label{tab:ac-estimate}
+\small
+\begin{tabular}{c r r r}
+\toprule
+루프 수 $L$ & 어림(대각선 보드 없음) & 측정(대각선 보드 없음) & 측정(대각선 보드 있음) \\
+\midrule
+0 & 17,576 & 17,576 & 673 \\
+1 & 약 16,900 & 16,960 & 25.3 \\
+2 & 676 & 722 & 0.88 \\
+3 & 26 & 26.6 & 0.03 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+대각선 보드가 있으면 어림이 복잡해진다. 거울쌍이 메뉴의 글자 수만큼 조건을 더하기 때문이다. 표의 오른쪽 열에서 보듯
+정지는 크게 줄고, 루프 하나마다 약 26분의 1이 되는 모양은 그대로다(보고서 7장). 그림~\ref{fig:g-menu}의 메뉴
+(글자 14개, 루프 1개)에 대한 튜링의 추정은 로터 순서당 약 1.6회이고~\cite{carter-stops,wikipedia-bombe}, 이
+프로젝트에서 Enigma~I의 120가지 로터 순서를 돌리면 정지가 157회, 로터 순서당 1.31회 나온다. 23글자 크립의 메뉴(루프
+4개)로는 2회로 준다(보고서 7장). 실제 운용에서는 로터 순서당 정지가 한 번 이상(기계가 제대로 돌았는지 확인하려고),
+네 번쯤 이하(한 사람이 체킹을 감당할 수 있는 만큼)가 되도록 메뉴를 짰다~\cite[31, 44, 49]{us6812report1944}.
+
+\Ours 정지 판정은 Rust 모델에서 \code{if reg != FULL} 한 줄이다(\ref{ch:rust-bombe}장). 세 기계에서 이 판정이
+무엇으로 만들어지는지는 \ref{sec:f-register}절에서 본다.
+
+\section{체킹: 정지에서 키까지}\label{sec:ac-check}
+
+정지 하나가 알려 주는 것은 로터 순서, 코어 위치, 테스트 글자의 짝 후보뿐이다. 이것을 검증하고 나머지 키를 구하는
+뒷단계가 \term{체킹}{checking}이다.
+
+\Why 체킹은 봄베와 같은 추론을 반대 방향으로 쓴다. 봄베는 거짓 가설 하나로 나머지를 지웠다. 체킹은 남은 후보를
+참이라고 놓고 식~\eqref{eq:ac-moved}로 메뉴의 선을 하나씩 따라가 귀결을 \emph{읽는다}. 후보가 참이라면 글자마다 짝이
+하나씩만 나와야 하고, 루프는 한 바퀴 돌아 처음 값으로 닫혀야 하며, 거울쌍이 서로 맞아야 한다. 작은 봄베에서는
+$\Stk(\mathtt{A}) = \mathtt{d}$에서 $\Stk(\mathtt{B}) = \mathtt{e}$, $\Stk(\mathtt{C}) = \mathtt{f}$가 나오고, 루프가
+\texttt{d}로 닫힌다(그림~\ref{fig:ac-check}). 플러그보드 세 쌍 \texttt{A}$\leftrightarrow$\texttt{D},
+\texttt{B}$\leftrightarrow$\texttt{E}, \texttt{C}$\leftrightarrow$\texttt{F}가 읽혔다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=-5.5mm,
+    dot/.style={circle,draw=cgray!70,fill=white,inner sep=1.3pt}]
+  \foreach \col/\name/\key in {0/A/A,3/B/B,6/C/C,9/A/Z} {
+    \node[font=\small\bfseries] at (\col,-1.1) {\texttt{\name}};
+    \foreach \l [count=\i from 0] in {a,b,c,d,e,f} { \node[dot] (\key\l) at (\col,\i) {}; }
+  }
+  \foreach \l [count=\i from 0] in {a,b,c,d,e,f} {
+    \node[font=\ttfamily\scriptsize,anchor=east] at (-0.15,\i) {\l};
+    \node[font=\ttfamily\scriptsize,anchor=west] at (9.15,\i) {\l};
+  }
+  \draw[line width=1.3pt,cgreen] (Ad) -- node[above=1.5pt,sloped,font=\scriptsize] {$\Scr_1$} (Be)
+     -- node[above=1.5pt,sloped,font=\scriptsize] {$\Scr_2$} (Cf) -- node[above=1.5pt,sloped,font=\scriptsize] {$\Scr_3$} (Zd);
+  \foreach \n in {Ad,Be,Cf,Zd} { \node[circle,fill=cgreen,inner sep=1.8pt] at (\n) {}; }
+  \node[note,anchor=north] at (1.5,6.2) {$\Stk(\mathtt{A})=\mathtt{d}$이면 $\Stk(\mathtt{B})=\mathtt{e}$};
+  \node[note,anchor=north] at (7.5,6.2) {루프가 \texttt{d}로 닫힌다};
+\end{tikzpicture}
+\caption{작은 봄베의 정지(드럼 위치 1)를 체킹하는 것. 남은 후보 $\Stk(\mathtt{A}) = \mathtt{d}$ 한 가닥만 루프를 따라
+간다. 오른쪽 끝 열은 다시 \texttt{A}다. 글자마다 값이 하나씩 나오고 처음 값으로 돌아오므로 통과다.}
+\label{fig:ac-check}
+\end{figure}
+
+실제 체킹에서는 귀결이 메뉴 밖의 글자로 나가기도 한다. 그래서 판정이 세 가지로 나뉘었다(표~\ref{tab:ac-verdicts}).
+
+\begin{table}[ht]
+\centering
+\caption{체킹 결과의 분류~\cite[12--16, 49--50]{us6812report1944}(보고서 3장의 표를 줄임).}
+\label{tab:ac-verdicts}
+\small
+\begin{tabularx}{\linewidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+\toprule
+용어 & 뜻 & 처리 \\
+\midrule
+confirmation & 메뉴 글자 $X$의 짝이 메뉴 글자 $Y$이고 $Y$의 짝이 $X$ & 좋은 징후 \\ \addlinespace
+legal contradiction & 메뉴 글자 둘이 메뉴 밖의 같은 글자를 짝으로 가짐 & 기계로서는 정상인 정지(대각선 보드가 거르지 못하는 모순) \\ \addlinespace
+illegal contradiction & 메뉴 글자끼리의 짝이 비대칭이거나 루프가 닫히지 않음 & 기계 고장. 대각선 보드가 있으면 나올 수 없다 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+메뉴를 통과한 정지는 남은 정보로 더 시험한다.
+
+\begin{enumerate}
+\item \textbf{크립 전체.} 메뉴에 넣지 못한 크립의 글자(그림~\ref{fig:g-menu}에서 뺀 \texttt{O}--\texttt{F},
+\texttt{S}--\texttt{N}, 선을 고르며 버린 것)도 모두 식~\eqref{eq:ac-moved}를 만족해야 한다. 짝을 아는 글자에서 모르는
+글자로 짝을 채워 가다 모순이 나오면 버린다. 예제의 정지 157개 가운데 이 단계까지 통과하는 것은 하나다(\ref{ch:rust-check}장).
+\item \textbf{링 설정.} 봄베가 찾은 것은 코어 위치다. 창 글자와 링 설정은 따로 정해지지 않는다. 둘을 가르는 것은 로터가
+옆 로터를 언제 넘기는가뿐이므로, 넘어감이 들어 있는 긴 전문을 복호화해 보아야 정해진다.
+\item \textbf{남은 스테커.} 크립에 나오지 않은 글자의 짝은 논리로 정할 수 없다. 전문 전체를 복호화해 언어다운 정도를
+보며 고른다. 이것은 추론이 아니라 추측이다.
+\end{enumerate}
+
+그 끝에 평문이 나온다. 봄베를 운용한 출장소의 체킹은 스테커의 일관성 검사까지였고, 메뉴에 없는 글자의 스테커와 실제 링
+설정은 Hut~6에서 손으로 구했다~\cite{ellsbury1998bombe,carter2010bombe}. 미 해군의 4로터 봄베는 정지한 위치에서 스테커를
+스스로 검사해 통과한 것만 인쇄했다~\cite{ekhall-hallenberg2018}.
+
+\Ours 위의 세 단계를 포함한 체킹 전체가 \code{check\_stop}이다(\ref{ch:rust-check}장). 그 장의 1단계가
+그림~\ref{fig:ac-check}, 2단계가 위의 1번, 3--4단계가 위의 2--3번이다.
+
+\section{넘어감과 4로터}\label{sec:ac-turnover}
+
+\paragraph{넘어감이 없다는 가정.} 지금까지 $\Scr_k$가 ``위치만 정하면 계산된다''고 했다. 이것은 크립 구간에서 오른쪽
+로터만 움직인다는 가정 위에 서 있다. 그러면 모든 $\Scr_k$가 가운데와 왼쪽 로터의 위치를 함께 쓰고, 오른쪽 로터만
+$k$칸씩 어긋난다. 위치 하나가 $\Scr_1, \Scr_2, \ldots$를 모두 정하므로 로터 순서마다 $26^3$ 위치만 훑으면 된다. 봄베의
+드럼에는 노치가 없고 스크램블러 사이의 상대 위치는 고정이다. 곧 봄베는 메뉴 구간 안에서 가운데 로터가 움직이지 않는다고
+가정한다~\cite[4]{us6812report1944}.
+
+크립 위치 $t$에서 가운데 로터가 넘어가면 $k \geq t$인 선의 스크램블러는 가운데 로터가 한 칸 더 간 것이다
+(그림~\ref{fig:ac-turnover}). 이 선들에 원래의 $\Scr_k$를 걸면 맞는 위치에서도 식~\eqref{eq:ac-moved}가 틀리고, 정지가
+나오지 않는다. 오른쪽 로터는 26글자에 한 번 가운데 로터를 넘기므로 크립이 길수록 위험이 크다. 문헌은 23글자 크립의
+구간에 넘어감이 들어 있을 확률을 $23/26$으로 적는다~\cite{ellsbury1998bombe}. 크립을 나누거나, 뒤쪽 선의 가운데
+드럼을 한 칸 넘긴 메뉴를 따로 돌려 대처했다~\cite{ellsbury1998bombe}\cite[37]{us6812report1944}.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1.05cm,y=1cm,
+    cell/.style={draw=cgray,minimum width=9.5mm,minimum height=6mm,inner sep=0pt,font=\scriptsize}]
+  \node[anchor=east,font=\footnotesize] at (0.4,0.75) {크립 위치 $k$};
+  \node[anchor=east,font=\footnotesize] at (0.4,0) {오른쪽 로터};
+  \node[anchor=east,font=\footnotesize] at (0.4,-0.75) {가운데 로터};
+  \foreach \n in {1,...,10} {
+    \node[font=\scriptsize,text=cgray] at (\n,0.75) {\n};
+    \node[cell,fill=cbluebg] at (\n,0) {$r{+}\n$};
+    \ifnum\n<6
+      \node[cell,fill=white] at (\n,-0.75) {$m$};
+    \else
+      \node[cell,fill=corangebg,draw=corange] at (\n,-0.75) {$m{+}1$};
+    \fi
+  }
+  \draw[corange,dashed,line width=0.9pt] (5.5,1.05) -- (5.5,-1.15) node[below,font=\scriptsize,text=corange] {넘어감 $t = 6$};
+\end{tikzpicture}
+\caption{넘어감 가설. 위치 하나 $(m, r)$이 모든 $\Scr_k$를 정하되, $k \geq t$인 선은 가운데 로터가 한 칸 더 간
+스크램블러를 쓴다. 가설이 없는 봄베는 아래 줄이 모두 $m$이라고 가정한다.}
+\label{fig:ac-turnover}
+\end{figure}
+
+\Ours Rust 모델은 ``크립 위치 $t$에서 넘어갔다''는 가설을 받아 $k \geq t$인 선의 표를 두 번째 벌에서 고른다
+(\ref{ch:rust-bombe}장의 넘어감 가설 절). 가설마다 구동이 한 번씩 늘어난다(\ref{sec:s-count}절).
+
+\paragraph{4로터.} 해군의 M4에는 네 번째 로터가 더 있다. 이 로터는 전문을 치는 동안 움직이지 않으므로, 얇은 반사판과
+묶으면 ``반사판 26종 가운데 하나''로 볼 수 있다~\cite{cryptomuseum-bombe}. $\Scr_k$가 고정점 없는 되돌릴 수 있는 치환이라는
+것은 그대로이고, 이 장의 논리도 그대로다. 위치만 로터 순서당 $26^4 = 456{,}976$가지로 26배가 된다. 로터 순서 1,344가지를
+모두 하면 614,175,744 위치다(\ref{sec:s-count}절). 이 프로젝트의 Rust 모델로 M4 전체를 돌리면 정지가 176회 나오고 그중
+체킹을 통과한 해가 하나다(보고서 7장).
+
+\section{폴란드의 방법}\label{sec:ac-polish}
+
+튜링의 봄베보다 먼저, 폴란드 암호국은 다른 길로 에니그마를 풀었다. 크립 대신 \emph{전문 키를 보내는 절차}를 썼다.
+이 절은 그 수학을 짧게 본다. 출처는 레예프스키가 직접 쓴 논문이다~\cite{rejewski1980application}.
+
+\paragraph{두 번 암호화한 전문 키.} 1938년 9월 15일까지 독일군의 절차는 이랬다~\cite{rejewski1980application}. 운용자는
+그날 정해진 기본 위치에 로터를 맞추고, 전문마다 세 글자의 전문 키를 골라 \emph{두 번} 쳤다. 그렇게 나온 여섯 글자가
+전문 맨 앞에 붙었다. 그날의 모든 전문이 같은 기본 위치에서 키를 암호화했고, 첫째 글자와 넷째 글자는 같은 글자를
+암호화한 것이다.
+
+기본 위치에서 $i$번째 글자를 치는 에니그마를 $E_i = \Stk\,\Scr_i\,\Stk$로 적자. 여기서 $\Scr_i$는 크립 위치가 아니라
+기본 위치에서 $i$번째 글자를 칠 때의 스크램블러다. 전문 키의 첫 글자를 $x$라 하면 암호문의
+첫째 글자는 $a = E_1(x)$, 넷째 글자는 $b = E_4(x)$다. $x$는 모르지만 $E_1$은 되돌릴 수 있으므로 $x = E_1(a)$이고,
+\begin{equation}
+  b = E_4 E_1 (a) \label{eq:ac-indicator}
+\end{equation}
+다. 첫째 글자에서 넷째 글자로 가는 대응은 치환 $E_4E_1$이다. 그날 전문이 충분히 모이면(약 80개) 이 치환 전체가
+드러난다. 둘째--다섯째, 셋째--여섯째도 같다~\cite{rejewski1980application}(그림~\ref{fig:ac-indicator}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    bx/.style={draw=cgray,minimum width=6.5mm,minimum height=6.5mm,inner sep=0pt,font=\ttfamily\small}]
+  % 여섯 글자
+  \foreach \c [count=\i] in {d,m,q,v,b,n} { \node[bx] (t\i) at (\i*0.75,0) {\c}; }
+  \draw[cblue,line width=0.8pt] (t1.north) to[bend left=50] node[above,font=\scriptsize] {$E_4E_1$} (t4.north);
+  \draw[cgray!80] (t2.south) to[bend right=35] (t5.south);
+  \draw[cgray!80,dashed] (t3.south) to[bend right=60] (t6.south);
+  \node[note,anchor=north] at (2.625,-1.2) {전문 하나의 머리 여섯 글자};
+  % 대응
+  \begin{scope}[xshift=7.2cm]
+    \node[ltr] (a) at (0,0) {d};
+    \node[ltr,fill=corangebg,draw=corange] (x) at (2,0) {$x$};
+    \node[ltr] (b) at (4,0) {v};
+    \draw[<->] (a) -- node[above,font=\scriptsize] {$E_1$} (x);
+    \draw[->] (x) -- node[above,font=\scriptsize] {$E_4$} (b);
+    \draw[->,cblue,line width=1pt] (a) to[bend right=35] node[below,font=\scriptsize] {$E_4E_1$} (b);
+    \node[note,anchor=south] at (2,0.45) {키의 첫 글자(모름)};
+  \end{scope}
+\end{tikzpicture}
+\caption{두 번 암호화한 전문 키. 레예프스키의 논문에 나오는 예 \texttt{dmq vbn}에서 첫째 글자 \texttt{d}와 넷째 글자
+\texttt{v}는 같은 글자 $x$를 암호화한 것이다. 그러므로 $E_4E_1$은 \texttt{d}를 \texttt{v}로 보낸다. 논문은 이 치환을
+왼쪽부터 곱하는 표기로 $AD$라 적는다.}
+\label{fig:ac-indicator}
+\end{figure}
+
+\paragraph{레예프스키의 정리.} $E_1$과 $E_4$는 둘 다 쌍을 맞바꾸기만 하는 치환이다(고정점 없는 대합,
+\ref{sec:am-properties}절). 레예프스키는 이런 치환 둘의 곱에 관한 정리를 썼다~\cite{rejewski1980application}.
+
+\begin{keybox}[title={레예프스키의 정리}]
+$X$와 $Y$가 둘 다 서로소인 맞바꿈(쌍)만으로 이루어진 치환이면, 곱 $YX$의 순환은 길이마다 짝수 개씩 있다. 같은 길이의
+순환이 짝을 지어 나온다.
+\end{keybox}
+
+까닭은 그림으로 보인다(그림~\ref{fig:ac-rejewski}). 글자를 점으로 놓고 $X$의 쌍을 실선으로, $Y$의 쌍을 점선으로 잇는다.
+모든 점에 실선 하나와 점선 하나가 닿으므로 이 그림은 실선과 점선이 번갈아 나오는 닫힌 다각형들로 나뉜다. 꼭짓점이
+$2m$개인 다각형 하나에서 $YX$는 실선 하나, 점선 하나를 건너 두 칸씩 움직인다. 그러면 홀수 번째 꼭짓점끼리 길이 $m$인
+순환 하나, 짝수 번째 꼭짓점끼리 길이 $m$인 순환 하나가 생긴다. 다각형마다 같은 길이의 순환이 둘씩 나온다. ($X$와 $Y$에
+같은 쌍이 있으면 꼭짓점 둘짜리 다각형이 되어 길이 1인 순환, 곧 고정점 둘이 나온다.)
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    od/.style={ltr,fill=cbluebg,draw=cblue},
+    ev/.style={ltr,fill=cgreenbg,draw=cgreen},
+    xe/.style={line width=1.1pt,corange},
+    ye/.style={line width=1.1pt,cpurple,dashed}]
+  % 다각형
+  \node[od] (a) at (90:1.45) {a};
+  \node[ev] (b) at (30:1.45) {b};
+  \node[od] (e) at (-30:1.45) {e};
+  \node[ev] (d) at (-90:1.45) {d};
+  \node[od] (f) at (-150:1.45) {f};
+  \node[ev] (c) at (150:1.45) {c};
+  \draw[xe] (a) -- (b); \draw[xe] (e) -- (d); \draw[xe] (f) -- (c);
+  \draw[ye] (b) -- (e); \draw[ye] (d) -- (f); \draw[ye] (c) -- (a);
+  \node[note,anchor=north] at (0,-2.0) {실선 $X$, 점선 $Y$};
+  % 곱의 순환
+  \begin{scope}[xshift=4.6cm]
+    \node[od] (pa) at (0,1.0) {a};
+    \node[od] (pe) at (0.85,-0.45) {e};
+    \node[od] (pf) at (-0.85,-0.45) {f};
+    \draw[->,cblue] (pa) -- (pe); \draw[->,cblue] (pe) -- (pf); \draw[->,cblue] (pf) -- (pa);
+  \end{scope}
+  \begin{scope}[xshift=7.6cm]
+    \node[ev] (pb) at (0,1.0) {b};
+    \node[ev] (pc) at (0.85,-0.45) {c};
+    \node[ev] (pd) at (-0.85,-0.45) {d};
+    \draw[->,cgreen] (pb) -- (pc); \draw[->,cgreen] (pc) -- (pd); \draw[->,cgreen] (pd) -- (pb);
+  \end{scope}
+  \node[note,anchor=north] at (6.1,-2.0) {$YX = (\mathtt{a}\,\mathtt{e}\,\mathtt{f})(\mathtt{b}\,\mathtt{c}\,\mathtt{d})$};
+\end{tikzpicture}
+\caption{레예프스키의 정리를 작은 봄베의 스크램블러로 본 것. $X = \Scr_1 = (\mathtt{ab})(\mathtt{cf})(\mathtt{de})$,
+$Y = \Scr_3 = (\mathtt{ac})(\mathtt{be})(\mathtt{df})$. 왼쪽 육각형을 따라 두 칸씩 가면 파란 꼭짓점끼리, 초록
+꼭짓점끼리 길이 3인 순환이 하나씩 생긴다(오른쪽). 예를 들어 \texttt{a}는 $X$로 \texttt{b}, $Y$로 \texttt{e}에 간다.}
+\label{fig:ac-rejewski}
+\end{figure}
+
+\paragraph{플러그보드가 사라진다.} 이 곱에서 플러그보드가 어떻게 되는지 보자. $\Stk\Stk$는 아무것도 바꾸지 않으므로
+\begin{equation}
+  E_4E_1 = \Stk\,\Scr_4\,\Stk\;\Stk\,\Scr_1\,\Stk = \Stk\,(\Scr_4\Scr_1)\,\Stk \label{eq:ac-conj}
+\end{equation}
+다. 치환 $Q$가 $u$를 $v$로 보내면 $\Stk Q \Stk$는 $\Stk(u)$를 $\Stk(v)$로 보낸다. 순환의 글자 이름만 $\Stk$로 바뀌고
+순환의 길이는 그대로다. 그러므로 $E_4E_1$의 순환 길이들은 플러그보드와 무관하고, 로터 순서와 기본 위치만으로 정해진다.
+레예프스키는 그날의 세 곱을 묶어 그날의 \term{특성}{characteristic}이라 불렀다. 폴란드 팀은 \term{사이클로미터}{cyclometer}라는
+장치로 로터 순서 6가지 $\times$ 위치 17,576가지 $= 105{,}456$가지에 대해 특성의 순환 길이와 개수를 목록으로 만들었다.
+그날의 특성과 같은 모양을 목록에서 찾으면 로터 순서와 플러그보드를 얻었고, 나머지 키는 다른 방법으로
+구했다~\cite{rejewski1980application}.
+
+봄베와 같은 착상이 다른 모양으로 들어 있다. 식~\eqref{eq:ac-moved}는 $\Stk$를 한쪽으로 넘겨 ``모르는 것''으로 따로 두었고,
+식~\eqref{eq:ac-conj}는 $\Stk$가 순환의 모양에서 지워지게 했다. 어느 쪽이든 큰 쪽 키(플러그보드)를 대입하지 않고 작은 쪽
+키(로터)만 훑는다.
+
+\paragraph{절차가 바뀌자.} 1938년 9월 15일부터 SD(친위대 보안국)를 뺀 모든 부대에서 운용자는 전문마다 기본 위치를
+스스로 골라 전문 머리에 평문으로 적게 되었다. 전문 키는 여전히 두 번 암호화했다. 그날 공통의 곱 $E_4E_1$이 없어졌으므로 특성 목록은 쓸모를 잃었다. 남은
+실마리는 첫째와 넷째 글자가 \emph{같은} 전문, 곧 곱의 고정점이었고, 고정점이 있고 없음도 플러그보드와 무관하다.
+지갈스키의 구멍 뚫은 종이가 이것을 썼다. 1938년 12월 15일에는 로터가 세 개에서 다섯 개 가운데 셋을 고르는 것으로
+늘었고, 플러그보드의 쌍도 6쌍에서 13쌍까지 점점 늘었다~\cite{rejewski1980application}. 폴란드 팀은 1938년에 전기기계식 장치
+봄바(bomba)도 만들었는데, 이것 역시 당시의 지시자 절차를 이용하는 장치였고 튜링--웰치먼의 봄베와는 전혀 다른
+기계다~\cite{cryptomuseum-bombe,jackson-bh03}. 1939년 7월 폴란드는 이 성과를 영국과 프랑스에
+넘겼다~\cite{rejewski1980application,gchq-pyry2020}.
+
+지시자 절차에 기대는 방법은 절차가 바뀌면 쓸 수 없다. 튜링은 절차가 아니라 전문의 본문, 곧 크립에 기대는 기계를
+설계했다~\cite{jackson-bh06,ellsbury1998bombe,hodges-biography}. 이 장의 앞부분이 그 기계의 논리다.
+
+\section{정리}
+
+\begin{itemize}
+\item 키의 대부분은 플러그보드다. 봄베는 로터 순서와 코어 위치만 훑고, 플러그보드는 논리로 거른다.
+\item 크립은 ``어떤 글자도 자기 자신이 되지 않는다''로 놓을 자리를 추린다. 틀린 자리가 살아남을 확률은 글자마다 $25/26$씩 준다.
+\item 플러그보드를 한쪽으로 넘기면 $\Stk(c) = \Scr_k(\Stk(p))$(식~\eqref{eq:ac-moved})다. 가설 하나가 다른 가설 하나를
+계산해 내고, 이 추론은 양쪽으로 읽힌다. 메뉴는 이 추론들의 그래프다.
+\item 루프를 따라가면 $\Stk(X_0)$는 스크램블러 곱 $P$의 고정점이어야 한다(식~\eqref{eq:ac-loop}). 가설 하나를 넣고 귀결을
+따라가면 $P$의 순환이 나오고, 순환의 가설은 함께 넘어진다. 루프 하나가 후보를 약 26분의 1로 줄인다.
+\item 거울쌍 $\Stk(X)=y \iff \Stk(Y)=x$(대각선 보드)는 루프 없이도 추론을 되돌려 보내, 필요한 루프의 수를 줄인다.
+\item 테스트 글자의 가설 26개가 모두 지워지면 위치를 버리고, 아니면 정지한다. 맞는 위치는 버려지지 않지만, 정지는 후보일
+뿐이다. 체킹이 남은 후보를 따라가 키를 읽고 평문을 낸다.
+\item 이 논리는 크립 구간에 넘어감이 없다는 가정 위에 있고, 4로터에서도 그대로다. 폴란드의 방법은 같은 약점을 지시자
+절차로 이용했다.
+\end{itemize}
+
+이 장의 추론은 모두 ``가설 하나에서 가설 하나로''의 사슬이었다. 가설은 676개이고 추론은 양쪽으로 읽힌다. 가설을 전선
+한 가닥으로, 추론을 전선의 연결로 바꾸면, 귀결을 따라가는 일을 전류가 한순간에 해 준다. 이 추론을 전선으로 만든 것이
+봄베다. 다음 장이 그 이야기다.

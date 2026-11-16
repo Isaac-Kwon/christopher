@@ -69,7 +69,8 @@ pub fn through(table: &[u8; N], core: u8, c: u8) -> u8 {
 }
 \end{lstlisting}
 
-\code{table}은 배선표, \code{core}는 로터가 돌아가 있는 정도, \code{c}는 들어오는 글자다.
+\code{table}은 배선표, \code{core}는 로터가 돌아가 있는 정도, \code{c}는 들어오는 글자다. 수식으로는
+\ref{sec:am-rotor}절의 $R = \tau^{-s}W\tau^{s}$(식~\eqref{eq:am-rotor})를 오른쪽부터 계산하는 함수다.
 
 \Why 로터가 $s$칸 돌아가 있으면, 기계의 고정된 $c$번 자리로 들어온 전류는 로터의 $c+s$번 접점에 닿는다
 (로터가 그만큼 밀려 있으므로). 로터 안의 배선은 그 접점을 \code{table[c+s]}번 접점으로 잇는다. 그 접점은
@@ -178,7 +179,7 @@ pub fn press(&mut self, c: u8) -> u8 {
 첫 글자를 치면 그 글자는 \texttt{AAB} 위치에서 암호화된다. 봄베가 찾는 위치를 ``크립의 첫 글자를 암호화하는
 순간의 위치''로 정의하는 까닭이 여기에 있다.
 
-스크램블러가 두 가지 성질을 갖는다는 것을 코드에서 읽을 수 있다. 반사판의 표 \code{reflector.map}은 글자
+스크램블러가 두 가지 성질을 갖는다는 것을 코드에서 읽을 수 있다(증명은 \ref{sec:am-properties}절). 반사판의 표 \code{reflector.map}은 글자
 쌍을 맞바꾸는 표여서 어떤 글자도 자기 자신으로 가지 않고, 두 번 적용하면 원래대로 돌아온다. 그 앞뒤를 같은
 로터들이 반대 방향으로 감싸고 있으므로 \code{scramble} 전체도 그렇다. 곧 (1)~어떤 글자도 자기 자신으로
 암호화되지 않고, (2)~\texttt{W}가 \texttt{I}로 바뀌면 \texttt{I}는 \texttt{W}로 바뀐다. (1)은 다음 장에서
