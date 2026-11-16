@@ -26,25 +26,35 @@
   \node[note,anchor=north] at (2.4,1.45) {$p_L = 25$이면\\아래로 붙는다};
   \node[note,anchor=north] at (7.0,-0.55) {$p_M = 25$이면\\아래로 붙는다};
   \node[font=\scriptsize,text=cgray,anchor=south west] at (5.3,1.8) {$p_L$이 넘어가는 클럭에만};
-  % ---------- (나) 26진 한 자리 ----------
-  \begin{scope}[yshift=-4.3cm]
-    \node[font=\footnotesize\bfseries,anchor=west] at (-1.6,2.0) {(나) 26진 계수기 한 자리 (블록 수준, 릴레이 약 13개)};
-    \node[font=\footnotesize,anchor=east] (inc) at (0,0.2) {올리기 펄스};
-    \foreach \k/\l in {0/1,1/2,2/4,3/8,4/16} {
-      \node[blkb,minimum width=15mm,minimum height=10mm,font=\footnotesize] (b\k) at (1.6+\k*2.1,0.2) {\l의 자리\\{\scriptsize 릴레이 2개}};
+  % ---------- (나) 26진 한 자리: 보드의 회로 (hardware/relay/counter-board/README.md 2절) ----------
+  \begin{scope}[yshift=-4.6cm]
+    \node[font=\footnotesize\bfseries,anchor=west] at (-1.6,2.1) {(나) 26진 계수기 한 자리 (보드의 회로, 릴레이 11개)};
+    \node[font=\footnotesize,anchor=east] (ain) at (0,1.2) {증가 레일};
+    \foreach \i in {0,...,4} { \coordinate (A\i) at ({0.7+\i*2.25},1.2); }
+    \coordinate (A5) at (11.95,1.2);
+    \draw (ain.east) -- (A0);
+    \foreach \i [evaluate=\i as \j using int(\i+1)] in {0,...,4} {
+      \draw (A\i) to[ncs,l={\scriptsize $m_{\i}$}] (A\j);
     }
-    \draw[->] (inc.east) -- (b0.west);
-    \foreach \a/\b in {0/1,1/2,2/3,3/4} { \draw[->] (b\a) -- (b\b); }
-    \node[font=\scriptsize,text=cgray,anchor=west] at (11.0,0.2) {화살표: 윗자리로 올림};
-    % 25 감지: 16, 8, 1의 자리의 a접점을 직렬로
-    \node[font=\footnotesize,anchor=east] (v) at (0,-1.4) {$+24$ V};
-    \draw (v.east) -- (0.8,-1.4) to[nos,l_={$q_1$}] (2.4,-1.4) -- (7.1,-1.4) to[nos,l_={$q_8$}] (8.7,-1.4)
-          -- (9.2,-1.4) to[nos,l_={$q_{16}$}] (10.8,-1.4) -- (11.6,-1.4);
-    \foreach \k in {0,3,4} { \draw[dashed,cgray] (b\k.south) -- ++(0,-0.95); }
-    \node[rcoil,anchor=west,minimum width=11mm] (w) at (11.6,-1.4) {$W$};
-    \node[note,anchor=west] at (12.8,-1.4) {넘어감\\릴레이};
-    \draw[->,cred] (w.north) |- (9.0,1.1) -| (b2.north);
-    \node[font=\scriptsize,text=cred,anchor=south] at (9.3,1.1) {$W$가 동작한 채로 펄스가 오면 모두 0으로};
-    \node[note] at (6.0,-2.5) {$25 = 11001_2$: 16, 8, 1의 자리가 모두 1인 값은 0에서 25 사이에 25뿐이다};
+    \draw[->] (A5) -- ++(0.5,0) node[right,font=\scriptsize] {올림};
+    \foreach \i/\w in {0/1,1/2,2/4,3/8,4/16} {
+      \node[circ] at (A\i) {};
+      \node[blkb,minimum width=19mm,minimum height=12mm,font=\scriptsize,align=center] (B\i) at ({0.7+\i*2.25},-0.45)
+        {비트 \i\ (자리값 \w)\\종 $S_{\i}$: 값\\주 $M_{\i}$: 반대값};
+      \draw[->] (A\i) -- (B\i.north);
+      \draw[->] (B\i.south) -- ++(0,-0.55) node[below,font=\scriptsize] {$Q_{\i}$};
+    }
+    \node[font=\scriptsize,text=cgray,anchor=north] at (5.2,-1.75) {$Q_0$--$Q_4$ = 시프터의 \code{CTRL} 다섯 선 (24 V면 1)};
+    % KW: 값이 25가 아닐 때 붙어 있다
+    \node[rcoil,minimum width=11mm] (kw) at (12.9,-0.45) {KW};
+    \node[note,anchor=north,align=center] at (12.9,-0.85) {값 $\ne 25$일 때\\붙어 있다};
+    \draw[->,cred,dashed] (kw.north) |- (6.6,0.45) -| (B2.north east);
+    \draw[->,cred,dashed] (6.6,0.45) -| (B1.north east);
+    \node[font=\scriptsize,text=cred,anchor=south] at (9.5,0.45) {25에서 놓여 비트 1, 2의 거울을 끊는다};
+    \node[note,anchor=north west,align=left,text width=15cm] at (-1.6,-2.25) {%
+      평소에는 주가 종의 반대값을 따라간다. 확정 펄스가 오면 증가 레일이 주의 b접점 $m_i$(주가 0, 곧 종이 1인 비트)를 지나
+      올라가고, 레일이 닿은 비트마다 종이 주의 값을 받아 뒤집힌다. KW의 코일은 $\overline{Q_0} \vee \overline{Q_3} \vee
+      \overline{Q_4}$(다이오드 합)여서 값이 25($11001_2$)일 때만 놓인다. 그때 주가 모두 0이 되므로 다섯 비트가 함께 0이 되고
+      올림이 나간다.};
   \end{scope}
 \end{circuitikz}

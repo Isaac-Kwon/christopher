@@ -1,0 +1,38 @@
+% 위치 표시의 접점 나무를 3비트로 줄여 그린 것 (그림 fig:hw-posdisplay-tree). 실제 보드는 5비트, 램프 26개,
+% 전환 접점 25개(비트마다 1, 2, 4, 8, 10), 자리마다 2극 릴레이 13개 (hardware/relay/position-display/README.md 2절).
+\begin{tikzpicture}[x=1cm,y=0.48cm,
+    sw/.style={draw=cblue,fill=cbluebg,circle,inner sep=1.3pt,font=\tiny},
+    lamp/.style={draw=cgray,fill=cyellowbg,circle,minimum size=4.2mm,inner sep=0pt,font=\scriptsize\ttfamily},
+    br/.style={line width=0.5pt}]
+  % 잎(램프): 위에서 아래로 (b0, b1, b2) = 000, 001, 010, 011, 100, 101, 110, 111
+  \foreach \i/\v/\l in {0/0/A,1/4/E,2/2/C,3/6/G,4/1/B,5/5/F,6/3/D,7/7/H} {
+    \node[lamp] (L\i) at (7.2,{7-\i}) {\l};
+    \node[font=\tiny,text=cgray,anchor=west] at (7.5,{7-\i}) {값 \v};
+  }
+  % 비트 2의 접점 넷
+  \foreach \j in {0,1,2,3} {
+    \pgfmathtruncatemacro{\a}{2*\j}\pgfmathtruncatemacro{\b}{2*\j+1}
+    \node[sw] (c2\j) at (5.0,{7-\a-0.5}) {$b_2$};
+    \draw[br] (c2\j) -- (L\a.west) node[pos=0.55,above,font=\tiny] {0};
+    \draw[br] (c2\j) -- (L\b.west) node[pos=0.55,below,font=\tiny] {1};
+  }
+  % 비트 1의 접점 둘
+  \foreach \j in {0,1} {
+    \pgfmathtruncatemacro{\a}{2*\j}\pgfmathtruncatemacro{\b}{2*\j+1}
+    \node[sw] (c1\j) at (3.0,{7-4*\j-1.5}) {$b_1$};
+    \draw[br] (c1\j) -- (c2\a) node[pos=0.55,above,font=\tiny] {0};
+    \draw[br] (c1\j) -- (c2\b) node[pos=0.55,below,font=\tiny] {1};
+  }
+  % 비트 0의 접점 하나 (뿌리)
+  \node[sw] (c0) at (1.0,3.5) {$b_0$};
+  \draw[br] (c0) -- (c10) node[pos=0.55,above,font=\tiny] {0};
+  \draw[br] (c0) -- (c11) node[pos=0.55,below,font=\tiny] {1};
+  \node[font=\footnotesize,anchor=east] (v) at (-0.2,3.5) {$+24$ V};
+  \draw[br] (v) -- (c0);
+  % 위에 비트마다의 접점 수
+  \node[font=\scriptsize,text=cgray] at (1.0,8.3) {접점 1};
+  \node[font=\scriptsize,text=cgray] at (3.0,8.3) {접점 2};
+  \node[font=\scriptsize,text=cgray] at (5.0,8.3) {접점 4};
+  \node[font=\scriptsize,text=cgray] at (7.2,8.3) {램프 8};
+  \node[note,anchor=west,align=left] at (8.6,3.5) {전환 접점은 늘 두 쪽 가운데\\한쪽에만 닿으므로 $+24$~V가\\가는 길은 언제나 하나뿐이다.\\켜지는 램프도 하나뿐이다.};
+\end{tikzpicture}

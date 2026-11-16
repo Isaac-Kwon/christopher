@@ -1,0 +1,27 @@
+% 계수기 공통 보드의 둘째 클럭 버스 (그림 fig:hw-counter-busb). hardware/relay/counter-board/README.md 11절.
+% 주 릴레이 M_i와 쌍둥이 M'_i의 코일이 한 마디에 병렬이므로 늘 같은 상태다. 버스 A의 사슬은 m_i, 버스 B의
+% 사슬은 m'_i를 지난다. 쌍둥이는 l, m 두 자리의 주 릴레이마다 하나씩, 10개.
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=8mm}
+  % 버스 A
+  \node[font=\footnotesize,anchor=east] (ca) at (0,2.2) {\code{CLOCK\_A}};
+  \draw (ca.east) to[ncs,l={\scriptsize $m_0$}] (1.8,2.2) to[ncs,l={\scriptsize $m_1$}] (3.6,2.2) -- (4.0,2.2);
+  \draw[dashed] (4.0,2.2) -- (4.8,2.2);
+  \draw (4.8,2.2) to[ncs,l={\scriptsize $m_4$}] (6.6,2.2);
+  \draw[->] (6.6,2.2) -- (7.2,2.2) node[right,font=\footnotesize,align=left] {버스 A의 레일 $\to$ 공통 자리, 유닛 1--6};
+  % 버스 B
+  \node[font=\footnotesize,anchor=east] (cb) at (0,0) {\code{CLOCK\_B}};
+  \draw (cb.east) to[ncs,l_={\scriptsize $m'_0$}] (1.8,0) to[ncs,l_={\scriptsize $m'_1$}] (3.6,0) -- (4.0,0);
+  \draw[dashed] (4.0,0) -- (4.8,0);
+  \draw (4.8,0) to[ncs,l_={\scriptsize $m'_4$}] (6.6,0);
+  \draw[->] (6.6,0) -- (7.2,0) node[right,font=\footnotesize,align=left] {버스 B의 레일 $\to$ 유닛 7--12};
+  % 코일: 주와 쌍둥이를 병렬로
+  \foreach \x/\i in {0.9/0,2.7/1,5.7/4} {
+    \node[rcoil,minimum width=7mm] (M\i) at (\x-0.42,1.1) {$M_{\i}$};
+    \node[rcoil,minimum width=7mm] (T\i) at (\x+0.42,1.1) {$M'_{\i}$};
+    \draw[cgray,dashed] (M\i.north) -- (M\i.north |- 0,1.95);
+    \draw[cgray,dashed] (T\i.south) -- (T\i.south |- 0,0.25);
+  }
+  \node[note,anchor=north west,align=left,text width=14cm] at (-1.6,-0.6) {$M_i$와 $M'_i$의 코일은 한 마디에 병렬이어서 두 릴레이는
+    늘 같은 상태다. \code{CK} 동안 주 릴레이는 변하지 않으므로 두 사슬은 같은 판정을 한다.};
+\end{circuitikz}

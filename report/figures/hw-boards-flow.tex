@@ -1,0 +1,23 @@
+% 회로 기판을 만들고 확인하는 흐름 (그림 fig:hw-boards-flow). 모든 보드가 같은 방식이다(부록 D, E의 머리말).
+\begin{tikzpicture}[x=0.92cm,y=1cm,
+    st/.style={blk,minimum width=27mm,minimum height=12mm,font=\footnotesize},
+    ar/.style={->,line width=0.6pt}]
+  \node[st,fill=clight,draw=cgray] (src) at (0,0) {규칙과 배선표\\{\scriptsize 배선표 원본, 회로 규칙}};
+  \node[st,fill=cbluebg,draw=cblue] (gen) at (3.4,0) {회로도 생성기\\{\scriptsize \code{gen\_*.py}}};
+  \node[st,fill=white] (sch) at (6.8,0) {KiCad 회로도};
+  \node[st,fill=white] (net) at (10.2,0) {넷리스트\\{\scriptsize 핀과 넷의 목록}};
+  \node[st,fill=cgreenbg,draw=cgreen] (ver) at (13.6,0) {검증기\\{\scriptsize 접점을 스위치로 풀어}\\{\scriptsize 기준 모델과 비교}};
+  \draw[ar] (src) -- (gen);
+  \draw[ar] (gen) -- (sch);
+  \draw[ar] (sch) -- node[above,font=\scriptsize] {KiCad} (net);
+  \draw[ar] (net) -- (ver);
+  \node[st,fill=credbg,draw=cred] (neg) at (13.6,-2.2) {틀리게 바꾼 넷리스트\\{\scriptsize 반드시 실패해야 한다}};
+  \draw[ar,cred] (neg) -- node[right,font=\scriptsize,text=cred] {음성 시험} (ver);
+  \node[st,fill=cbluebg,draw=cblue] (pgen) at (6.8,-2.2) {배치 생성기\\{\scriptsize \code{gen\_*\_pcb.py}}};
+  \node[st,fill=white] (pcb) at (10.2,-2.2) {기판 파일\\{\scriptsize 배치만, 배선 전}};
+  \draw[ar] (sch) -- (pgen);
+  \draw[ar] (pgen) -- (pcb);
+  \draw[ar,dashed] (net.south) -- node[right,font=\scriptsize,align=left] {패드의 넷이\\같은가, DRC} (pcb.north);
+  \node[st,fill=clight,draw=cgray] (rust) at (13.6,2.0) {Rust 코어의\\기준 모델};
+  \draw[ar] (rust) -- (ver);
+\end{tikzpicture}

@@ -1,0 +1,30 @@
+% 오프셋 다이얼의 코드 띠를 곧게 편 그림 (그림 fig:hw-offset-dial). 실제 기판에서는 띠 11개가 동심원이고
+% 한 글자가 13.846°다(hardware/relay/offset-dial/README.md). 색칸 = 그 띠의 넷에 이은 동박("1"),
+% 흰 칸 = 어디에도 잇지 않은 동박 섬("0"). a1 = k, a2 = (26 - k) mod 26. 빨간 선 = 와이퍼 빗(글자 J, k = 9).
+\begin{tikzpicture}[x=0.47cm,y=0.33cm]
+  \foreach \k [count=\c from 0] in {A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z} {
+    \node[font=\scriptsize\ttfamily] at ({\c+0.5},11.6) {\k};
+    % 공통 띠(COM): 한 바퀴 전부 이어짐
+    \fill[cgray!45] (\c,10) rectangle ({\c+1},10.8);
+    \draw[cgray!60,line width=0.2pt] (\c,10) rectangle ({\c+1},10.8);
+    \pgfmathtruncatemacro{\aone}{\c}
+    \pgfmathtruncatemacro{\atwo}{mod(26-\c,26)}
+    \foreach \b [count=\r from 0] in {4,3,2,1,0} {
+      \pgfmathtruncatemacro{\bitA}{mod(floor(\aone/2^\b),2)}
+      \pgfmathtruncatemacro{\bitB}{mod(floor(\atwo/2^\b),2)}
+      \ifnum\bitA=1 \fill[cblue!55] (\c,{9-\r}) rectangle ({\c+1},{9.8-\r}); \fi
+      \ifnum\bitB=1 \fill[corange!60] (\c,{3.6-\r}) rectangle ({\c+1},{4.4-\r}); \fi
+      \draw[cgray!60,line width=0.2pt] (\c,{9-\r}) rectangle ({\c+1},{9.8-\r});
+      \draw[cgray!60,line width=0.2pt] (\c,{3.6-\r}) rectangle ({\c+1},{4.4-\r});
+    }
+  }
+  % 줄 이름
+  \node[font=\scriptsize,anchor=east] at (-0.2,10.4) {COM};
+  \foreach \b [count=\r from 0] in {4,3,2,1,0} {
+    \node[font=\scriptsize,anchor=east] at (-0.2,{9.4-\r}) {$a_1$ 비트 \b};
+    \node[font=\scriptsize,anchor=east] at (-0.2,{4.0-\r}) {$a_2$ 비트 \b};
+  }
+  % 와이퍼 빗 (글자 J)
+  \draw[cred,line width=1.2pt] (9.5,-1.0) -- (9.5,11.2);
+  \node[font=\scriptsize,text=cred,anchor=north] at (9.5,-1.0) {와이퍼 빗 (J: $a_1 = 9 = 01001_2$, $a_2 = 17 = 10001_2$)};
+\end{tikzpicture}

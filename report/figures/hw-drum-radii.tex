@@ -1,0 +1,49 @@
+% 드럼 기판의 반지름 방향 배분 (그림 fig:hw-drum-radii). 값은 hardware/gear/drum-pcb/README.md
+% ("Layer stack and routing", "갱신: 인덱스 원판 자리 비아 제거와 뒷면 구리"). 가로 = 반지름(mm), 세로는 층.
+\begin{tikzpicture}[x=2.3mm,y=1cm,
+    lab/.style={font=\footnotesize,anchor=east},
+    nt/.style={font=\scriptsize,text=cgray,align=center}]
+  % 축
+  \draw[->,cgray] (0,-0.45) -- (49.5,-0.45) node[right,font=\scriptsize] {반지름 (mm)};
+  \foreach \r in {0,10,20,30,40} {
+    \draw[cgray] (\r,-0.5) -- (\r,-0.4);
+    \node[font=\scriptsize,text=cgray,anchor=north] at (\r,-0.5) {\r};
+  }
+  % 금지 영역 (패드 면, r <= 18.0)
+  \fill[pattern=north east lines,pattern color=cred!60] (0,2.55) rectangle (18.0,3.35);
+  \draw[cred,line width=0.6pt] (18.0,-0.4) -- (18.0,3.75);
+  \node[font=\scriptsize,text=cred,anchor=south] at (9.0,3.4) {인덱스 원판 자리 (금지 영역, $r \le 18.0$)};
+  \node[font=\scriptsize,text=cred,anchor=south west] at (18.1,3.4) {18.0};
+  % 앞면: 패드 링 넷(반지름 방향 길이 3.6), 기준 삼각형, 글자, 가장자리
+  \node[lab] at (-0.6,2.95) {앞면 (패드)};
+  \foreach \r/\n in {22/1,29/2,36/3,43/4} {
+    \fill[cyellowbg!40!orange] ({\r-1.8},2.7) rectangle ({\r+1.8},3.2);
+    \node[font=\scriptsize,anchor=south] at (\r,3.2) {링 \n};
+  }
+  \fill[cgray] (18.4,2.75) -- (19.9,2.95) -- (18.4,3.15) -- cycle;
+  \node[font=\scriptsize,text=cgray] at (46.3,2.95) {A--Z};
+  \draw[cgray,line width=0.8pt] (48,-0.4) -- (48,3.4);
+  \node[nt,anchor=south] at (48,3.4) {가장자리 48};
+  \fill[white] (0,2.55) rectangle (4.3,3.35);
+  \draw[cgray] (4.3,2.6) -- (4.3,3.3);
+  \node[nt] at (2.15,2.95) {축\\구멍};
+  % 안쪽 2: 원호 레인
+  \node[lab] at (-0.6,1.75) {안쪽 2 (원호)};
+  \foreach \k in {0,...,10} { \draw[cblue,line width=0.5pt] ({18.4+0.54*\k},1.5) -- ++(0,0.5); }
+  \foreach \k in {0,...,14} { \draw[corange,line width=0.5pt] ({28.4+0.62*\k},1.5) -- ++(0,0.5); }
+  \node[font=\scriptsize,text=cblue,anchor=north] at (20.6,1.48) {B벌 18.4--23.8};
+  \node[font=\scriptsize,text=cblue,anchor=north] at (20.6,1.18) {(0.54 간격, 11개)};
+  \node[font=\scriptsize,text=corange,anchor=north] at (32.9,1.48) {A벌 28.4--37.4};
+  \node[font=\scriptsize,text=corange,anchor=north] at (32.9,1.18) {(0.62 간격, 15개)};
+  % 예전 B벌 레인의 범위
+  \draw[cgray,dashed,|-|] (11.4,2.25) -- (22.8,2.25);
+  \node[nt,anchor=south] at (13.0,2.25) {예전 B벌 11.4--22.8};
+  % 비아 띠
+  \foreach \r in {25.0,26.5} { \draw[cgray,fill=white] (\r,1.75) circle (0.32); }
+  \node[nt,anchor=south] at (25.75,2.05) {링 1·2의 비아 띠};
+  % 뒷면: 신호 없는 구리 채움 r <= 46.2
+  \node[lab] at (-0.6,0.15) {뒷면};
+  \fill[cgreenbg] (4.6,-0.05) rectangle (46.2,0.35);
+  \draw[cgreen] (4.6,-0.05) rectangle (46.2,0.35);
+  \node[font=\scriptsize,text=cgreen!60!black] at (25.4,0.15) {어느 넷에도 잇지 않은 구리 채움 ($r \le 46.2$, 마스크로 덮음)};
+\end{tikzpicture}

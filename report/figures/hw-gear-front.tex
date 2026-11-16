@@ -1,60 +1,107 @@
 % 기어식 기계의 앞모습 (개념도. 사진이나 도면이 아니다). 그림 fig:hw-gear-front
-\begin{tikzpicture}[x=0.93cm,y=0.93cm,
-    lab/.style={font=\scriptsize,align=left},
-    jack/.style={draw=corange,fill=corangebg}]
-  % 프레임
-  \draw[rounded corners=3pt,draw=cgray,fill=clight!50,line width=0.8pt] (0,0) rectangle (15.0,8.7);
-  % 투명 덮개
-  \draw[rounded corners=3pt,draw=cblue,dashed,line width=0.8pt] (0.35,4.3) rectangle (12.35,8.35);
-  \node[lab,text=cblue,anchor=south west] at (0.45,4.33) {투명 덮개 (열면 정지)};
-  % 드럼: 12열 가운데 구동부 쪽 6열(7–12번)을 먼저 채운다 (결정 0002 §6)
-  \foreach \c in {6,...,11} {
-    \foreach \y in {7.5,6.5,5.5} {
-      \draw[draw=cgray,fill=cbluebg] (1.0+\c*0.9,\y) circle (0.38);
-      \fill[cgray] (1.0+\c*0.9,\y) circle (0.05);
-      \draw[cred,line width=0.8pt] (1.0+\c*0.9,\y+0.38) -- (1.0+\c*0.9,\y+0.27);
+% 좌표는 mm, 원점은 바닥의 왼쪽 끝. 치수의 출처는 hardware/gear/layout.md 3.9--3.11절과
+% hardware/gear/cad/params.py(BANK_W 1,880, DRIVE_W 360, PLINTH_H 400, ROW_Y 980/1,100/1,220,
+% INDICATOR_D 70, 지시 드럼 축 = 구동부 시작 + 150). 대각선 보드의 잭 간격은 부록 E(110, 경계 149.3).
+\begin{tikzpicture}[x=0.07mm,y=0.07mm,
+    lab/.style={font=\tiny,align=center},
+    jack/.style={draw=corange,fill=corangebg,line width=0.3pt},
+    tk/.style={cgray,line width=0.3pt}]
+  % ---------- 바닥과 받침대 ----------
+  \draw[cgray,line width=0.6pt] (-60,0) -- (1940,0);
+  \draw[draw=cgray,fill=clight] (20,0) rectangle (1860,400);
+  \node[lab,text=cgray] at (940,200) {받침대 (높이 400)};
+  \draw[draw=cgray,fill=cgray!25] (0,400) rectangle (1880,450);
+  % ---------- 뱅크 프레임 ----------
+  \draw[draw=cgray,fill=clight!60,line width=0.8pt] (0,870) rectangle (1880,1350);
+  % 열 자리 12개: 7--12번에 열 모듈, 1--6번은 막음판
+  \foreach \s in {1,...,12} {
+    \pgfmathsetmacro{\xl}{40+(\s-1)*120}
+    \node[font=\tiny,text=cgray] at ({\xl+60},1322) {\s};
+  }
+  \foreach \s in {1,...,6} {
+    \pgfmathsetmacro{\xl}{40+(\s-1)*120}
+    \draw[draw=cgray,dashed,fill=white] ({\xl+2},900) rectangle ({\xl+118},1300);
+  }
+  \node[lab,text=cgray] at (400,1150) {1--6번: 막음판\\(나중에 채운다)};
+  \foreach \s in {7,...,12} {
+    \pgfmathsetmacro{\xl}{40+(\s-1)*120}
+    \draw[draw=cgray,fill=white] ({\xl+2},900) rectangle ({\xl+118},1300);
+    \foreach \y in {980,1100,1220} {
+      \draw[draw=cgray,fill=cbluebg] ({\xl+60},\y) circle (48);
+      \fill[cgray] ({\xl+60},\y) circle (6);
+      \draw[cred,line width=0.8pt] ({\xl+60},{\y+48}) -- ({\xl+60},{\y+34});
     }
-    \node[font=\tiny,text=cgray] at (1.0+\c*0.9,8.08) {\the\numexpr\c+1\relax};
   }
-  \foreach \c in {0,...,5} {
-    \foreach \y in {7.5,6.5,5.5} { \draw[draw=cgray,dashed] (1.0+\c*0.9,\y) circle (0.38); }
-    \node[font=\tiny,text=cgray] at (1.0+\c*0.9,8.08) {\the\numexpr\c+1\relax};
+  \node[lab,anchor=east] at (755,1220) {위 줄 (빠름)};
+  \node[lab,anchor=east] at (755,1100) {가운데 줄};
+  \node[lab,anchor=east] at (755,980) {아래 줄 (느림)};
+  % ---------- 구동부 (오른쪽 끝, 폭 360) ----------
+  \draw[draw=cgray,fill=white,line width=0.6pt] (1480,900) rectangle (1840,1300);
+  \draw[draw=cgray,fill=clight,pattern=north east lines,pattern color=cgray!50] (1680,920) rectangle (1830,1280);
+  \node[lab,fill=white,inner sep=1pt] at (1755,1100) {기어 창\\(막힘)};
+  \draw[draw=cgray,fill=cyellowbg!60] (1595,940) rectangle (1665,1260);
+  \foreach \y in {980,1100,1220} {
+    \draw[draw=cgray,fill=cyellowbg] (1630,\y) circle (35);
+    \node[font=\tiny\ttfamily] at (1630,\y) {K};
   }
-  \node[lab,text=cgray,anchor=north] at (8.65,5.07) {나중에 채우는 6열};
-  % 지시 드럼
-  \foreach \y in {7.5,6.5,5.5} { \draw[draw=cgray,fill=cyellowbg] (11.8,\y) circle (0.33); }
-  \node[font=\tiny,text=cgray] at (11.8,8.08) {지시};
-  % 행 이름
-  \node[lab,anchor=east,align=right] at (-0.1,7.5) {위 (빠름)};
-  \node[lab,anchor=east,align=right] at (-0.1,6.5) {가운데};
-  \node[lab,anchor=east,align=right] at (-0.1,5.5) {아래 (느림)};
-  % 화면과 조작부
-  \draw[draw=cgray,fill=white] (12.7,6.3) rectangle (14.65,8.2);
-  \node[lab,align=center] at (13.675,7.25) {화면\\안내, 체킹\\해독문};
-  \draw[draw=cred,fill=credbg,line width=0.8pt] (13.15,5.2) circle (0.36);
-  \node[font=\tiny,align=center] at (13.15,5.2) {비상\\정지};
-  \draw[draw=cgreen,fill=cgreenbg] (13.85,5.3) rectangle (14.65,5.7);
-  \node[font=\tiny] at (14.25,5.5) {시작};
-  \draw[draw=cgray,fill=white] (13.85,4.7) rectangle (14.65,5.1);
-  \node[font=\tiny] at (14.25,4.9) {원위치};
-  % 메뉴 배선 패널
-  \draw[rounded corners=2pt,draw=cgray,fill=white] (0.35,0.35) rectangle (14.65,4.0);
-  \node[font=\scriptsize\bfseries,anchor=north west] at (0.4,3.97) {메뉴 배선 패널};
-  \foreach \c in {0,...,11} {
-    \draw[jack] (0.78+\c*0.9,3.05) rectangle ++(0.44,0.26);
-    \draw[jack] (0.78+\c*0.9,2.7) rectangle ++(0.44,0.26);
+  \node[lab,anchor=east] at (1590,1260) {지시\\드럼};
+  \node[lab,text=cgray] at (1660,1318) {구동부};
+  % ---------- 화면 (구동부 위) ----------
+  \draw[draw=cgray,fill=white] (1555,1355) -- (1765,1355) -- (1745,1540) -- (1575,1540) -- cycle;
+  \node[lab] at (1660,1450) {화면\\(10인치급)};
+  % ---------- 투명 덮개 ----------
+  \draw[cblue,dashed,line width=0.7pt,rounded corners=2pt] (30,885) rectangle (1850,1340);
+  \node[lab,text=cblue,anchor=south west] at (40,1350) {투명 앞 덮개 (위쪽 경첩, 열면 모터 전원이 끊긴다)};
+  % ---------- 패널 (폭 1,800, 높이 420) ----------
+  \draw[draw=cgray,fill=white,rounded corners=2pt,line width=0.6pt] (40,450) rectangle (1840,870);
+  \draw[cgray,dashed,line width=0.4pt] (1480,455) -- (1480,865);
+  \node[lab,text=cgray,anchor=north west] at (45,866) {메뉴 배선 패널};
+  \node[lab,text=cgray,anchor=north east] at (1835,866) {조작부};
+  % 유닛 잭: 열마다 IN(위)과 OUT(아래)
+  \foreach \s in {1,...,12} {
+    \pgfmathsetmacro{\xc}{40+(\s-0.5)*120}
+    \draw[jack] ({\xc-35},812) rectangle ({\xc+35},840);
+    \draw[jack] ({\xc-35},778) rectangle ({\xc+35},806);
   }
-  \node[lab,anchor=west] at (11.6,3.18) {유닛 잭 \code{IN}};
-  \node[lab,anchor=west] at (11.6,2.83) {유닛 잭 \code{OUT}};
-  \foreach \i in {0,...,25} {
-    \draw[jack] (0.82+\i*0.41,1.95) rectangle ++(0.3,0.2);
-    \draw[jack] (0.82+\i*0.41,1.65) rectangle ++(0.3,0.2);
-    \draw[draw=cgray,fill=cyellowbg] (0.97+\i*0.41,0.95) circle (0.11);
+  % 대각선 보드 다섯 장과 글자 잭(열마다 두 글자 × 잭 둘)
+  \foreach \xa/\xb/\n in {40/376.9/D1, 376.9/746.2/D2, 746.2/1115.5/D3, 1115.5/1374.8/D4, 1374.8/1601.7/D5} {
+    \draw[draw=cgray,fill=clight!70] (\xa,640) rectangle (\xb,770);
+    \node[font=\tiny,text=cgray] at ({(\xa+\xb)/2},628) {\n};
   }
-  \node[lab,anchor=west] at (11.6,1.9) {글자 잭 $26 \times 2$};
-  \node[lab,anchor=west] at (11.6,0.95) {레지스터 램프 26};
-  \node[font=\tiny\ttfamily,text=cgray] at (0.97,1.38) {A};
-  \node[font=\tiny\ttfamily,text=cgray] at (11.22,1.38) {Z};
-  % 치수
-  \draw[<->,cgray] (0,-0.35) -- (15.0,-0.35) node[midway,fill=white,font=\scriptsize] {약 1.5 m (12열, 추정)};
+  \foreach \x in {82.25,192.25,302.25,451.55,561.55,671.55,820.85,930.85,1040.85,1190.15,1300.15,1449.45,1559.45} {
+    \foreach \y in {655,685,715,745} { \draw[jack] ({\x-18},{\y-9}) rectangle ({\x+18},{\y+9}); }
+  }
+  \draw[cred,line width=0.6pt] (1480,636) rectangle (1601.7,774);
+  \node[lab,text=cred,anchor=north] at (1541,632) {넘침};
+  % 표시 릴레이 26개(투명 케이스)와 레지스터 램프 26개
+  \draw[draw=cgray,fill=white] (300,585) rectangle (1080,620);
+  \foreach \i in {0,...,25} { \draw[draw=cgray,fill=cyellowbg] ({305+\i*30},589) rectangle ++(20,27); }
+  \foreach \i in {0,...,25} { \draw[draw=cgray,fill=cyellowbg] ({100+\i*55},530) circle (11); }
+  \node[font=\tiny\ttfamily,text=cgray] at (100,500) {A};
+  \node[font=\tiny\ttfamily,text=cgray] at (1475,500) {Z};
+  \node[lab,anchor=west] at (1090,602) {표시 릴레이 26};
+  \node[lab] at (790,500) {레지스터 램프 26};
+  % 조작부: 비상 정지(바닥에서 약 800), Start·Stop·Home, 카드 판독기, 분기 잭
+  \draw[draw=cred,fill=credbg,line width=0.7pt] (1540,800) circle (24);
+  \node[font=\tiny,anchor=north] at (1540,774) {비상 정지};
+  \foreach \x/\t/\c in {1625/시작/cgreen, 1700/정지/cgray, 1775/Home/cgray} {
+    \draw[draw=\c,fill=white] ({\x-30},786) rectangle ({\x+30},814);
+    \node[font=\tiny] at (\x,800) {\t};
+  }
+  \draw[draw=cgray,fill=white] (1620,690) rectangle (1830,738);
+  \node[lab] at (1725,714) {카드 판독기};
+  \draw[draw=cgray,fill=clight] (1490,465) rectangle (1830,625);
+  \foreach \r in {0,...,3} { \foreach \c in {0,...,3} {
+    \draw[jack] ({1520+\c*85-18},{490+\r*33-9}) rectangle ++(36,18); } }
+  \node[lab,anchor=south] at (1660,625) {분기 잭 4조 (패치 패널)};
+  % ---------- 높이의 눈금 (바닥에서, mm) ----------
+  \foreach \h/\t in {0/0, 400/400, 450/450, 870/870, 980/980, 1100/{1,100}, 1220/{1,220}, 1350/{1,350}} {
+    \draw[tk] (-45,\h) -- (-5,\h);
+    \node[font=\tiny,text=cgray,anchor=east] at (-48,\h) {\t};
+  }
+  % ---------- 폭의 치수 ----------
+  \foreach \x in {0,40,1480,1840,1880} { \draw[tk] (\x,-15) -- (\x,-175); }
+  \draw[<->,cgray,line width=0.4pt] (40,-60) -- (1480,-60) node[midway,fill=white,font=\tiny] {1,440 = 12 자리 × 120};
+  \draw[<->,cgray,line width=0.4pt] (1480,-60) -- (1840,-60) node[midway,fill=white,font=\tiny] {구동부 360};
+  \draw[<->,cgray,line width=0.4pt] (0,-140) -- (1880,-140) node[midway,fill=white,font=\tiny] {1,880 = 40 + 1,440 + 360 + 40};
 \end{tikzpicture}

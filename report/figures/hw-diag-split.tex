@@ -1,0 +1,31 @@
+% 대각선 보드 다섯 장의 나눔 (그림 fig:hw-diag-split). 길이는 비례(mm). 값은 부록 D·E의 대각선 보드 절과
+% hardware/common/diagonal-board/ (보드 안 잭 간격 110, 보드 경계를 사이에 둔 잭 간격 149.3, 끝 여유 42.25).
+\begin{tikzpicture}[x=0.0092cm,y=0.0092cm,
+    lt/.style={font=\scriptsize\ttfamily},
+    nt/.style={font=\scriptsize,text=cgray,align=center}]
+  % 보드
+  \foreach \xa/\xb/\n in {0/336.9/D1, 336.9/706.2/D2, 706.2/1075.5/D3, 1075.5/1334.8/D4, 1334.8/1561.7/D5} {
+    \draw[draw=cgray,fill=clight,line width=0.6pt] ({\xa+3},0) rectangle ({\xb-3},130);
+    \node[font=\footnotesize\bfseries] at ({(\xa+\xb)/2},-22) {\n};
+  }
+  % 글자 잭(열마다 위 글자 A--M, 아래 글자 N--Z, 글자마다 잭 둘)
+  \foreach \x/\u/\d in {42.25/A/N, 152.25/B/O, 262.25/C/P, 411.55/D/Q, 521.55/E/R, 631.55/F/S,
+                         780.85/G/T, 890.85/H/U, 1000.85/I/V, 1150.15/J/W, 1260.15/K/X, 1409.45/L/Y, 1519.45/M/Z} {
+    \foreach \y in {97,112} { \draw[draw=corange,fill=corangebg,line width=0.3pt] ({\x-17},{\y-6}) rectangle ({\x+17},{\y+6}); }
+    \foreach \y in {18,33} { \draw[draw=corange,fill=corangebg,line width=0.3pt] ({\x-17},{\y-6}) rectangle ({\x+17},{\y+6}); }
+    \node[lt] at (\x,77) {\u};
+    \node[lt] at (\x,53) {\d};
+  }
+  % 경계의 리본 헤더(양쪽 보드에 셋씩)와 경계를 넘는 넷의 수
+  \foreach \xb/\k/\kk/\nk in {336.9/6/20/120, 706.2/12/14/168, 1075.5/18/8/144, 1334.8/22/4/88} {
+    \foreach \s in {-1,1} {
+      \foreach \j in {0,1,2} { \fill[cblue!70] ({\xb+\s*(9+\j*10.8)-2.5},40) rectangle ++(5,50); }
+    }
+    \draw[cblue,line width=0.8pt] ({\xb-30},150) -- ({\xb+30},150);
+    \node[font=\scriptsize,text=cblue,anchor=south] at (\xb,152) {$\k \times \kk = \nk$};
+  }
+  % 간격
+  \draw[<->,cgray,line width=0.4pt] (42.25,-55) -- (152.25,-55) node[midway,below,font=\scriptsize] {110};
+  \draw[<->,cgray,line width=0.4pt] (262.25,-55) -- (411.55,-55) node[midway,below,font=\scriptsize] {149.3};
+  \draw[<->,cgray,line width=0.4pt] (0,-105) -- (1561.7,-105) node[midway,fill=white,font=\scriptsize] {다섯 장의 합 1,561.7 (계획 1,430)};
+\end{tikzpicture}

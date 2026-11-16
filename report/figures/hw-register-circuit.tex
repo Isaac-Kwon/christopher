@@ -2,10 +2,12 @@
 % 보드에 구현하고 스위치 수준 시뮬레이션으로 확인한 회로다 (hardware/common/test-register/README.md 3절,
 % docs/decisions/0001-test-register-timing.md 6절). 처음 안과 달라진 곳: 사슬의 공급이 H, p 접점의 직렬 다이오드,
 % 정지 잠금과 S의 자기 유지의 공급이 HSUP, 해제 릴레이, S 릴레이 셋, 타이밍 릴레이 셋, 램프 구동.
+% 결정 0003 반영: 타이밍 입력마다 핀과 코일 사이의 직렬 다이오드(D34--D36). 보드의 참조: T = K27, J = K28,
+% R = K29, P = K30, S = K31--K33, X = K34. 선 L_i의 마디에는 J1의 핀과 차단 다이오드 D_i만 있다(L9 검사).
 % 코일은 대문자(K_A, P, S), 그 릴레이의 접점은 소문자(k_A, p, s)로 적는다.
 % t, j, r은 타이밍 릴레이 T, J, R의 접점이고 x는 해제 릴레이 X의 접점이다.
 % H(유지 버스)와 HSUP(그 공급)은 같은 이름끼리 이어져 있다.
-\begin{circuitikz}[x=1cm,y=0.86cm]
+\begin{circuitikz}[x=1cm,y=0.84cm]
   \ctikzset{bipoles/length=9mm}
   \tikzset{hs/.style={font=\footnotesize,text=corange}, hh/.style={font=\footnotesize,text=cgreen},
            sec/.style={font=\footnotesize\bfseries,anchor=west}, pw/.style={font=\footnotesize,anchor=east}}
@@ -27,8 +29,8 @@
   \draw[cgreen,line width=0.9pt] (2.3,5.95) -- (9.1,5.95);
   \node[hh,anchor=east] at (2.3,5.95) {$H$};
   \draw (3.4,5.5) -- (10.9,5.5) node[right,font=\footnotesize] {0 V};
-  \node[note,anchor=west,align=left] at (11.1,8.2) {선마다 다이오드:\\유지 전압이 배선망으로\\되돌아가지 못한다};
-  \node[note,anchor=west,align=left] at (11.1,6.7) {$k$: 자기 유지 접점\\(유지 버스 $H$에서)};
+  \node[note,anchor=west,align=left] at (10.95,8.6) {선마다 다이오드:\\유지 전압이\\배선망으로 가지 못한다.\\선에 닿는 것은\\핀과 이 다이오드뿐};
+  \node[note,anchor=west,align=left] at (10.95,6.7) {$k$: 자기 유지 접점\\(유지 버스 $H$에서)};
   % ---- (2) 유지 버스 ----
   \node[sec] at (-1.1,4.75) {(2) 유지 버스 $H$와 그 공급 $HSUP$: 복귀 구간에 $H$가 끊긴다. 정지 중에는 끊기지 않는다};
   \node[pw] (v2) at (0,3.9) {$+24$ V};
@@ -77,27 +79,28 @@
   \node[circ] at (ra) {};
   % ---- (6) 타이밍 릴레이와 해제 릴레이 ----
   \node[sec] at (-1.1,-8.4) {(6) 뱅크의 24 V 신호를 접점으로 바꾸는 릴레이와 해제 릴레이};
-  \foreach \x/\sig/\c/\ct in {-0.4/\code{STROBE}/T/t, 3.1/\code{JUDGE}/J/j, 6.6/\code{CLEAR}/R/r} {
-    \node[font=\footnotesize,anchor=east] (in\c) at (\x+0.9,-9.3) {\sig};
-    \node[rcoil,anchor=west] (C\c) at (\x+1.3,-9.3) {$\c$};
-    \draw (in\c.east) -- (C\c.west);
-    \draw (C\c.east) -- ++(0.2,0) node[right,font=\scriptsize] {0 V};
+  \foreach \x/\sig/\c/\ct in {-0.4/\code{STROBE}/T/t, 3.5/\code{JUDGE}/J/j, 7.2/\code{CLEAR}/R/r} {
+    \node[font=\footnotesize,anchor=east] (in\c) at (\x+0.5,-9.3) {\sig};
+    \draw (in\c.east) to[D] (\x+1.7,-9.3);
+    \node[rcoil,anchor=west] (C\c) at (\x+1.7,-9.3) {$\c$};
+    \draw (C\c.east) -- ++(0.15,0) node[right,font=\scriptsize] {0 V};
   }
-  \node[pw] (vx) at (11.0,-9.3) {$+24$ V};
-  \draw (vx.east) to[nos,l={\scriptsize 해제 버튼}] (12.5,-9.3) -- (12.7,-9.3);
+  \node[note,anchor=north west,align=left] at (-1.1,-9.75) {핀과 코일 사이의 다이오드: 신호를 끄는 순간 코일의 역기전력이 커넥터 핀으로 나가지 않는다 (결정 0003)};
+  \node[pw] (vx) at (11.2,-9.3) {$+24$ V};
+  \draw (vx.east) to[nos,l={\scriptsize 해제 버튼}] (12.6,-9.3) -- (12.7,-9.3);
   \node[rcoil,anchor=west] (CX) at (12.7,-9.3) {$X$};
-  \draw (CX.east) -- ++(0.35,0) node[right,font=\scriptsize] {0 V};
+  \draw (CX.east) -- ++(0.15,0) node[right,font=\scriptsize] {0 V};
   % ---- (7) 램프 구동 ----
-  \node[sec] at (-1.1,-10.4) {(7) 표시: 정지 중에만, 붙어 있는 감지 릴레이의 글자를 켠다 (판정과 무관)};
-  \node[font=\footnotesize,anchor=east] (na) at (1.6,-11.4) {$K_A$의 코일 마디};
-  \node[blkn,minimum width=17mm,minimum height=8mm,anchor=west] (qa) at (2.2,-11.4) {MOSFET $Q_A$};
+  \node[sec] at (-1.1,-10.8) {(7) 표시: 정지 중에만, 붙어 있는 감지 릴레이의 글자를 켠다 (판정과 무관)};
+  \node[font=\footnotesize,anchor=east] (na) at (1.6,-11.8) {$K_A$의 코일 마디};
+  \node[blkn,minimum width=17mm,minimum height=8mm,anchor=west] (qa) at (2.2,-11.8) {MOSFET $Q_A$};
   \draw[->] (na.east) -- (qa.west);
-  \node[font=\footnotesize,anchor=west] (la) at (5.4,-10.95) {\code{LAMP\_A} $\to$ 표시 릴레이의 코일 $\to$ $+24$ V};
-  \draw (qa.east) -- (4.9,-11.4) |- (la.west);
-  \draw (4.9,-11.4) -- (4.9,-11.85) -- (6.0,-11.85);
-  \node[blkn,minimum width=17mm,minimum height=8mm,anchor=west] (qs) at (6.0,-11.85) {MOSFET $Q_{27}$};
+  \node[font=\footnotesize,anchor=west] (la) at (5.4,-11.35) {\code{LAMP\_A} $\to$ 표시 릴레이의 코일 $\to$ $+24$ V};
+  \draw (qa.east) -- (4.9,-11.8) |- (la.west);
+  \draw (4.9,-11.8) -- (4.9,-12.25) -- (6.0,-12.25);
+  \node[blkn,minimum width=17mm,minimum height=8mm,anchor=west] (qs) at (6.0,-12.25) {MOSFET $Q_{27}$};
   \draw (qs.east) -- ++(0.6,0) node[right,font=\footnotesize] {0 V};
-  \node[font=\footnotesize,anchor=west] (sn) at (1.9,-12.6) {$S$의 코일 마디};
+  \node[font=\footnotesize,anchor=west] (sn) at (1.9,-13.0) {$S$의 코일 마디};
   \draw[->] (sn.east) -| (qs.south);
-  \node[note,anchor=west,align=left] at (9.7,-12.5) {$Q_{27}$은 $S$가 붙어 있을 때만\\램프 쪽 0 V를 잇는다};
+  \node[note,anchor=west,align=left] at (9.7,-12.9) {$Q_{27}$은 $S$가 붙어 있을 때만\\램프 쪽 0 V를 잇는다};
 \end{circuitikz}

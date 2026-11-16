@@ -48,14 +48,16 @@
   \draw[draw=cgray,fill=white] (1480,930) rectangle (1840,1510);
   \draw[draw=cgreen,fill=cgreenbg] (1487,1250) rectangle (1737,1478);
   \node[lab] at (1612,1364) {공통\\계수기};
-  \draw[draw=cgray,dashed,fill=cyellowbg] (1487,960) rectangle (1737,1188);
-  \node[lab] at (1612,1074) {순서기\\(자리)};
+  \draw[draw=cgray,fill=cyellowbg] (1487,960) rectangle (1737,1188);
+  \node[lab] at (1612,1074) {순서기};
+  % 위치 표시 보드 88 x 294 (글자 세 줄 l, m, r)
+  \draw[draw=corange,fill=corangebg] (1746,1080) rectangle (1834,1374);
   \foreach \j in {0,1,2} {
-    \foreach \k in {0,...,4} {
-      \draw[draw=corange,fill=corangebg] ({1748+\j*30},{1060+\k*75}) rectangle ++(24,50);
+    \foreach \k in {0,...,25} {
+      \fill[cgray!60] ({1760+\j*29},{1095+\k*10.5}) circle (2.5);
     }
   }
-  \node[lab] at (1793,970) {위치\\표시};
+  \node[lab] at (1790,1030) {위치\\표시};
   % 화면
   \draw[draw=cgray,dashed] (1540,1535) rectangle (1780,1690);
   \node[dl] at (1660,1612) {화면};

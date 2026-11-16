@@ -1,0 +1,51 @@
+% 커넥터 면과 접점 면: 보정 없이 성립하는 가장 짧은 위치 주기(34.5 ms). 그림 fig:hw-register-faces
+% 값은 docs/decisions/0003-interfaces.md 3.1--3.3절. 핀이 올라간 뒤 접점이 닫히기까지 2.5--4 ms,
+% 핀이 내려간 뒤 접점이 돌아가기까지 1.5--4 ms(타이밍 릴레이, 다이오드 + 제너 클램프).
+% 진한 칸 = 지연이 범위의 어디에 있든 접점이 닫혀(CLEAR는 열려) 있는 구간, 빗금 = 지연에 따라 달라지는 가장자리.
+\begin{tikzpicture}[x=3.1mm,y=1cm,
+    pin/.style={draw=cgray,fill=white,line width=0.5pt},
+    sure/.style={draw=none,fill=#1},
+    vary/.style={draw=none,pattern=north east lines,pattern color=#1},
+    lab/.style={font=\footnotesize,anchor=east},
+    rl/.style={font=\scriptsize,text=cgray}]
+  % 시간축
+  \draw[->,cgray] (-0.5,-0.55) -- (39.5,-0.55) node[right,font=\scriptsize] {ms};
+  \foreach \t in {0,5,...,35} {
+    \draw[cgray] (\t,-0.6) -- (\t,-0.5);
+    \node[font=\scriptsize,text=cgray,anchor=north] at (\t,-0.6) {\t};
+  }
+  % 신호 하나를 그리는 매크로: #1 행의 y, #2 색, #3 오름, #4 내림
+  \def\facerow#1#2#3#4{%
+    \draw[pin] (#3,{#1+0.55}) rectangle (#4,{#1+0.95});
+    \fill[vary=#2] ({#3+2.5},#1) rectangle ({#3+4},{#1+0.4});
+    \fill[sure=#2] ({#3+4},#1) rectangle ({#4+1.5},{#1+0.4});
+    \fill[vary=#2] ({#4+1.5},#1) rectangle ({#4+4},{#1+0.4});
+    \draw[#2,line width=0.4pt] ({#3+2.5},#1) rectangle ({#4+4},{#1+0.4});
+  }
+  \facerow{4.6}{cblue}{0}{7.5}
+  \draw[pin] (34.5,5.15) -- (39,5.15) (34.5,5.15) -- (34.5,5.55) -- (39,5.55);
+  \fill[vary=cblue] (37,4.6) rectangle (38.5,5.0);
+  \fill[sure=cblue] (38.5,4.6) rectangle (39,5.0);
+  \draw[cblue,line width=0.4pt] (39,4.6) -- (37,4.6) -- (37,5.0) -- (39,5.0);
+  \facerow{2.8}{cgreen}{11.5}{19}
+  \facerow{1.0}{corange}{20.5}{33}
+  % 행 이름
+  \node[lab] at (-0.7,5.35) {\code{STROBE} 핀};
+  \node[lab] at (-0.7,4.8) {$t$ 접점};
+  \node[lab] at (-0.7,3.55) {\code{JUDGE} 핀};
+  \node[lab] at (-0.7,3.0) {$j$ 접점};
+  \node[lab] at (-0.7,1.75) {\code{CLEAR} 핀};
+  \node[lab] at (-0.7,1.2) {$r$ 열림};
+  % 최소 폭(접점 면)
+  \draw[|<->|,cblue,line width=0.5pt] (4,4.45) -- (9,4.45) node[midway,below,font=\scriptsize] {5};
+  \draw[|<->|,cgreen,line width=0.5pt] (15.5,2.65) -- (20.5,2.65) node[midway,below,font=\scriptsize] {5};
+  \draw[|<->|,corange,line width=0.5pt] (24.5,0.85) -- (34.5,0.85) node[midway,below,font=\scriptsize] {10};
+  % 커넥터 면의 규칙
+  \draw[|<->|,cgray,line width=0.4pt] (0,5.75) -- (7.5,5.75) node[midway,above,rl] {L1 $\ge 7.5$};
+  \draw[|<->|,cgray,line width=0.4pt] (0,6.25) -- (11.5,6.25) node[midway,above,rl] {L2 $\ge 11.5$};
+  \draw[|<->|,cgray,line width=0.4pt] (11.5,3.95) -- (19,3.95) node[midway,above,rl] {L3 $\ge 7.5$};
+  \draw[|<->|,cgray,line width=0.4pt] (19,2.15) -- (20.5,2.15) node[above,rl,anchor=south west] {L4 $\ge 1.5$};
+  \draw[|<->|,cgray,line width=0.4pt] (20.5,2.15) -- (33,2.15) node[midway,above,rl] {L5 $\ge 12.5$};
+  \draw[|<->|,cgray,line width=0.4pt] (33,5.75) -- (34.5,5.75) node[above,rl,anchor=south west] {L6 $\ge 1.5$};
+  \draw[cgray,dotted] (33,1.95) -- (33,5.75);
+\end{tikzpicture}
