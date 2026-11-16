@@ -16,6 +16,8 @@ Rust 코어의 시험 & 저장소 루트에서 \code{cargo test} \\
 거짓 정지의 통계 & \code{cargo run -{}-release -p christopher-core -{}-example stop\_statistics 400} \\
 기준 RTL의 시험 & \code{rtl/tb/run.sh}. Verilator와 cocotb가 필요하다(\code{rtl/tb/README.md}).
   \code{-k scrambler}처럼 일부만 고를 수 있고, \code{WAVES=1}로 파형을 남길 수 있다 \\
+하드웨어 보드의 생성과 검증 & 보드 폴더(예: \code{hardware/relay/shifter-board})에서 \code{python gen\_shifter.py},
+  \code{python verify\_shifter.py}. KiCad 10의 \code{kicad-cli}가 필요하다. 보드마다의 순서는 그 폴더의 \code{README.md} \\
 이 문서의 빌드 & \code{report/guide} 폴더에서 \code{latexmk} \\
 \bottomrule
 \end{tabularx}

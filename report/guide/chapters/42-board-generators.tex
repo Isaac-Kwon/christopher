@@ -1,0 +1,412 @@
+\chapter{코드로 보드를 만든다}\label{ch:boardgen}
+
+앞의 두 장은 회로가 \emph{무엇을} 하는지였다. 이 장은 그 회로가 \emph{어떻게 파일이 되는지}다. 이 프로젝트의
+회로도와 인쇄 회로 기판(PCB)은 사람이 KiCad 화면에서 마우스로 그린 것이 아니다. 저장소의 Python 스크립트
+\code{gen\_*.py}가 KiCad의 파일을 글자로 써 내고, \code{gen\_*\_pcb.py}가 부품을 기판 위에 늘어놓는다. 이 장은 그
+방식이 왜 필요한지, 생성기 하나가 실제로 어떻게 생겼는지, 그리고 왜 배선은 생성하지 않는지를 설명한다.
+KiCad를 써 본 적이 없어도 읽을 수 있다.
+
+\section{왜 손으로 그리지 않는가}\label{sec:gen-why}
+
+\Why 시프터 보드 한 장에는 릴레이 130개, 다이오드 130개, 커넥터 다섯 개가 있고, 릴레이마다 핀 여덟 개가
+정해진 선에 이어져야 한다. 손으로 그리면 핀 1,000여 개를 하나씩 이어야 하고, 하나만 틀려도 그 보드는 어떤
+위치에서 틀린 글자를 낸다. 그런데 이 연결에는 규칙이 있다. ``단 $b$의 선 $i$ 릴레이는 NO가 $i + 2^b$로
+간다''는 한 줄이 260개의 연결을 정한다. 규칙을 코드로 적고 코드가 연결을 쓰게 하면 틀릴 곳이 그 한 줄로 준다.
+
+이점은 더 있다.
+\begin{itemize}
+\item \textbf{같은 출처.} 오프셋 다이얼의 동박 무늬, 로터 카드의 배선은 기준 모델(\code{relay.rs}와 그 Python 이식,
+\code{data/wirings/enigma.txt})에서 바로 나온다. 모델과 보드가 따로 놀 수 없다.
+\item \textbf{다시 만들 수 있음.} 규칙을 바꾸면(예: 결정 0003이 커넥터의 0~V 핀을 떼라고 했을 때) 생성기 한 곳을
+고쳐 다시 돌린다. 보드 다섯 종의 같은 고침을 손으로 다섯 번 하지 않는다.
+\item \textbf{리뷰할 수 있음.} 생성기의 변경은 수십 줄의 코드 차이로 보인다. 그림 파일의 변경은 사람이 읽기
+어렵다.
+\end{itemize}
+
+\General 웹 서비스의 서버 설정을 화면에서 클릭해 만들지 않고 설정 파일과 스크립트로 적어 두는 것(``코드로서의
+인프라'')과 같은 생각이다. 문서도 마찬가지다. 이 가이드는 워드프로세서가 아니라 \LaTeX\ 원고로 쓰여, 그림의
+번호와 상호 참조를 컴퓨터가 매긴다.
+
+\Ours 생성기는 모두 Python 표준 라이브러리만 쓴다. KiCad의 표준 심볼·풋프린트 라이브러리를 읽어 필요한
+부분을 복사하고, KiCad의 명령행 도구 \code{kicad-cli}로 넷리스트를 내보내고 검사를 돌린다.
+그림~\ref{fig:gen-flow}가 전체 흐름이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    fl/.style={blkn,minimum width=24mm,minimum height=11mm,font=\footnotesize},
+    py/.style={blkb,minimum width=24mm,minimum height=11mm,font=\footnotesize},
+    md/.style={blkg,minimum width=24mm,minimum height=11mm,font=\footnotesize}]
+  \node[md] (ref) at (0,2.2) {기준 모델\\{\scriptsize \code{relay.rs}, 그 Python 이식}};
+  \node[py] (gs) at (0,0) {\code{gen\_*.py}};
+  \node[fl] (sch) at (3.2,0) {회로도\\{\scriptsize \code{.kicad\_sch}}};
+  \node[fl] (net) at (6.4,0) {넷리스트\\{\scriptsize \code{kicad-cli}로 내보냄}};
+  \node[py] (gp) at (9.6,0) {\code{gen\_*\_pcb.py}};
+  \node[fl] (pcb) at (12.8,0) {기판(배치만)\\{\scriptsize \code{.kicad\_pcb}}};
+  \node[blko,minimum width=24mm,minimum height=11mm,font=\footnotesize] (vs) at (6.4,-2.4) {\code{verify\_*.py}\\{\scriptsize 넷리스트 시뮬레이션}};
+  \node[blko,minimum width=24mm,minimum height=11mm,font=\footnotesize] (vp) at (12.8,-2.4) {\code{verify\_*\_pcb.py}\\{\scriptsize 패드 넷, DRC}};
+  \node[blkr,minimum width=20mm,minimum height=11mm,font=\footnotesize] (erc) at (3.2,-2.4) {ERC};
+  \draw[->] (ref) -- (gs); \draw[->] (gs) -- (sch); \draw[->] (sch) -- (net); \draw[->] (net) -- (gp); \draw[->] (gp) -- (pcb);
+  \draw[->] (net) -- (vs); \draw[->] (pcb) -- (vp); \draw[->] (sch) -- (erc);
+  \draw[->,dashed,cgreen] (ref.east) -| node[pos=0.2,above,note,text=cgreen] {기대값} (vs.north west);
+  \draw[->] (net.south east) -- (vp.north west);
+  \node[note,anchor=north] at (6.4,-3.2) {검증기는 생성기를 부르지 않고 파일만 읽는다(\ref{ch:boardverify}장)};
+\end{tikzpicture}
+\caption{보드를 만드는 흐름. 파란 것이 생성기, 회색이 생성물(저장소에 들어간다), 주황이 검증기다.}
+\label{fig:gen-flow}
+\end{figure}
+
+생성물(\code{.kicad\_sch}, \code{.kicad\_pcb}, \code{.kicad\_pro})은 저장소에 함께 들어간다. 사람이 KiCad에서 열어
+볼 수 있고, 나중에 배선을 할 사람이 그 파일에서 시작한다. 다만 각 README는 ``생성물을 손으로 고치지 말고
+생성기를 고친다''고 못박는다. 손으로 고친 것은 다음 생성 때 지워지기 때문이다.
+
+\section{KiCad 파일은 글자다}\label{sec:gen-sexpr}
+
+\Why 생성기가 가능한 것은 KiCad의 파일이 사람이 읽을 수 있는 텍스트이기 때문이다. 형식은 \term{S-식}{S-expression}이다.
+괄호 안에 이름과 값들을 적고, 괄호를 겹쳐 구조를 만든다. 다음은 생성된 시프터 보드 회로도의 한 조각이다.
+선 하나(\code{wire})와 그 끝에 붙은 이름표(\code{label}) 하나다.
+
+\begin{lstlisting}[numbers=none,caption={\code{stage\_1.kicad\_sch}의 일부(생성물).},label={lst:g-sexpr}]
+	(wire
+		(pts
+			(xy 139.7 68.58) (xy 139.7 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "49b20f66-5f89-5df1-b779-5a16e323c659")
+	)
+	(label "OIN_A"
+		(at 139.7 71.12 270)
+		...
+		(uuid "a4c7ef96-c732-59b5-baeb-74f16f404624")
+	)
+\end{lstlisting}
+
+좌표는 mm다. 이 선은 릴레이 핀이 있는 (139.7, 68.58)에서 2.54~mm 아래로 내려가고, 그 끝에 \code{OIN\_A}(가는 길
+입력, 선 A)라는 이름표가 붙어 있다.
+
+\General HTML, JSON, SVG처럼 사람이 읽을 수 있는 형식의 파일은 모두 프로그램으로 쓸 수 있다. 웹 페이지를 서버가
+문자열로 만들어 보내는 것과 같다.
+
+\Ours 생성기의 일은 결국 이런 문자열을 정확한 숫자로 채워 쓰는 것이다. 시프터 보드의 회로도 여섯 장은 각각
+20만 자가 넘는다. 사람이 그런 파일을 손으로 쓰지 않는 것은 당연하고, 대신 그 파일을 쓰는 코드는 450줄이다.
+
+\section{이름표로 잇는다}\label{sec:gen-labels}
+
+\Why 회로도에서 두 핀을 이으려면 보통 그 사이에 선을 긋는다. 그런데 KiCad에는 ``이름이 같은 이름표는 같은
+선(넷)이다''라는 규칙이 있다. 그러면 핀마다 짧은 선 하나와 이름표 하나만 붙이면 되고, 실제 연결은 이름이
+만든다. 생성기는 도면 위에서 선이 어디로 지나갈지 고민할 필요가 없다. 핀 하나에 이름 하나를 정하는 일만 남는다.
+
+\General 프로그램의 변수 이름과 같다. 두 곳에서 같은 변수를 쓰면 같은 값을 보듯, 두 핀에 같은 이름표를 붙이면
+같은 선이다. 커다란 회로도를 사람이 그릴 때도 쪽을 넘어가는 선은 이름표로 잇는다.
+
+\Ours 생성기의 핵심 함수 두 개는 이 일을 한다. 심볼의 핀 위치를 라이브러리에서 읽어 두었다가, 핀에서 바깥쪽으로
+짧은 선을 긋고 그 끝에 이름표를 단다.
+
+\begin{lstlisting}[language=Python,caption={\code{gen\_shifter.py}: 핀 하나를 이름 있는 넷에 잇기.},label={lst:g-pinnet}]
+    def stub_label(self, px, py, out, name, length=2.54):
+        """wire from pin point (screen coords) outward, then a label at the far end."""
+        dx, dy = out
+        ex, ey = px + dx * length, py - dy * length  # screen y grows downward
+        self.wire(px, py, ex, ey)
+        self.label(name, ex, ey, LABEL_ANGLE[out])
+
+    def pin_net(self, sym, x, y, num, name, length=2.54):
+        px, py, out = self.pin_xy(sym, x, y, num)
+        self.stub_label(px, py, out, name, length)
+\end{lstlisting}
+
+\begin{sloppypar}
+코드~\ref{lst:r-stage}의 여섯 줄이 바로 이 \code{pin\_net}을 부르는 것이다. 단 시트 다섯 장은 함수
+\code{stage\_sheet} 하나가 \code{bit}만 0--4로 바꿔 가며 만든다. 루트 시트에는 커넥터와 다섯 단 시트의 상자가
+있고, 단 시트의 출력 넷 이름(\code{O1\_A} 등)이 다음 단 시트의 입력이 되도록 이름을 짓는다. 그 이름을 짓는
+함수가 \code{chain\_net}이다.
+\end{sloppypar}
+
+\paragraph{부품 목록으로 적는 방식.} 나중에 만든 보드(위치 표시, 오프셋 다이얼, 순서기)는 한 걸음 더 나아갔다.
+부품마다 ``참조, 종류, 값, 풋프린트, \{핀: 넷\}''을 한 줄로 적은 목록(\code{Design})을 만들고, 도면에 늘어놓는
+일은 공통 도우미 \code{kigen.py}가 격자에 맞춰 한다. 회로의 정의가 도면 좌표와 완전히 떨어진다.
+
+\begin{lstlisting}[language=Python,caption={\code{gen\_display.py}: 입력 버퍼의 부품 몇 개. 회로가 \{핀: 넷\} 사전으로만 적힌다.},label={lst:g-design}]
+            d.add(f"RP{dn}{b}", "R", "33k", FP["r0603"], {1: pin, 2: "GND"}, "inputs", grp,
+                  desc=f"{t}: pin-side pull-down (display-only receiver, README 3.2)")
+            d.add(f"RA{dn}{b}", "R", "100k", FP["r0603"], {1: pin, 2: gt}, "inputs", grp, desc=f"{t}: gate divider, upper")
+            d.add(f"RB{dn}{b}", "R", "18k", FP["r0603"], {1: gt, 2: "GND"}, "inputs", grp, desc=f"{t}: gate divider, lower")
+            ...
+            d.add(f"QP{dn}{b}", "QP", "AO3401A", FP["sot23"], {PG: pg, PS: "+24V", PD: bc}, "inputs", grp,
+                  desc=f"{t}: high-side switch +24V -> coil bus {bc}")
+\end{lstlisting}
+
+\section{결정적인 UUID}\label{sec:gen-uuid}
+
+\Why KiCad 파일의 모든 요소(선, 이름표, 부품, 핀)에는 \term{UUID}{universally unique identifier}라는 128비트 식별자가
+붙는다. 보통의 UUID는 무작위로 만든다. 그러면 생성기를 다시 돌릴 때마다 회로가 같아도 파일의 수천 줄이
+바뀐다. 저장소의 변경 기록이 의미 없는 차이로 가득 차고, ``지금 저장소의 파일이 생성기의 최신 출력인가''를
+확인할 수도 없다.
+
+해법은 \term{결정적}{deterministic} UUID다. UUID 표준에는 ``이름공간 UUID와 이름 문자열''에서 해시로 UUID를 만드는
+방식(버전 5)이 있다. 같은 이름이면 언제나 같은 UUID가 나온다. 이름공간은 생성기마다 고정해 두고, 이름은 그
+요소가 무엇인지를 문자열로 적는다.
+
+\begin{lstlisting}[language=Python,caption={\code{gen\_shifter.py}: 이름에서 UUID를 만든다.},label={lst:g-uuid}]
+NS = uuid.UUID("6f1c2b0e-52a1-4a43-9c1b-0b0b0b0b0b01")  # fixed namespace -> stable UUIDs
+
+def uid(*parts) -> str:
+    return str(uuid.uuid5(NS, "/".join(str(p) for p in parts)))
+...
+    def _u(self, kind: str) -> str:
+        self.n += 1
+        return uid(self.uuid, kind, self.n)
+\end{lstlisting}
+
+시트 안의 요소는 ``시트의 UUID / 종류 / 몇 번째''로 이름을 지으므로, 생성 순서가 같으면 UUID도 같다. 기판
+생성기는 부품의 UUID를 \code{uid("fp", ref)}처럼 부품 참조에서 만든다.
+
+\General 같은 생각이 \term{재현 가능한 빌드}{reproducible build}다. 같은 소스에서는 언제 어디서 빌드해도 바이트
+단위로 같은 결과가 나오게 하여, 결과물이 그 소스에서 나왔음을 누구나 확인할 수 있게 한다.
+
+\Ours 그래서 검증기는 ``생성기를 임시 폴더에 다시 돌린 결과가 저장소의 파일과 바이트 단위로 같은가''를 검사
+항목으로 둔다. 누군가 생성물을 손으로 고쳤거나 생성기를 고치고 다시 돌리는 것을 잊었으면 여기서 걸린다.
+
+\section{자세히: 오프셋 다이얼의 동박을 기준 모델에서 그리기}\label{sec:gen-dial}
+
+생성기 하나를 처음부터 끝까지 따라가 보자. 고른 것은 \term{오프셋 다이얼}{offset dial}
+(\code{hardware/relay/offset-dial})이다. 회로는 단순하지만, 기준 모델에서 기판의 동박 모양까지 한 줄로 이어지는
+과정이 다 보인다.
+
+\paragraph{무엇인가.} 릴레이식 봄베의 유닛마다 크립 오프셋 $k$를 정하는 손잡이가 하나 있다. 관람객이 메뉴
+카드의 글자에 손잡이를 맞추면, \code{HOME} 때 그 유닛의 계수기가 $a_1 = k$, $a_2 = -k \bmod 26$을 프리셋으로
+받는다(\ref{sec:relay-counter}절). 계수기는 다이얼에 이렇게 요구한다. ``공통선 하나와 코드선 열 개(\(a_1\)의 5비트,
+\(a_2\)의 5비트)가 있다. 위치 $k$에서 1인 비트의 코드선을 공통선에 이어라.''
+
+26위치 회전 스위치는 기성품을 찾지 못했다. 그래서 \emph{기판 자체를} 스위치의 고정자로 만들었다. 기판 위에 동심원
+링 11개(공통 하나 + 코드 10)를 동박으로 그리고, 손잡이 축에 붙은 금속 빗(끝이 11개, 모두 한 도체)이 그 위를
+돈다(그림~\ref{fig:g-dial}). 빗이 공통 링과 어떤 코드 링에 함께 닿으면 그 코드선이 공통선에 이어진다. 그러면
+위치마다 ``어느 링의 어느 부분에 동박이 있는가''가 곧 코드다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1.25cm,y=1.25cm]
+  \def\dw{0.11}
+  \def\dg{1.4}
+  \newcommand{\dialarc}[4]{% phiA phiB radius style
+    \fill[#4] ({90-(#1+\dg)}:{#3-\dw}) arc[start angle={90-(#1+\dg)}, end angle={90-(#2-\dg)}, radius={#3-\dw}]
+      -- ({90-(#2-\dg)}:{#3+\dw}) arc[start angle={90-(#2-\dg)}, end angle={90-(#1+\dg)}, radius={#3+\dw}] -- cycle;}
+  % COM ring
+  \draw[corange,line width=0.275cm] (0,0) circle (1.0);
+  % a1 bit 4: dummy 0..15, copper 16..25
+  \dialarc{-6.92}{214.62}{1.35}{cgray!35}
+  \dialarc{214.62}{353.08}{1.35}{corange}
+  % a2 bit 4: copper 1..10, dummy 11..0
+  \dialarc{6.92}{145.38}{1.7}{corange}
+  \dialarc{145.38}{366.92}{1.7}{cgray!35}
+  % a1 bit 0 and a2 bit 0: alternate
+  \foreach \p in {0,...,25} {
+    \pgfmathsetmacro{\pa}{(\p-0.5)*360/26}
+    \pgfmathsetmacro{\pb}{(\p+0.5)*360/26}
+    \pgfmathtruncatemacro{\bit}{mod(\p,2)}
+    \ifnum\bit=1 \dialarc{\pa}{\pb}{2.05}{corange}\dialarc{\pa}{\pb}{2.4}{corange}
+    \else \dialarc{\pa}{\pb}{2.05}{cgray!35}\dialarc{\pa}{\pb}{2.4}{cgray!35}\fi
+  }
+  \foreach \L [count=\p from 0] in {A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z}
+    \node[font=\scriptsize\ttfamily] at ({90-\p*360/26}:2.85) {\L};
+  % comb at D (k = 3)
+  \draw[cblue,line width=1.2pt] ({90-3*360/26}:0.7) -- ({90-3*360/26}:2.6);
+  \foreach \r/\hit in {1.0/1,1.35/0,1.7/1,2.05/1,2.4/1} {
+    \ifnum\hit=1 \fill[cblue] ({90-3*360/26}:\r) circle (0.07); \else \draw[cblue,fill=white] ({90-3*360/26}:\r) circle (0.07); \fi
+  }
+  \fill[white] (0,0) circle (0.45); \draw (0,0) circle (0.45);
+  \node[note,anchor=west,align=left] at (3.2,1.6) {링(안 $\to$ 밖, 그림은 다섯만):\\공통 COM\\$a_1$ 비트 4\\$a_2$ 비트 4\\(가운데 여섯 생략)\\$a_1$ 비트 0\\$a_2$ 비트 0};
+  \node[note,anchor=west,align=left] at (3.2,-0.9) {주황: 그 링의 코드선에 이은 동박\\회색: 어디에도 잇지 않은 섬\\파란 선: 빗(위치 D, $k = 3$)\\$a_1 = 3 = 00011_2$, $a_2 = 23 = 10111_2$};
+\end{tikzpicture}
+\caption{오프셋 다이얼의 고정자 동박(개념도, 링 열한 개 가운데 다섯). 코드 링은 멈춤 위치 사이의 가운데 각에서
+잘리고, 같은 값이 이어지는 위치끼리는 한 호로 붙는다. 0인 구간도 동박 섬으로 남겨 빗 끝이 늘 같은 높이를
+달리게 했다.}
+\label{fig:g-dial}
+\end{figure}
+
+\paragraph{1단계: 코드를 기준 모델에서 받는다.} 생성기는 코드 표를 손으로 쓰지 않는다. 계수기 검증기에 들어 있는
+기준 모델(\code{relay.rs}의 \code{Counters}를 Python으로 옮긴 것)을 불러, 위치 $k$마다 \code{HOME} 직후의 제어값을
+받는다.
+
+\begin{lstlisting}[language=Python,caption={\code{gen\_dial.py}: 위치마다 코드, 링마다 비트.},label={lst:g-dial-code}]
+import verify_counter as vc  # noqa: E402   (counter reference model: relay.rs Counters)
+...
+# ring j (0 = innermost) -> (code, bit): low bits (many transitions) on the outer rings where an arc is longest
+TRACKS = [("COM", None), ("A1", 4), ("A2", 4), ("A1", 3), ("A2", 3), ("A1", 2), ("A2", 2), ("A1", 1), ("A2", 1),
+          ("A1", 0), ("A2", 0)]
+
+def home_codes(k: int) -> tuple[int, int]:
+    """(a1, a2) preset that the counter unit board must load at HOME for crib offset k (relay.rs Counters::home)."""
+    a1, a2, _a3, _a4 = vc.Counters(k).controls()
+    return a1, a2
+
+def bit_at(track, p, code=home_codes):
+    kind, b = track
+    a1, a2 = code(p)
+    return ((a1 if kind == "A1" else a2) >> b) & 1
+\end{lstlisting}
+
+자주 바뀌는 낮은 비트를 바깥 링에 둔 것은 바깥 링의 호가 더 길어 빗 끝이 넉넉히 얹히기 때문이다. 비트 0은
+위치마다 바뀌므로 호가 가장 짧다.
+
+\paragraph{2단계: 같은 값의 구간으로 묶는다.} 링 하나의 비트 26개를 둥글게 이어 보고, 같은 값이 연달아 나오는
+구간(\term{런}{run})으로 나눈다. 비트 4처럼 0이 열여섯 번, 1이 열 번 이어지는 링은 호 두 개가 되고, 비트 0은 호
+스물여섯 개가 된다. 원형이므로 끝(Z)과 처음(A)이 이어진다는 점에 주의해, 값이 바뀌는 첫 자리부터 세기 시작한다.
+
+\begin{lstlisting}[language=Python,caption={\code{gen\_dial.py}: 원형으로 이어진 같은 값의 구간.},label={lst:g-runs}]
+def runs(bits: list[int]) -> list[tuple[int, int, int]]:
+    """Cyclic runs of equal values: (first position, length, value)."""
+    n = len(bits)
+    start = next((i for i in range(n) if bits[i] != bits[i - 1]), None)
+    if start is None:
+        return [(0, n, bits[0])]
+    out, i = [], start
+    while True:
+        j = 1
+        while j < n and bits[(i + j) % n] == bits[i]:
+            j += 1
+        out.append((i, j, bits[i]))
+        i = (i + j) % n
+        if i == start:
+            return out
+\end{lstlisting}
+
+\code{bits[i - 1]}은 $i = 0$일 때 Python의 음수 색인으로 \code{bits[25]}가 되어, 원형 비교가 공짜로 된다.
+
+\paragraph{3단계: 구간을 동박 호로 그린다.} 구간마다 멈춤 위치 사이의 가운데 각, 곧 $(p \pm \frac12) \times
+13.846°$에서 자른 고리 조각(다각형)을 만든다. 값이 1이면 그 조각을 링의 커넥터 핀 번호를 가진 \term{패드}{pad}로,
+0이면 번호가 없는 패드(어디에도 잇지 않은 섬)로 만든다.
+
+\begin{lstlisting}[language=Python,caption={\code{gen\_dial.py}: 링의 구간마다 패드 하나.},label={lst:g-arcs}]
+        bits = [bit_at(tr, p, code) for p in range(M.N)]
+        for first, length, val in runs(bits):
+            phi_a = (first - 0.5) * M.ALPHA + edge_shift
+            phi_b = (first + length - 0.5) * M.ALPHA + edge_shift
+            num = PIN[tr] if val else ""
+            mid = (phi_a + phi_b) / 2
+            pads.append((num, M.xy(mid, r, (0, 0)), arc_poly(phi_a, phi_b, r_in, r_out, M.SLOT)))
+\end{lstlisting}
+
+\code{arc\_poly}는 두 각과 안팎 반지름으로 다각형의 꼭짓점을 만들고, 양 끝을 틈의 절반(0.25~mm)씩 당겨 이웃 호와
+0.5~mm 떨어지게 한다. 원판의 반지름, 링 폭, 틈, 빗 끝의 위치, 허용 오차 같은 기구 수치는 \code{dialmech.py}
+한 곳에 있고 생성기와 검증기가 같이 읽는다.
+
+\paragraph{왜 0인 곳에도 동박을 남기는가.} 동박은 35~$\mu$m 두께다. 0인 구간을 비워 두면 빗 끝이 위치를 지날 때마다
+이 턱을 오르내린다. 섬을 남기면 끝은 늘 같은 높이의 동박 위를 달리고, 턱은 0.5~mm 틈에만 있다. 전기적으로는
+섬이 어디에도 이어져 있지 않으므로 닿아도 아무 일이 없다.
+
+\paragraph{왜 가운데 각에서 자르는가.} 손잡이는 멈춤 홈에 걸려 서지만, 홈의 가공, 축의 고정, 빗의 조립에서 각도
+오차가 생긴다. 설계 허용은 $\pm 3°$다. 호의 끝을 멈춤 위치에서 가장 먼 곳(반 칸 = 6.92°)에 두면 그 오차가
+코드를 바꾸지 못한다. 검증기는 빗 끝의 실제 접촉 반지름까지 넣어, 코드가 처음 바뀌는 회전 오차가 6.6°임을
+확인했다. 또 위치 사이를 0.05° 간격으로 훑어(7,202점), 돌리는 도중의 코드가 비트마다 두 이웃 위치의 코드
+가운데 하나라는 것도 확인한다. 돌리는 도중에 엉뚱한 비트가 서는 일이 없다는 뜻이다(\ref{ch:boardverify}장).
+
+\paragraph{4단계: 회로도와 기판.} 동박 무늬는 이 프로젝트 전용 풋프린트 파일 하나로 써 두고, 회로도에서는 그
+풋프린트를 가진 부품 하나(\code{SW1})와 D-sub 15핀 커넥터 하나로 끝난다. 호를 커넥터 핀까지 잇는 것은 배선이므로
+생성기가 하지 않는다. 래츠넷(이어야 할 연결) 56개가 남는다.
+
+생성기의 \code{footprint\_text}는 키워드 인자를 몇 개 받는다(\code{code}, \code{edge\_shift}, \code{pitch},
+\code{com\_gap\_deg}, \code{letter\_shift}). 평소에는 쓰지 않는다. 검증기가 일부러 틀린 다이얼을 만들어 볼 때만
+쓴다(\ref{sec:v-mutants}절).
+
+\section{기판 배치는 좌표의 공식이다}\label{sec:gen-place}
+
+\Why 회로도는 ``무엇이 무엇에 이어지는가''이고 기판은 ``부품이 어디에 놓이고 동선이 어디로 지나가는가''다.
+기판 생성기는 그 가운데 앞의 절반, 곧 \term{배치}{placement}만 한다. 부품 하나의 자리는 참조 번호에서 계산되는
+좌표다. 시프터 보드라면 ``단 $b$, 선 $i$의 릴레이는 $x = 38 + 38b$, $y = 14 + 8i$''라는 공식 하나가 릴레이 130개의
+자리를 정한다.
+
+\begin{lstlisting}[language=Python,caption={\code{gen\_shifter\_pcb.py}: 릴레이와 다이오드의 자리(mm).},label={lst:g-place}]
+ROW_PITCH = 8.0              # G6S-2 courtyard is 7.9 mm across the rotated footprint
+ROW0_Y = 14.0                # y of the outbound pad row (pins 1,3,4,5) of line A
+COL_X0, COL_PITCH = 38.0, 38.0   # x of relay pin 1/12 column for stage 1; pitch leaves routing channels
+...
+    for b in range(5):
+        X = COL_X0 + b * COL_PITCH
+        for i in range(N):
+            Y = ROW0_Y + i * ROW_PITCH
+            st = b + 1
+            P[f"K{st}{i + 1:02d}"] = (X, Y, 90, False)
+            # flyback diode vertical left of the coil pins, cathode (pad 1) towards pin 1
+            P[f"D{st}{i + 1:02d}"] = (X - 3.0, Y - 2.54, 90, True)
+\end{lstlisting}
+
+행 간격 8.0~mm는 릴레이 풋프린트의 차지 영역(7.9~mm)에서, 열 간격 38~mm는 ``단 사이에 배선 통로를 남긴다''는
+판단에서 나왔다. 16칸 단은 선이 위아래로 최대 16칸을 건너가야 하므로 수직 배선이 20개 넘게 겹친다. 그래서
+보드가 처음 가정한 160 $\times$ 200~mm에 들어가지 않고 250 $\times$ 228~mm가 되었다(그림~\ref{fig:g-shifter-pcb}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=0.028cm,y=-0.028cm]
+  \draw[line width=0.8pt] (0,0) rectangle (250,228);
+  \foreach \b in {0,...,4} {
+    \pgfmathsetmacro{\X}{38+38*\b}
+    \foreach \i in {0,...,25} {
+      \pgfmathsetmacro{\Y}{14+8*\i}
+      \fill[cyellowbg,draw=cgray,line width=0.2pt] (\X-1.5,\Y-6.5) rectangle (\X+12.5,\Y+1.0);
+    }
+    \pgfmathtruncatemacro{\s}{2^\b}
+    \node[font=\tiny] at (\X+5.5,-6) {단 \s};
+    \fill[cgreenbg] (\X+13,4) rectangle (\X+36,214);
+  }
+  \node[font=\tiny,rotate=90,text=cgreen] at (68,110) {배선 통로};
+  \fill[cbluebg,draw=cblue] (0,12) rectangle (12.7,82.4); \node[font=\tiny,rotate=90] at (6.3,47) {J1 가는 길 IN};
+  \fill[cbluebg,draw=cblue] (0,86) rectangle (12.7,156.4); \node[font=\tiny,rotate=90] at (6.3,121) {J2 오는 길 IN};
+  \fill[corangebg,draw=corange] (0,160) rectangle (12.7,192); \node[font=\tiny,rotate=90] at (6.3,176) {J5 제어};
+  \fill[cbluebg,draw=cblue] (237.3,12) rectangle (250,82.4); \node[font=\tiny,rotate=90] at (243.6,47) {J3 가는 길 OUT};
+  \fill[cbluebg,draw=cblue] (237.3,86) rectangle (250,156.4); \node[font=\tiny,rotate=90] at (243.6,121) {J4 오는 길 OUT};
+  \foreach \x/\y in {5/5,245/5,5/223,245/223} \draw (\x,\y) circle (1.6);
+  \node[note,anchor=north] at (125,232) {250 $\times$ 228 mm, 4층. 노란 칸 = 릴레이 130개(행 8 mm, 열 38 mm)};
+\end{tikzpicture}
+\caption{시프터 보드의 배치(개략). 단 다섯이 열, 선 26개가 행이다. 입력 커넥터는 왼쪽 변, 출력은 오른쪽 변에
+있어 신호가 왼쪽에서 오른쪽으로 흐른다.}
+\label{fig:g-shifter-pcb}
+\end{figure}
+
+\Ours 기판 생성기가 하는 일은 셋이다.
+\begin{enumerate}
+\item \textbf{넷리스트를 받는다.} \code{kicad-cli sch export netlist}로 회로도에서 넷리스트를 내보내 읽는다. 부품마다
+풋프린트 이름과 핀별 넷이 들어 있다. 기판 생성기는 회로도 생성기의 내부를 모른다. 회로도 \emph{파일}에서 출발한다.
+\item \textbf{풋프린트를 복사해 놓는다.} KiCad 라이브러리에서 풋프린트 파일을 읽어 위치·회전을 넣고, 패드마다 그
+핀의 넷 이름을 붙인다. D-sub 커넥터의 금속 껍데기 패드처럼 회로도 심볼에는 핀이 없는 패드도 여기서 넷을 받는다
+(껍데기는 \code{CHASSIS}).
+\item \textbf{설계 규칙을 넣는다.} 최소 선폭·간격, 비아 크기, 넷 클래스(코일 전류가 흐르는 \code{CTRL}과 0~V는
+0.6~mm 등)를 \code{.kicad\_pro}에 병합한다. 배선하는 사람이 이 규칙 안에서 일하게 된다.
+\end{enumerate}
+
+배치 공식을 바꾸면 같은 넷리스트로 다른 기판이 나온다. 시프터 보드의 \code{--variant s4}는 유닛의 맨 앞에서 거꾸로
+끼우는 보드용으로, 신호 커넥터 J1--J4만 뒷면에 거울로 놓아 리본 케이블의 핀 1이 맞게 한다. 회로는 그대로이고 배치 공식만
+다르다.
+
+\section{왜 배치까지만인가}\label{sec:gen-noroute}
+
+이 프로젝트의 기판 생성기는 \emph{배치까지만} 한다. 생성물에는 외곽선, 장착 구멍, 모든 풋프린트의 자리와 방향,
+넷(그래서 화면에 ``이어야 할 연결''이 고무줄처럼 보인다), 설계 규칙이 있고, 동선·비아·동박 면은 하나도 없다.
+배선은 사람이 나중에 KiCad에서 한다. 자동 배선기는 쓰지 않는다. 이것은 프로젝트 소유자의 결정이다. 아래는 그
+결정이 합리적인 이유를 이 가이드가 정리한 것이다.
+
+\begin{itemize}
+\item \textbf{배치는 규칙이 분명하고, 배선은 판단이 많다.} 릴레이를 몇 mm 간격으로 몇 줄 놓을지는 공식 몇 개로
+적힌다. 배선은 층마다 방향을 정하고, 굵은 전류 선을 먼저 깔고, 비아를 어디에 둘지 고르는 일의 연속이다. 시프터
+보드의 README는 ``가는 길은 앞면 수평·안쪽 1층 수직''과 같은 층 계획을 \emph{제안}으로만 남긴다.
+\item \textbf{배치는 검증하기 쉽다.} ``모든 부품이 있고, 모든 패드의 넷이 회로도와 같고, 부품끼리 겹치지 않는다''는
+몇 가지 검사로 끝난다(\ref{sec:v-erc}절). 배선은 이 밖에도 선폭과 전류, 신호 사이의 거리와 잡음 같은 질문을 남긴다.
+\item \textbf{배치가 회로의 전부를 담는다.} 회로의 정확성은 넷리스트에서 이미 확인했다. 배선은 그 넷리스트를
+동선으로 \emph{옮기는} 일이고, KiCad의 DRC가 ``넷리스트대로 이어졌는가''를 검사해 준다. 사람이 배선하다 틀리면
+DRC가 잡는다.
+\end{itemize}
+
+\section{정리}
+
+\begin{itemize}
+\item 보드는 생성기가 쓴다. 규칙 한 줄이 연결 수백 개를 정하고, 기준 모델이 보드의 무늬를 직접 정한다.
+\item KiCad 파일은 S-식 텍스트다. 생성기는 핀마다 짧은 선과 이름표를 달고, 같은 이름이 같은 넷이 된다.
+\item UUID는 이름에서 해시로 만든다. 다시 생성해도 바이트 단위로 같아, ``저장소 파일 = 생성기의 출력''을
+검사할 수 있다.
+\item 오프셋 다이얼은 기준 모델 $\to$ 위치마다 코드 $\to$ 링마다 같은 값의 구간 $\to$ 동박 호의 순서로 만들어진다.
+0인 곳은 섬으로, 끝은 멈춤 사이의 가운데에 둔다.
+\item 기판 생성기는 넷리스트에서 출발해 공식으로 배치하고, 넷과 설계 규칙을 넣는다. 배선은 사람이 한다.
+\end{itemize}

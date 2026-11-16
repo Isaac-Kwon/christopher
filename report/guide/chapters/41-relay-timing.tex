@@ -1,0 +1,467 @@
+\chapter{시간: 언제 무엇을 하는가}\label{ch:relay-timing}
+
+\ref{ch:sync}장의 동기식 회로에는 시간 규칙이 하나뿐이었다. ``한 클럭 안에 다음 레지스터에 도착하라.''
+설계 도구가 모든 경로의 지연을 계산해 이 규칙을 확인해 주었다. 릴레이 기계에는 그런 도구가 없고, 부품의
+지연은 나노초가 아니라 밀리초이며, 같은 품번이라도 개체마다 지연이 두 배씩 다르다. 이 장은 그런 부품으로
+틀림없이 동작하는 순서를 짜는 방법을 다룬다. 테스트 레지스터의 판정 순서, 그 순서를 지키게 하는 시간
+규칙, 그리고 두 기계가 그 규칙을 지키는 방법(릴레이식의 순서기, 기어식의 슬롯 원판)이다.
+
+\section{들쭉날쭉한 부품으로 시간을 정하기}\label{sec:t-bounds}
+
+\Why 이 프로젝트가 쓰는 릴레이 시간은 표~\ref{tab:t-relay}와 같다. 데이터시트에 적힌 것은 대부분 ``최대''이고,
+최소는 알 수 없는 경우가 많다. 그러면 시간 규칙은 모두 \emph{하한}으로 적어야 한다. ``\code{STROBE}는 7.5~ms
+\emph{이상}'', ``\code{JUDGE}는 \code{STROBE}가 오른 뒤 11.5~ms \emph{이후}''처럼. 하한으로 적은 규칙에는 좋은
+성질이 있다. 기계가 \emph{느려지면} 언제나 더 잘 지켜진다. 손으로 천천히 돌리든, 관람객이 한 걸음씩
+누르든, 모터가 가속하는 중이든 상관없다. 위험한 것은 빨라지는 쪽 하나뿐이다. 이 장의 설계 결정은 대부분 이
+성질에서 나온다.
+
+\begin{table}[ht]
+\centering
+\caption{이 프로젝트가 쓰는 릴레이 시간(결정 0001). 일부는 데이터시트의 대표·최대값이고 일부는 추정이다.
+시제품에서 실측해 확정한다.}
+\label{tab:t-relay}
+\small
+\begin{tabular}{lrr}
+\toprule
+& 대표 & 범위 \\
+\midrule
+신호 릴레이가 붙는 시간(접점 안정 포함) & 2.5~ms & 2.5--5~ms \\
+놓이는 시간, 코일에 다이오드만 & 3--5~ms & 3--10~ms (추정) \\
+놓이는 시간, 다이오드 + 제너 30~V & 1.5~ms & 1.5--4~ms \\
+접점이 공중에 떠 있는 틈(먼저 끊고 나중에 잇기) & & 0.2--0.6~ms (추정) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\General 신호등의 노란불은 ``최소 3초''로 정한다. 교차로가 넓으면 늘이고, 짧게 하는 것만 금지한다. 엘리베이터의
+문이 ``적어도 몇 초는 열려 있어야 한다''는 것도 같다. 둘 다 사람이 얼마나 빨리 움직일지 정확히 모르므로
+가장 느린 사람에 맞춘 하한을 둔다.
+
+\Ours 기어식은 빠른 드럼 60~rpm에서 한 위치가 38.46~ms이고, 릴레이식은 순서기가 한 위치를 63~ms로 낸다.
+두 기계 모두 같은 테스트 레지스터(공통부)를 쓰므로, 레지스터가 요구하는 하한은 두 기계가 함께 지킨다.
+
+\section{테스트 레지스터: 붙잡아 두고 나중에 판정한다}\label{sec:t-register}
+
+테스트 레지스터는 봄베의 판단 장치다. \ref{sec:bombe-one-page}절에서 본 대로, 테스트 글자 케이블의 26선이
+\emph{전부} 통전되면 그 위치는 버리고, 하나라도 통전되지 않으면 정지한다. 26선마다 \term{감지 릴레이}{sense
+relay} $K$가 하나씩 있다.
+
+\Why 처음 회로는 판정을 시험 전압이 걸려 있는 동안 끝내려 했다. 시험 전압이 걸리면 감지 릴레이가 붙고, 26개가
+모두 붙으면 직렬로 이은 접점 사슬이 닫혀 \term{통과 릴레이}{pass relay} $P$가 붙고, 판정 순간에 $P$가 놓여
+있으면 \term{정지 릴레이}{stop relay} $S$가 붙는다. 릴레이 세 단이 차례로 움직여야 한다. 최악의 시간으로 더하면
+$5 + 5 + 5 = 15$~ms인데, 기어식에서 드럼 접점이 패드 위에 확실히 얹혀 있는 창은 6~ms다. 대표값으로도
+8~ms라 들어가지 않는다. 기어를 늦추면 들어가지만, 최악값을 담으려면 속도가 3분의 1이 된다.
+
+해법은 \term{표본 유지}{sample-and-hold}다. 시험 전압이 걸린 짧은 창 안에서는 감지 릴레이가 \emph{붙기만} 하고,
+붙은 릴레이는 자기 유지(\ref{sec:relay-latch}절)로 그 결과를 붙든다. 판정은 창이 닫힌 \emph{뒤에} 느긋하게 한다.
+창 안에서 끝나야 하는 것은 릴레이 하나의 동작(최악 5~ms)뿐이다. 판정 순간에 감지 릴레이들은 이미 멈춰 있는
+값이므로 빠르기 경쟁도 없다.
+
+\General 디지털카메라는 셔터가 열린 짧은 순간에 빛을 받아 두고, 사진 처리는 셔터가 닫힌 뒤에 한다. 아날로그-디지털
+변환기 앞의 표본 유지 회로도 같다. 변하는 입력을 한 순간 커패시터에 붙잡아 두고, 변환은 그 붙잡힌 값으로
+천천히 한다.
+
+\Ours 그래서 뱅크(기어식 구동부나 릴레이식 순서기)는 테스트 레지스터에 세 신호를 차례로 보낸다.
+
+\begin{itemize}
+\item \code{STROBE}: 시험 전압을 메뉴 배선망에 건다. 통전된 선의 $K$가 붙어 스스로를 유지한다.
+\item \code{JUDGE}: 판정 경로를 연다. 그때 $P$가 놓여 있으면(26선이 전부는 아니면) $S$가 붙어 정지를 붙든다.
+\item \code{CLEAR}: 유지 버스 $H$를 끊어 $K$와 $P$를 놓는다. 다음 위치를 위한 원상 복귀다.
+\end{itemize}
+
+세 신호는 ``언제''만 알린다. ``정지인가''는 레지스터 안의 릴레이 접점이 정한다. 그림~\ref{fig:t-cycle}은 한
+위치 동안 일어나는 일이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikztimingtable}[timing/slope=0.05,timing/coldist=4pt,xscale=0.36,yscale=1.15,semithick]
+  \code{STROBE} (접점) & 6H 32.5L \\
+  $K$ (통전된 선) & 2.5L 28.5H 7.5L \\
+  $P$ (26선 전부일 때) & 7L 23H 8.5L \\
+  \code{JUDGE} (접점) & 12L 7H 19.5L \\
+  $S$ (정지일 때) & 16L 22.5H \\
+  \code{CLEAR} (접점) & 21L 12H 5.5L \\
+\extracode
+  \begin{pgfonlayer}{background}
+    \foreach \x in {0,6,12,19,21,33,38.5} \draw[cgray!50,dashed] (\x,1.2) -- (\x,-11.5);
+  \end{pgfonlayer}
+  \foreach \x in {0,6,12,19,21,33,38.5} \node[font=\tiny,text=cgray] at (\x,-12.0) {\x};
+  \node[note,anchor=west] at (39.2,-12.0) {ms};
+  \node[note] at (3,1.7) {감지};
+  \node[note] at (9,1.7) {정착};
+  \node[note] at (15.5,1.7) {판정};
+  \node[note] at (27,1.7) {복귀};
+\end{tikztimingtable}
+\caption{테스트 레지스터의 한 위치(기어식 60~rpm, 38.5~ms, 접점이 실제로 닫힌 구간). $P$와 $S$는 둘 가운데
+하나만 일어난다. 26선이 전부 통전되면 $P$가 붙어 판정 경로를 막고, 아니면 $P$가 놓인 채라 $S$가 붙는다.
+$S$가 붙으면 \code{CLEAR}가 와도 $K$가 지워지지 않는다. 그림의 $K$는 정지하지 않은 경우다.}
+\label{fig:t-cycle}
+\end{figure}
+
+그림~\ref{fig:t-sh}는 이 동작의 핵심만 추린 회로다. 세 가지를 눈여겨볼 만하다.
+
+\begin{figure}[ht]
+\centering
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=9mm}
+  \draw (0,3) node[left,font=\footnotesize] {$+24$ V} to[nos,l={\scriptsize \code{STROBE}}] (1.6,3) -- (2.0,3);
+  \node[cloud,minimum width=26mm,minimum height=8mm,anchor=west] (net) at (2.0,3) {메뉴 배선망};
+  \draw (net.east) -- (5.6,3) node[above,font=\footnotesize] {선 $L_A$} -- (6.4,3);
+  \draw (6.4,3) to[D] (6.4,1.6) coordinate (n);
+  \node[rcoil,anchor=north] (K) at (6.4,1.3) {$K_A$};
+  \draw (n) -- (K.north); \draw (K.south) -- (6.4,0.0) node[below,font=\footnotesize] {0 V};
+  \draw (0,1.6) node[left,font=\footnotesize] {$+24$ V} to[ncs,l={\scriptsize \code{CLEAR}의 $r$}] (2.2,1.6)
+        -- (3.0,1.6) node[above,font=\footnotesize,text=cgreen] {$H$} -- (3.8,1.6) to[nos,l={\scriptsize $k_A$ (자기 유지)}] (5.6,1.6) -- (n);
+  \node[circ] at (n) {};
+  \node[note,anchor=west,align=left] at (7.3,2.4) {차단 다이오드: 유지 전압이\\배선망으로 거꾸로 가지 않는다};
+  \node[note,anchor=west,align=left] at (7.3,0.6) {$K_A$가 붙으면 $k_A$가 닫혀\\$H$에서 스스로를 먹인다};
+\end{circuitikz}
+\caption{감지 릴레이 하나의 표본 유지(26개 가운데 하나). 실제 회로에는 이 밖에 접점 사슬, 통과 릴레이 $P$,
+정지 릴레이 $S$, 해제 릴레이가 있다(그림~\ref{fig:t-register-full}).}
+\label{fig:t-sh}
+\end{figure}
+
+\begin{itemize}
+\item \textbf{유지 버스 $H$.} 26개 감지 릴레이의 자기 유지 접점이 모두 같은 버스 $H$에서 전원을 받는다. $H$의
+공급은 \code{CLEAR} 릴레이의 NC 접점을 지난다. \code{CLEAR} 동안 그 접점이 열리면 26개가 한꺼번에 놓인다.
+정지 중에는 $S$의 접점이 이 NC 접점을 우회해 $H$를 살려 두므로, 정지 순간의 26선 상태가 램프에 남는다.
+\item \textbf{차단 다이오드.} 감지 릴레이가 자기 유지에 들면 코일 쪽 마디에 +24~V가 계속 걸린다. 이 마디가
+선에 그대로 이어져 있으면 그 전압이 메뉴 배선망으로 거꾸로 들어가 다른 선을 통전시키고, \code{STROBE}가
+끝난 뒤에도 드럼 접점에 전류가 흐른다. 선마다 다이오드 하나가 이 길을 막는다. \ref{sec:relay-logic}절의 샛길
+문제를 다이오드로 푼 예다.
+\item \textbf{세 신호의 역할 분담.} \code{STROBE}, \code{JUDGE}, \code{CLEAR}는 레지스터 안의 타이밍 릴레이 셋을
+움직인다. 시험 전류를 잇고 끊는 것도, 판정 경로를 여는 것도, $H$를 끊는 것도 레지스터 안의 접점이다.
+\end{itemize}
+
+\begin{lesson}{계산으로 정한 회로를 시뮬레이션이 고쳤다}
+결정 0001은 처음에 계산으로만 이 회로를 정했다. 보드를 회로도로 옮기고 넷리스트를 시간 있는 스위치 수준
+시뮬레이션(\ref{ch:boardverify}장)으로 돌리자 틀린 곳 넷이 나왔다. 그 가운데 둘은 \emph{놓친 정지}(위험한 쪽)로
+이어지는 것이었다. 하나는 접점 사슬을 +24~V에서 먹인 것이다. 26선이 전부 붙은 위치에서는 \code{CLEAR} 동안에도
+$P$의 코일이 사슬로 전압을 받아, $P$가 첫 $K$가 놓인 뒤에야 놓이기 시작했다. 그래서 다음 위치까지 $P$가 남아
+그 위치를 통과로 만들었다. 사슬을 $H$에서 먹이게 고치자 $K$와 $P$가 같은 순간에 놓이기 시작했다. 다른 하나는
+해제 버튼이 $S$만 풀던 것이다. 정지 중에 그 위치의 \code{CLEAR}가 이미 지나갔으면, 재출발 뒤 첫 \code{STROBE}가
+지워지지 않은 $K$ 위에 덧붙어 다음 위치의 정지를 놓친다. 해제 릴레이 하나를 더해 해제 때 $H$까지 끊게 했다.
+\end{lesson}
+
+보드의 실제 회로는 그림~\ref{fig:t-register-full}이다(보고서와 같은 그림). 시뮬레이션은 릴레이가 가장 느릴 때
+레지스터가 견디는 최소 폭도 찾았다. 접점 면에서 \code{STROBE} 5~ms(감지 릴레이의 최악 동작), \code{JUDGE}
+5~ms(정지 릴레이의 최악 동작, 모자라면 정지를 놓친다), \code{CLEAR} 10~ms(감지 릴레이의 최악 복귀, 모자라면
+$H$가 살아날 때 $K$가 다시 붙어 지워지지 않는다)다.
+
+\begin{figure}[p]
+\centering
+\resizebox{\linewidth}{!}{\input{../figures/hw-register-circuit}}
+\caption{테스트 레지스터 보드의 회로(보고서의 그림과 같다). 코일은 대문자($K_A$, $P$, $S$), 그 릴레이의
+접점은 소문자다. $t$, $j$, $r$은 \code{STROBE}, \code{JUDGE}, \code{CLEAR}가 움직이는 타이밍 릴레이의 접점,
+$x$는 해제 릴레이의 접점이다.}
+\label{fig:t-register-full}
+\end{figure}
+
+\section{두 면: 커넥터의 전압과 접점의 실제}\label{sec:t-faces}
+
+\Why 레지스터가 요구하는 시간은 \emph{레지스터 안의 접점}이 닫혀 있는 구간에 대한 것이다. 그런데 뱅크가 낼 수
+있는 것은 \emph{커넥터 핀의 전압}뿐이다. 둘 사이에 타이밍 릴레이가 하나 있고, 그 릴레이는 핀이 오른 뒤
+2.5--4~ms에 붙고(켜짐 지연 $d_{\mathrm{on}}$), 핀이 내린 뒤 1.5--4~ms에 놓인다(꺼짐 지연 $d_{\mathrm{off}}$).
+결정 0003은 이 둘을 \term{접점 면}{contact face}과 \term{커넥터 면}{connector face}이라는 이름으로 나눠, 회로의
+조건은 접점 면에서 적고 뱅크가 지킬 규칙은 커넥터 면에서 적었다(그림~\ref{fig:t-faces}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=0.5cm,y=1cm]
+  \draw[->] (-0.5,0) -- (22,0) node[right,font=\footnotesize] {시간};
+  % connector face pulse
+  \draw[line width=1pt,cblue] (0,1.6) -- (2,1.6) -- (2,2.4) -- (12,2.4) -- (12,1.6) -- (20,1.6);
+  \node[font=\footnotesize,anchor=east,text=cblue] at (-0.6,2.0) {커넥터 면 (핀)};
+  % contact face pulse (range)
+  \fill[cbluebg] (6,0.4) rectangle (10,1.0);
+  \fill[cyellowbg] (12,0.4) rectangle (16,1.0);
+  \draw[line width=1pt,corange] (0,0.4) -- (6,0.4) -- (6,1.0) -- (14,1.0) -- (14,0.4) -- (20,0.4);
+  \node[font=\footnotesize,anchor=east,text=corange] at (-0.6,0.7) {접점 면 (레지스터 안)};
+  \draw[<->] (2,1.3) -- node[above,font=\scriptsize] {$d_{\mathrm{on}}$ 2.5--4} (6,1.3);
+  \draw[<->] (12,1.3) -- node[above,font=\scriptsize] {$d_{\mathrm{off}}$ 1.5--4} (14,1.3);
+  \node[note,anchor=north,align=center] at (8,0.3) {파란 띠: 접점이 붙는\\때가 흩어지는 범위};
+  \node[note,anchor=north,align=center] at (14,0.3) {노란 띠: 놓이는\\때의 범위};
+\end{tikzpicture}
+\caption{두 면. 커넥터 핀의 펄스(위)는 타이밍 릴레이를 거쳐 접점의 펄스(아래)가 된다. 접점 면의 폭은 커넥터
+면의 폭 $- d_{\mathrm{on}} + d_{\mathrm{off}}$이므로 최악의 경우($d_{\mathrm{on}}=4$, $d_{\mathrm{off}}=1.5$) 2.5~ms 줄어든다.}
+\label{fig:t-faces}
+\end{figure}
+
+그러면 커넥터 면의 규칙은 접점 면의 조건에서 \emph{계산으로} 나온다. 예를 들어 보자.
+
+\begin{itemize}
+\item 접점 면에서 \code{STROBE}는 5~ms 이상 닫혀야 한다(C1). 폭은 최악 2.5~ms 줄므로, 핀에서는 $5 + 2.5 = 7.5$~ms
+이상이어야 한다(L1). \code{JUDGE}(L3)도 같은 이유로 7.5, \code{CLEAR}(L5)는 $10 + 2.5 = 12.5$다.
+\item 접점 면에서 \code{JUDGE}는 \code{STROBE}가 닫힌 뒤 10~ms(감지 5 + 통과 5) 이후에 닫혀야 한다(C2).
+\code{STROBE}의 접점은 핀이 오른 뒤 \emph{늦으면} 4~ms에 닫히고, \code{JUDGE}의 접점은 핀이 오른 뒤
+\emph{빠르면} 2.5~ms에 닫힌다. 가장 나쁜 짝을 맞추면 \code{JUDGE}의 핀은 \code{STROBE}의 핀보다 $4 + 10 - 2.5 =
+11.5$~ms 뒤에 올라야 한다(L2).
+\item \code{CLEAR}의 접점은 \code{JUDGE}의 접점이 열린 뒤에 열려야 한다(C4). \code{JUDGE}의 접점은 핀이 내린 뒤
+늦으면 4~ms에 열리고, \code{CLEAR}의 접점은 핀이 오른 뒤 빠르면 2.5~ms에 열린다. 그래서 $4 - 2.5 = 1.5$~ms(L4).
+\end{itemize}
+
+이렇게 얻은 규칙이 표~\ref{tab:t-rules}의 L1--L9다. 모두 하한이거나 순서이고, 레지스터의 실제 지연을 몰라도
+성립한다. 하한을 모두 더한 가장 짧은 주기는 $0 \to 11.5 \to 19 \to 20.5 \to 33 \to 34.5$, 곧 34.5~ms다.
+
+\begin{table}[ht]
+\centering
+\caption{뱅크가 지킬 규칙(결정 0003, 커넥터 면, ms).}
+\label{tab:t-rules}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{9mm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{38mm}}
+\toprule
+& 요구 & 어기면 \\
+\midrule
+L1 & \code{STROBE}의 폭 $\ge 7.5$ & 감지 릴레이가 못 붙음(거짓 정지) \\
+L2 & \code{JUDGE}의 오름 $\ge$ \code{STROBE}의 오름 $+ 11.5$ & $P$가 붙기 전에 판정(거짓 정지) \\
+L3 & \code{JUDGE}의 폭 $\ge 7.5$ & $S$가 못 붙음(\textbf{놓친 정지}) \\
+L4 & \code{CLEAR}의 오름 $\ge$ \code{JUDGE}의 내림 $+ 1.5$ & 판정 중에 $P$가 놓임 \\
+L5 & \code{CLEAR}의 폭 $\ge 12.5$ & $K$가 지워지지 않음(\textbf{놓친 정지}) \\
+L6 & 다음 \code{STROBE}의 오름 $\ge$ \code{CLEAR}의 내림 $+ 1.5$ & 유지 버스가 없는 동안 붙은 $K$를 잃음 \\
+L7 & \code{STROBE}를 낸 위치에는 \code{JUDGE}와 \code{CLEAR}를 반드시 낸다 & 판정 없이 지나간 위치 \\
+L8 & 전원 투입, \code{HOME}, 해제 뒤에는 \code{STROBE} 전에 \code{JUDGE}를 내지 않는다 & 빈 레지스터를 판정 = 정지 \\
+L9 & 시프터·드럼의 전환은 \code{CLEAR}의 오름부터 다음 \code{STROBE}의 오름 사이에만 & 전류가 흐르는 접점을 옮김 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+L9는 \term{무전류 전환}{dry switching} 규칙이다. 전류가 흐르는 채로 접점을 떼면 불꽃이 튀어 접점이 상한다.
+시험 전압이 없는 동안에만 드럼이나 시프터를 움직이라는 것이다.
+
+\General 두 면의 구분은 디지털 회로의 \term{셋업 시간}{setup time}과 같은 생각이다. 칩의 데이터시트는 ``핀에서
+클럭 에지 몇 ns 전에 데이터가 안정되어야 한다''고 적는다. 칩 안의 실제 플립플롭이 요구하는 조건을, 핀에서 그
+플립플롭까지의 지연이 가장 나쁠 때를 넣어 핀의 조건으로 옮긴 것이다.
+
+\Ours 결정 0003은 하나 더 열어 두었다. 물린 레지스터의 지연을 실제로 재서(\term{보정}{calibration}) 그만큼
+앞당겨 내면 접점 면의 조건을 직접 지킬 수 있다. 기어식은 \code{STROBE}만 이렇게 보정하고(드럼 접점의 가운데에
+접점 면의 창을 놓아야 하므로), 나머지는 보정 없이 넓게 낸다. 릴레이식 순서기는 셋 모두 보정 없이 지킨다.
+
+\section{릴레이식: 555와 링 계수기가 박자를 친다}\label{sec:t-sequencer}
+
+릴레이식 뱅크의 \term{순서기}{sequencer} 보드는 위치마다 \code{STROBE},
+\code{JUDGE}, \code{CLEAR}, 그리고 계수기의 \code{CK}/\code{NCK}를 L1--L9에 맞춰 낸다. 정지와 재출발,
+\code{HOME}(계수기 프리셋), 마지막 위치(\code{END}), 대기도 이 보드가 처리한다. 릴레이 50개가 있다(폴더
+\code{hardware/relay/sequencer}).
+
+\Why 순서·조건·잠금은 모두 릴레이 접점으로 만들었다. 그런데 \emph{박자}, 곧 ``6.3~ms마다 다음 단계''라는 시간
+기준 하나만은 전자식이다. 이유는 \ref{sec:t-bounds}절의 하한에 있다. 규칙이 하한이면 시간 기준의 \emph{최소}를
+보증할 수 있어야 한다. 릴레이로 지연을 만들려면 코일에 커패시터를 달아 천천히 충전되게 하는데, 릴레이가 붙는
+전압은 ``정격의 80\% 이하''처럼 위쪽 한계만 알려져 있다. 실제로 50\%에서 붙는 개체와 80\%에서 붙는 개체는 같은
+RC에서 지연이 두 배 넘게 다르다. 하한을 보증할 수 없다. 릴레이를 사슬로 이어 박자를 만들면 단마다 흩어짐이
+쌓여 한 주기가 70--80~ms로 늘어난다. 그래서 전자 부품 두 개로 박자를 만들고, 그 박자가 정하는 것은 ``언제''뿐이며
+``진행할지''는 여전히 릴레이가 정한다. 기어식에서 슬롯 원판이 하는 일과 같다(\ref{sec:t-gear}절).
+
+\General 시간 기준은 입문 전자 회로의 단골 둘이다.
+\begin{itemize}
+\item \textbf{555 타이머}는 커패시터 하나를 저항을 거쳐 충전하다가 전원의 2/3에 이르면 방전으로 바꾸고, 1/3까지
+내려가면 다시 충전으로 바꾸는 칩이다. 출력은 충전 중에 높고 방전 중에 낮은 네모파가 된다. 한 주기는
+\[
+  T = 0.693\,(R_1 + 2R_2)\,C
+\]
+이다. 충전은 $R_1 + R_2$를 지나고 방전은 $R_2$만 지나기 때문에 $R_2$가 두 번 들어간다.
+\item \textbf{74HC4017}은 클럭이 올 때마다 출력 Q0, Q1, \ldots, Q9 가운데 \emph{하나만} 차례로 켜는 칩이다(10단
+링 계수기). 흐르는 불빛 장식을 만드는 입문 예제에 꼭 나온다.
+\end{itemize}
+
+\Ours 순서기는 LMC555($R_1$ = 10~k$\Omega$, $R_2$ = 150~k$\Omega$ + 트리머 100~k$\Omega$, $C$ = 22~nF)가 6.3~ms마다
+4017을 한 칸 민다. 열 칸이 한 위치이므로 한 주기는 63~ms다. 4017의 출력 몇 개를 다이오드 OR로 묶어
+\term{창}{window}을 만들고, 창이 고측 구동기를 거쳐 출력 릴레이의 코일을 먹인다(그림~\ref{fig:t-ring}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1.15cm,y=0.62cm]
+  \foreach \q in {0,...,9} {
+    \draw[cgray!60] (\q,0.6) -- (\q,-5.6);
+    \node[font=\scriptsize\ttfamily] at (\q+0.5,1.0) {Q\q};
+  }
+  \draw[cgray!60] (10,0.6) -- (10,-5.6);
+  \newcommand{\seqwin}[5]{\fill[#4] (#1,#3-0.35) rectangle (#2,#3+0.35); \node[font=\scriptsize,anchor=east] at (-0.15,#3) {#5};}
+  \seqwin{0}{2}{0}{cbluebg}{\code{STROBE} (Q0--Q1)}
+  \seqwin{3}{5}{-1.2}{cgreenbg}{\code{JUDGE} (Q3--Q4)}
+  \seqwin{6}{9}{-2.4}{corangebg}{\code{CLEAR} (Q6--Q8)}
+  \seqwin{6}{7}{-3.6}{cyellowbg}{\code{CK} 결정 (Q6)}
+  \seqwin{7}{9}{-4.8}{credbg}{\code{CK} (Q7--Q8)}
+  \node[font=\scriptsize,anchor=west] at (9.05,-4.8) {Q9: 주차};
+  \draw[<->] (0,-6.2) -- node[below,font=\scriptsize] {한 틱 $T$ = 6.3 ms (관찰 모드 27 ms)} (1,-6.2);
+  \draw[<->] (0,-7.4) -- node[below,font=\scriptsize] {한 위치 = 10틱 = 63 ms (관찰 모드 270 ms)} (10,-7.4);
+\end{tikzpicture}
+\caption{순서기의 링 상태와 창. 창이 바로 출력이 되지는 않는다. 창과 출력 릴레이의 코일 사이에 상태 릴레이의
+접점(순환 허가, \code{CK} 결정 등)이 직렬로 들어가, 접점이 닫혀 있어야만 창이 코일에 닿는다.}
+\label{fig:t-ring}
+\end{figure}
+
+왜 63~ms인가. 출력이 릴레이 접점이므로 순서기 \emph{자신의} 출력 릴레이도 붙고 놓이는 데 시간이 든다.
+\code{STROBE}의 핀 폭은 구동 창의 폭에서 (붙는 시간 $-$ 놓이는 시간)만큼 깎여 최악 3.5--4.1~ms 줄어든다. 그래서
+L1의 7.5~ms를 지키려면 구동 창이 11.6~ms 이상, 곧 두 틱이 5.8~ms 이상이어야 하고, 여유를 두어 6.3~ms로 정했다.
+시뮬레이션이 릴레이 시간을 가장 나쁘게 넣어 찾은 \code{STROBE}의 최소 폭은 8.23~ms(여유 0.73~ms)였다.
+
+\code{CK}를 낼지는 Q6에서 정한다. 그때 \code{RUN}(정지가 아님)이 높으면 \code{CK} 결정 릴레이가 붙어 Q6--Q8 동안
+스스로를 붙들고, Q7--Q8에 \code{CK}가 나간다. 정지가 나서 \code{RUN}이 내려가면, 릴레이 시간이 가장 나쁜
+조합에서도 Q6이 시작된 뒤 0.6~ms 안에 \code{RUN}을 따르는 릴레이가 열려, 붙는 데 2.5~ms 이상 걸리는 결정
+릴레이의 동작이 취소된다(시뮬레이션으로 확인). 이 순서가 중요하다. 계수기는 내려 셀 수 없으므로 정지한 위치를 한 번 지나치면 되돌아올
+방법이 없다.
+
+\subsection{관찰 모드: 왜 커패시터가 아니라 저항을 바꾸는가}
+
+전시에서는 관람객이 릴레이가 넘어가는 것을 눈으로 따라갈 수 있게 느린 \term{관찰 모드}{observation mode}가
+필요하다. 순서기는 555의 $R_2$에 680~k$\Omega$을 직렬로 넣어 틱을 27.0~ms로 늘린다(초당 3.7 위치). 평소에는
+릴레이 접점 두 개가 직렬로 이 저항을 단락해 두고, 관찰 쪽으로 스위치를 돌리면 단락이 열린다.
+
+\Why 속도를 바꾸는 순간은 운전 중 아무 때나다. 관람객이 손잡이를 돌리기 때문이다. 하한 규칙에서 위험한 것은
+틱이 \emph{짧아지는} 것 하나뿐이므로, 바꾸는 순간이 걸린 틱도 빠른 틱보다 짧아지면 안 된다(그림~\ref{fig:t-555}).
+
+\begin{itemize}
+\item \textbf{저항을 바꾸면} 커패시터의 전압은 그대로 이어지고 충전·방전의 빠르기만 느려진다. 전압이 빠른
+모드보다 빨리 움직일 수 없으므로 어느 틱도 빠른 틱보다 짧아지지 않는다. 링은 한 번 Q9를 떠나면 반드시 Q9까지
+돌므로 주기가 중간에 끊기지도 않는다.
+\item \textbf{커패시터를 더하면} 충전된 커패시터와 빈 커패시터가 전하를 나눠 전압이 순간 떨어진다. 방전 중이었다면
+곧바로 1/3 아래로 내려가 555가 충전으로 넘어간다. 그 틱이 반쯤에서 잘려 \code{STROBE}나 \code{JUDGE}의 폭이
+규칙보다 짧아질 수 있다.
+\item \textbf{분주기}(4017을 하나 더 두어 느린 클럭을 고르는 것)도 두 클럭을 비동기로 바꾸는 순간 틱이 임의로
+짧아진다. 막으려면 동기화 회로가 필요해 전자 부품이 는다.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=2.2cm]
+  \foreach \dx/\ttl in {0/저항을 바꿈,7.6/커패시터를 더함} {
+    \begin{scope}[xshift=\dx cm]
+      \node[font=\small\bfseries] at (3,1.25) {\ttl};
+      \draw[->] (0,0) -- (6.4,0) node[right,font=\scriptsize] {$t$};
+      \draw[->] (0,0) -- (0,1.1) node[above,font=\scriptsize] {$v_C$};
+      \draw[cgray,dashed] (0,1/3) -- (6.2,1/3) node[right,font=\tiny] {1/3};
+      \draw[cgray,dashed] (0,2/3) -- (6.2,2/3) node[right,font=\tiny] {2/3};
+      % two normal ticks: charge (tau 1) 1/3->2/3 takes ln2 = 0.693, discharge same
+      \draw[cblue,line width=0.9pt,domain=0:0.693,samples=20] plot (\x,{1-(2/3)*exp(-\x)});
+      \draw[cblue,line width=0.9pt,domain=0:0.693,samples=20] plot (\x+0.693,{(2/3)*exp(-\x)});
+      \draw[cblue,line width=0.9pt,domain=0:0.693,samples=20] plot (\x+1.386,{1-(2/3)*exp(-\x)});
+      \draw[cred] (2.379,-0.05) -- (2.379,1.05);
+      \node[font=\tiny,text=cred,anchor=south] at (2.379,1.05) {바꾸는 순간};
+    \end{scope}}
+  % left: discharge starts at 2.079 with tau 1 for 0.3, then tau 4
+  \draw[cblue,line width=0.9pt,domain=0:0.3,samples=10] plot (\x+2.079,{(2/3)*exp(-\x)});
+  \draw[corange,line width=0.9pt,domain=0:1.57,samples=30] plot (\x+2.379,{(2/3)*exp(-0.3)*exp(-\x/4)});
+  \draw[corange,line width=0.9pt,domain=0:0.9,samples=20] plot (\x+3.949,{1-(2/3)*exp(-\x/4)});
+  \node[note,anchor=west,align=left,text=corange] at (2.5,0.15) {전압은 이어지고\\내려가는 빠르기만 느려진다};
+  % right: discharge 0.3 then voltage halves (equal empty capacitor added) -> below 1/3 -> charging restarts
+  \begin{scope}[xshift=7.6cm]
+    \draw[cblue,line width=0.9pt,domain=0:0.3,samples=10] plot (\x+2.079,{(2/3)*exp(-\x)});
+    \draw[corange,line width=0.9pt] (2.379,{(2/3)*exp(-0.3)}) -- (2.379,{(1/3)*exp(-0.3)});
+    \draw[corange,line width=0.9pt,domain=0:1.6,samples=30] plot (\x+2.379,{1-(1-(1/3)*exp(-0.3))*exp(-\x/2)});
+    \node[note,anchor=west,align=left,text=cred] at (2.6,0.12) {1/3 아래로 떨어져\\틱이 반쯤에서 잘린다};
+  \end{scope}
+\end{tikzpicture}
+\caption{555 커패시터 전압의 모양(개념도). 왼쪽은 방전 도중에 $R_2$를 늘린 경우로, 그 틱은 오히려 길어진다.
+오른쪽은 같은 순간에 빈 커패시터를 병렬로 더한 경우로, 전압이 순간 반으로 떨어져 555가 곧바로 충전으로
+넘어간다. 그 틱은 짧아진다.}
+\label{fig:t-555}
+\end{figure}
+
+\Ours 순서기의 시뮬레이터는 555를 넷리스트의 RC로 흉내 낸다. 그 순간 닫혀 있는 접점으로 이어진 저항의 합을
+$R_2$로 쓰고, 저항이 바뀌면 커패시터 전압을 이어서 계산한다(\ref{sec:v-time}절). 운전 중 선택 스위치를 무작위
+시각에 36번씩 뒤집어도 가장 짧은 555 주기가 빠른 틱의 0.997배였다(넣어 둔 흔들림 $\pm$0.3\% 안). 반대로
+``관찰 저항이 들어가지 않는'' 고장을 일부러 넣은 회로는 주기가 59.9~ms로 나와 검증기에 걸린다.
+
+\subsection{한 걸음 버튼}
+
+관찰 모드보다 더 느린 것이 \term{한 걸음}{single step} 버튼이다. 한 번 누르면 정확히 한 위치만 진행한다.
+
+\Why ``정확히 한 바퀴''는 이미 4017이 보장한다. 4017은 Q9에서만 서도록(주차) 배선되어 있어, 링이 한 번 Q9를
+떠나면 \code{STROBE}, \code{JUDGE}, \code{CLEAR}, \code{CK}를 모두 낸 뒤 Q9로 돌아와 선다. 그래서 버튼 회로가 할
+일은 ``한 바퀴를 시작하게 하고, 시작했으면 다음 바퀴는 막는 것''뿐이다. 이것을 릴레이 두 개의 래치로 만든다.
+\begin{itemize}
+\item \textbf{받아들임} 릴레이(\code{KSA}): 링이 주차해 있을 때 버튼이 눌리면 선다. 링을 출발시키는 조건(GO)에
+들어간다.
+\item \textbf{주기} 릴레이(\code{KSC}): 받아들인 한 걸음의 링이 Q0에 들어서면 선다. 서자마자 그 NC 접점이 한
+걸음의 GO를 끊는다. 이번 바퀴는 이미 출발했으므로 계속 돌고, 다음 바퀴는 출발하지 않는다.
+\end{itemize}
+버튼을 계속 누르고 있으면 두 릴레이가 서로를 붙들어 다음 바퀴가 없다(반복하지 않는다). 버튼을 일찍 놓아도
+받아들임 릴레이는 링이 출발한 동안 다른 접점으로 붙들려 한 바퀴를 마친다.
+
+\General 컴퓨터의 키보드나 마우스 버튼도 ``누를 때마다 정확히 한 번''이 필요하다. 접점은 닫힐 때 수 ms 동안
+여러 번 튀기 때문에 그대로 세면 한 번 누름이 여러 번이 된다. 보통 펌웨어가 일정 시간 기다려 튐을 거른다.
+
+\Ours 이 보드는 튐을 릴레이의 느림으로 거른다. 버튼을 따라가는 릴레이(\code{KSP})는 붙는 데 2.5~ms 이상이
+걸리므로 그보다 짧게 닫히는 튐에는 붙지 않고, 코일에 다이오드만 달아 놓이는 데 3~ms 이상이 걸리므로 그보다
+짧게 열리는 튐에는 놓이지 않는다. 받아들임은 주차 중에만 되므로 바퀴가 도는 동안의 튐은 아무 일도 하지 않는다.
+한 걸음 주기는 선택 스위치와 무관하게 늘 관찰 속도로 돈다. 한 걸음 중에는 \code{RUN}이 낮으므로 정지가 나면
+\code{STOP\_LATCH}를 거치는 조금 느린 길로 \code{CK}를 막아야 하는데, 빠른 틱에서는 그 여유가 0.1~ms뿐이기
+때문이다.
+
+\section{기어식: 슬롯 원판이 시계다}\label{sec:t-gear}
+
+기어식에는 클럭이 따로 없다. 드럼이 도는 것 자체가 시간이다.
+
+\Why 빠른 드럼과 기어로 묶여 도는 \term{주기 축}{cycle shaft}에 지름 160~mm의 얇은 원판이 있고, 원판에는 동심원 트랙 셋에
+슬롯(구멍)이 뚫려 있다. 트랙마다 광센서 하나가 슬롯이 지나가는 동안 신호를 낸다. \code{STROBE}, \code{JUDGE},
+\code{CLEAR}가 각각 한 트랙이다. 시각이 각도로 바뀐 것이어서, 속도가 느려지면 모든 구간이 시간으로 길어진다.
+\ref{sec:t-bounds}절의 ``느려지면 늘 안전하다''가 기구로 성립하는 것이다.
+
+주기 축 한 바퀴가 빠른 드럼 30칸이므로 한 위치가 주기 축의 12°이고, 60~rpm에서 1~ms가 0.312°다. 모터는 한 위치에
+400스텝을 가므로 한 스텝이 0.096~ms다. 슬롯의 가장자리는 이 스텝의 정수배에 둔다. 26칸에만 슬롯이 있고 나머지
+네 칸은 가운데 드럼이 한 칸 넘어가는 \term{자리올림}{carry} 구간이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=0.29cm,y=1cm]
+  \draw[->] (-4,0) -- (40,0) node[right,font=\scriptsize] {ms};
+  \foreach \t in {0,10,20,30,38.46} \draw (\t,0.08) -- (\t,-0.08) node[below,font=\tiny] {\t};
+  \fill[clight] (-3,0.25) rectangle (9,4.15);
+  \node[note,anchor=south] at (3,4.15) {드럼 접점의 완전 접촉 ($-3$ … $+9$)};
+  \newcommand{\slotbar}[5]{\fill[#4] (#1,#3-0.18) rectangle (#2,#3+0.18); \node[font=\scriptsize,anchor=east] at (-4.2,#3) {#5};}
+  \slotbar{-2.50}{4.52}{3.6}{cbluebg}{\code{STROBE} 슬롯}
+  \slotbar{0}{6}{3.15}{cblue!50}{접점 면}
+  \slotbar{8.56}{16.63}{2.3}{cgreenbg}{\code{JUDGE} 슬롯}
+  \slotbar{12}{19}{1.85}{cgreen!50}{접점 면}
+  \slotbar{18.65}{31.73}{1.0}{corangebg}{\code{CLEAR} 슬롯}
+  \slotbar{21}{33}{0.55}{corange!50}{접점 면}
+  \fill[cbluebg] (35.96,3.42) rectangle (38.46,3.78);
+  \draw[<->,cred] (31.73,1.45) -- node[above,font=\tiny,text=cred] {정지 자리} (35.96,1.45);
+\end{tikzpicture}
+\caption{기어식 한 위치의 시각표(60~rpm, \code{STROBE} 접점 시작이 0). 신호마다 위의 연한 띠가 슬롯(= 커넥터 면),
+아래의 진한 띠가 결정 0001의 접점 면이다. 슬롯은 접점 면보다 앞서고 넓다. 타이밍 릴레이가 붙고 놓이는 시간을 미리 넣었기
+때문이다. \code{CLEAR} 슬롯 끝과 다음 \code{STROBE} 슬롯 사이(44스텝, 4.23~ms)가 정지했을 때 축이 서는 자리다.}
+\label{fig:t-slots}
+\end{figure}
+
+\Ours 슬롯의 각도는 L1--L9에서 계산했다. \code{JUDGE}와 \code{CLEAR}는 타이밍 릴레이의 지연이 범위 어디에 있어도
+접점 면의 조건이 성립하도록 넓혔고, 각 규칙에 0.5~ms의 공차 여유(원판 가공, 센서 문턱, 전자 회로의 흩어짐을
+더한 값)를 남겼다. 처음 판의 슬롯은 L4의 여유가 정확히 0이었다. 제어 보드의 시뮬레이션이 1.521~ms(하한
+1.5)를 내놓자 기계 공차를 받을 수 없다는 것이 드러나 슬롯을 다시 잡았다. 슬롯 각도의 원본은 CAD의
+\code{params.py} 한 곳이고, 제어 보드의 펌웨어 모델과 시뮬레이션이 같은 파일을 읽는다.
+
+센서에서 커넥터 핀까지의 길에는 \emph{펌웨어가 없다}. 광센서 출력이 RC 필터와 슈미트 트리거(74HC14)를 지나
+게이트 몇 개와 고측 구동기를 거쳐 핀으로 나간다. 마이크로컨트롤러는 모터의 가감속과 정지 위치로의 되돌림을
+맡을 뿐, 이 길에는 ``지금 내보내도 된다''는 허가 신호 하나만 준다. 게이트는 두 규칙을 하드웨어로 지킨다.
+
+\begin{lstlisting}[numbers=none,caption={기어식 제어 보드의 타이밍 경로(\code{control-board/README.md} 1.1절).},label={lst:t-gate}]
+  STROBE_G = SLOT_S & TXE
+  CLEAR_G  = SLOT_C & TXE
+  JUDGE_G  = SLOT_J & SEEN & TXE
+  TXE  = TXEN | CYC          TXEN = from the MCU (0 during HOME / moving back)
+  CYC  : set while STROBE_G is high, cleared by the fall of CLEAR_G        (L7)
+  SEEN : set by the rise of STROBE_G,
+         cleared on power-up | HOMING | fall of STOP_LATCH                   (L8)
+\end{lstlisting}
+
+\code{CYC}는 ``\code{STROBE}를 냈으면 그 주기의 \code{CLEAR}까지는 낸다''(L7)를 지킨다. 펌웨어가 주기 한가운데서
+허가를 거두어도 시작한 주기는 끝난다. \code{SEEN}은 ``\code{STROBE} 없이 \code{JUDGE}를 내지 않는다''(L8)를
+지킨다. 비어 있는 레지스터에 \code{JUDGE}가 가면 곧 정지가 되기 때문이다.
+
+두 기계를 나란히 놓으면 같은 생각이 두 번 나타난다. 시간 기준(슬롯 원판, 555와 4017)은 ``언제''만 정하고, 그
+시간 기준이 아무리 흔들려도 틱이 짧아지지 않게 만들며, 순서와 조건은 각 기계의 방식대로(기어식은 게이트,
+릴레이식은 릴레이 접점) 하드웨어가 지킨다.
+
+\section{정리}
+
+\begin{itemize}
+\item 릴레이의 시간은 넓게 흩어지고 최소를 모른다. 그래서 시간 규칙은 모두 하한으로 적고, 기계가 느려지면 늘
+더 잘 지켜지게 한다.
+\item 테스트 레지스터는 표본 유지다. \code{STROBE} 동안 감지 릴레이가 붙어 스스로를 붙들고, \code{JUDGE}에서
+판정하고, \code{CLEAR}에서 유지 버스를 끊어 지운다. 선마다 다이오드가 유지 전압의 역류를 막는다.
+\item 회로의 조건은 접점 면에서, 뱅크의 규칙(L1--L9)은 커넥터 면에서 적는다. 둘 사이의 지연 범위를 가장 나쁘게
+넣어 하나에서 다른 하나를 계산한다.
+\item 릴레이식 순서기는 555와 4017로 박자만 만들고 나머지는 릴레이로 정한다. 관찰 모드는 커패시터 전압이 이어지는
+저항 쪽을 바꿔 어떤 틱도 짧아지지 않게 한다. 한 걸음 버튼은 ``시작은 허락하고 다음 바퀴는 막는'' 래치다.
+\item 기어식은 슬롯 원판이 시각을 각도로 갖고, 펌웨어 없는 게이트가 L7과 L8을 지킨다.
+\end{itemize}

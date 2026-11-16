@@ -27,7 +27,7 @@
   \large Project Christopher 입문 가이드}
 \author{}
 \date{초안 --- 2026년 11월\\[3mm]
-  \normalsize\textcolor{cgray}{FPGA 엔진의 수치는 시뮬레이션과 배치·배선의 결과이며 보드 실측 전이다.}}
+  \normalsize\textcolor{cgray}{FPGA 엔진의 수치는 시뮬레이션과 배치·배선의 결과이며 보드 실측 전이다.\\릴레이 회로의 시간과 결과도 넷리스트 시뮬레이션의 값이며 시제품 실측 전이다.}}
 
 \begin{document}
 \maketitle
@@ -56,6 +56,12 @@
 
 \part{코드 해설: FPGA 엔진}
 \input{chapters/30-fpga-engine}
+
+\part{하드웨어: 릴레이와 전기 회로}
+\input{chapters/40-relay-logic}
+\input{chapters/41-relay-timing}
+\input{chapters/42-board-generators}
+\input{chapters/43-board-verify}
 
 \appendix
 \input{chapters/a1-run}

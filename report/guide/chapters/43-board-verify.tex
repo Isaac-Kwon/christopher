@@ -1,0 +1,527 @@
+\chapter{보드를 검증한다}\label{ch:boardverify}
+
+\ref{ch:verify}장의 원칙은 회로에도 그대로다. 믿을 수 있는 기준 모델을 두고, 같은 입력을 회로와 모델에 넣어
+출력을 기계적으로, 대량으로 비교한다. 다른 것은 ``회로''가 HDL이 아니라 KiCad 넷리스트이고, 그것을 돌려 줄
+시뮬레이터가 없다는 점이다. 그래서 이 프로젝트는 보드마다 작은 시뮬레이터를 직접 짰다. 이 장은 그 검증기들이
+어떻게 생겼고 왜 그렇게 생겼는지를 본다. 시간 없는 접점 수준의 시뮬레이션, 기억이 있는 회로의 고정점,
+보드 여러 장을 묶은 시험, 시간이 있는 사건 구동 시뮬레이션, 일부러 틀린 회로로 검증기를 시험하는 음성
+시험, 그리고 KiCad 자신의 검사(ERC, DRC)다.
+
+\section{검증기는 파일만 읽는다}\label{sec:v-indep}
+
+\Why 생성기가 ``선 $i$의 NO를 $i + s$에 잇는다''고 썼다고 하자. 검증기가 생성기의 함수를 불러 ``선 $i$의 NO는
+어디로 가는가''를 물으면 같은 답이 나온다. 생성기에 실수가 있으면 검증기도 같은 실수를 한다. 이런 검증은 아무것도
+확인하지 않는다.
+
+그래서 검증기는 생성기를 부르지 않는다. KiCad가 \emph{회로도 파일에서} 내보낸 넷리스트만 읽는다. 넷리스트에는
+``어느 부품의 몇 번 핀이 어느 넷에 있는가''와 부품의 값·풋프린트만 있다. 검증기는 거기에 부품의 물리적 성질
+(G6S-2의 핀 4는 극 1의 공통이고, 코일이 꺼지면 핀 3에 닿는다)과 기준 모델을 더해 회로를 직접 돌린다. 핀 기능도
+생성기와 따로 적는다. 생성기가 핀 기능을 잘못 알고 있으면 둘이 어긋나 드러난다.
+
+\General 소프트웨어에서 같은 사람이 같은 생각으로 짠 코드와 시험은 같은 오해를 공유한다. 사양에서 시험을 따로
+쓰거나, 다른 사람이 쓰거나, 아예 다른 방법(예: 느리지만 단순한 구현)과 비교하는 것은 그 때문이다.
+
+\Ours 검증기 머리말은 이 원칙을 적어 둔다. ``Model (netlist only, no knowledge of the generator)''(계수기),
+``What is read from where (no knowledge of how the generator draws the tracks)''(오프셋 다이얼). 다이얼의 검증기는
+동박의 모양을 \emph{기판 파일}에서 다각형으로 읽고, 빗의 위치는 기구 사양(\code{dialmech.py})에서, 기대값은
+계수기 보드의 넷리스트를 돌려서 얻는다. 생성기와 검증기가 함께 읽는 것은 기준 모델과 기구 수치뿐이다.
+
+\section{연결을 따라가기: 합집합--찾기}\label{sec:v-uf}
+
+시간이 필요 없는 보드부터 보자. 시프터 보드는 제어값이 정해지면 릴레이들이 그 자리에 서 있고, 질문은 ``이
+상태에서 입력 핀 $i$는 어느 출력 핀에 이어져 있는가''뿐이다.
+
+\Why 이것은 그래프의 \term{연결 요소}{connected component}를 찾는 문제다. 넷 하나에 속한 핀들은 모두 한 덩어리다.
+닫힌 접점 하나는 공통 핀과 NC(또는 NO) 핀의 두 덩어리를 합친다. 모든 넷과 닫힌 접점을 합치고 나면, 같은 덩어리에
+든 핀끼리 전기적으로 이어진 것이다(그림~\ref{fig:v-uf}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    pin/.style={circle,draw,fill=white,inner sep=1.3pt},
+    lab/.style={font=\tiny\ttfamily}]
+  % nets as rounded boxes
+  \foreach \n/\x/\y/\w/\t in {a/0/1.2/2.2/{J1.1, K101.4},b/3.8/2.2/3.0/{K101.3, K126.5, K201.4},c/3.8/0.2/3.0/{K101.5, K102.3, K202.4},
+                               d/7.6/2.2/2.0/{K201.3, \ldots},e/7.6/0.6/2.0/{K201.5, \ldots}} {
+    \node[draw=cgray,rounded corners=3pt,minimum width=\w cm,minimum height=7mm,font=\tiny\ttfamily,align=center] (\n) at (\x,\y) {\t};
+  }
+  \node[lab,above=0mm of a] {OIN\_A};
+  \node[lab,above=0mm of b] {O1\_A};
+  \node[lab,below=0mm of c] {O1\_B};
+  \node[lab,above=0mm of d] {O2\_A};
+  \node[lab,below=0mm of e] {O2\_C};
+  \draw[line width=1.4pt,cblue] (a.east) -- node[above,font=\tiny,text=cblue] {COM--NC 닫힘} (b.west);
+  \draw[dashed,cgray] (a.east) -- node[below,font=\tiny,text=cgray] {COM--NO 열림} (c.west);
+  \draw[line width=1.4pt,cblue] (b.east) -- (d.west);
+  \draw[dashed,cgray] (b.east) -- (e.west);
+  \begin{pgfonlayer}{background}
+    \fill[cbluebg,rounded corners=6pt] ($(a.south west)+(-0.15,-0.15)$) rectangle ($(d.north east)+(0.15,0.45)$);
+  \end{pgfonlayer}
+  \node[note,anchor=west,align=left] at (8.8,1.4) {파란 바탕: 한 덩어리\\= J1.1에서 갈 수 있는 곳};
+\end{tikzpicture}
+\caption{합집합--찾기의 생각. 상자 하나가 넷(같은 넷의 핀은 처음부터 한 덩어리), 선이 접점이다. 제어값이 0이면
+단 1의 릴레이 K101이 놓여 있어 공통(핀 4)이 NC(핀 3)에 닿는다. 닫힌 접점만 덩어리를 합친다.}
+\label{fig:v-uf}
+\end{figure}
+
+\General \term{합집합--찾기}{union--find}는 ``이 둘을 한 덩어리로 합쳐라''와 ``이것은 어느 덩어리인가''를 거의 상수
+시간에 하는 자료 구조다. 덩어리마다 대표 하나를 두고, 원소는 부모를 따라 올라가면 대표에 닿는다. 지도의 섬을
+세거나, 미로의 두 칸이 이어졌는지 보거나, 네트워크에서 끊긴 곳을 찾을 때 쓴다.
+
+\Ours 시프터 검증기의 자료 구조는 열 줄이다. 따라 올라가는 길을 반씩 줄여(\code{p[a] = p[p[a]]}) 다음 찾기를
+빠르게 한다.
+
+\begin{lstlisting}[language=Python,caption={\code{verify\_shifter.py}: 합집합--찾기.},label={lst:v-uf}]
+class UF:
+    def __init__(self):
+        self.p = {}
+
+    def find(self, a):
+        self.p.setdefault(a, a)
+        while self.p[a] != a:
+            self.p[a] = self.p[self.p[a]]
+            a = self.p[a]
+        return a
+
+    def union(self, a, b):
+        self.p[self.find(a)] = self.find(b)
+\end{lstlisting}
+
+제어값 26가지마다 넷을 합치고, 그 값에서 코일이 켜지는 릴레이를 정하고, 극마다 닫힌 쪽을 합친다. 켜지는 릴레이는
+``코일의 핀 1이 제어 커넥터 J5의 해당 핀과 같은 넷인 릴레이''로 \emph{넷리스트에서} 찾는다.
+
+\begin{lstlisting}[language=Python,caption={\code{verify\_shifter.py}: 제어값 \code{a}에서의 연결과 기대값.},label={lst:v-shifter}]
+    for a in range(N):
+        uf = UF()
+        for nodes in nl.nets.values():
+            for nd in nodes[1:]:
+                uf.union(nodes[0], nd)
+        energised = set()
+        for b in range(BITS):
+            if a >> b & 1:
+                energised |= stage_coils[b]
+        for r in relays:
+            for com, nc, no in POLES:
+                uf.union((r, com), (r, no if r in energised else nc))
+        ...
+        for i in range(N):
+            tests = [
+                ("outbound", "J1", "J3", shift_binary(i, a, False)),
+                ("return", "J2", "J4", shift_binary(i, a, True)),
+                ("outbound reversed", "J3", "J1", shift_binary(i, a, True)),
+                ("return reversed", "J4", "J2", shift_binary(i, a, False)),
+            ]
+            for what, src, dst, want in tests:
+                got = reach(cpin(src, i))
+                if got != {cpin(dst, want)}:
+                    ...
+\end{lstlisting}
+
+눈여겨볼 것은 비교가 \code{got != \{cpin(dst, want)\}}라는 점이다. ``기대한 출력 핀에 닿는가''가 아니라 ``닿는
+신호 핀이 \emph{정확히} 그것 하나인가''를 본다. 다른 출력이나 다른 입력에도 닿으면 샛길이나 단락이고, 실패다.
+\ref{sec:relay-logic}절에서 본 대로 접점은 양방향이라 이런 실수가 쉽게 생긴다. 기대값 \code{shift\_binary}는
+\code{relay.rs}의 같은 이름 함수를 Python으로 옮긴 것이다. 네 방향(가는 길, 오는 길, 거꾸로 끼운 두 방향)을
+26선 × 26값 모두 본다. 같은 검사가 제어 핀이 신호 핀에 닿지 않는지, 금속 틀(\code{CHASSIS})이 어떤 제어값에서도
+신호에 닿지 않는지도 본다.
+
+\section{기억이 있는 회로: 고정점까지 되풀이}\label{sec:v-fixpoint}
+
+\Why 시프터에서는 릴레이의 상태가 바깥(제어값)에서 정해졌다. 계수기는 다르다. 릴레이의 코일이 다른 릴레이의
+접점을 지나 전원을 받고, 자기 유지로 자기 접점에서 전원을 받기도 한다(\ref{sec:relay-latch}절). 릴레이의 상태가
+연결을 정하고 연결이 다시 릴레이의 상태를 정한다. 이런 회로는 한 번에 풀리지 않는다. ``지금 상태에서 각 코일에
+전원이 닿는가''를 계산하고, 그 결과대로 릴레이를 바꾸고, 다시 계산하기를 \emph{더 바뀌는 것이 없을 때까지}
+되풀이한다. 더 바뀌지 않는 상태를 \term{고정점}{fixed point}이라 한다.
+
+\General 표~\ref{tab:v-fix}는 \ref{sec:relay-latch}절의 시작/정지 회로를 이 방법으로 푼 것이다. 기억이 상태
+벡터에 들어 있다는 것이 핵심이다. 시작 버튼을 놓은 뒤에도 $K$가 켜져 있는 것은, 그 직전 상태에서 $k$가 닫혀
+있었기 때문이다. 같은 입력(버튼 둘 다 안 누름)이라도 이전 상태에 따라 고정점이 다르다.
+
+\begin{table}[ht]
+\centering
+\caption{시작/정지 회로를 고정점 되풀이로 풀기. ``원함''은 그 상태에서 코일에 전원이 닿는가이다.}
+\label{tab:v-fix}
+\small
+\begin{tabular}{llccl}
+\toprule
+입력 & 되풀이 & $K$ (지금) & $K$ (원함) & \\
+\midrule
+시작 누름 & 1 & 0 & 1 & 시작 버튼을 거쳐 닿음 $\to$ $K$ = 1 \\
+          & 2 & 1 & 1 & 바뀌지 않음: 고정점 \\
+버튼 놓음 & 1 & 1 & 1 & $k$를 거쳐 닿음: 고정점(기억) \\
+정지 누름 & 1 & 1 & 0 & 정지 버튼이 끊음 $\to$ $K$ = 0 \\
+          & 2 & 0 & 0 & 고정점 \\
+버튼 놓음 & 1 & 0 & 0 & $k$가 열려 있어 닿지 않음: 고정점 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Ours 계수기 검증기의 \code{System}은 보드 여러 장을 한 회로로 묶어 이 일을 한다. 먼저 전원(+24~V와 바깥에서 거는
+선)에서 출발해 닫힌 접점(양방향)과 다이오드(애노드에서 캐소드로만)를 따라 갈 수 있는 곳을 모두 찾는다. 0~V에
+닿으면 단락이다.
+
+\begin{lstlisting}[language=Python,caption={\code{verify\_counter.py}: 전원에서 갈 수 있는 곳과 고정점.},label={lst:v-settle}]
+    def reach(self, drive_nets):
+        ...
+        while stack:
+            n = stack.pop()
+            for m, r, need in adj[n]:
+                if seen[m]:
+                    continue
+                if r >= 0 and state[r] != need:
+                    continue
+                # r == -2: directed diode edge stored only at the anode, r == -1: fixed wire (unused)
+                if m == gnd:
+                    short = True
+                    continue
+                seen[m] = 1
+                stack.append(m)
+        return seen, short
+
+    def settle(self, high: list[str], rng: random.Random | None = None, maxit: int = 400):
+        """Apply the externally driven nets named in `high`, iterate to a fixed point. Returns the reach map."""
+        dn = [n for h in high for n in self.drive[h]]
+        state, coilp = self.state, self.coilp
+        for _ in range(maxit):
+            seen, short = self.reach(dn)
+            if short:
+                raise Fault("short circuit +24 V -> 0 V through contacts/diodes")
+            want = [seen[c] for c in coilp]
+            if want == state:
+                return seen
+            if rng is None:
+                state[:] = want
+            else:
+                un = [i for i in range(len(state)) if want[i] != state[i]]
+                i = rng.choice(un)
+                state[i] = want[i]
+        raise Fault("no fixed point (oscillation)")
+\end{lstlisting}
+
+접점의 간선에는 ``이 릴레이가 이 상태일 때만 지나갈 수 있다''는 조건(\code{need})이 붙어 있다. 다이오드는 애노드
+쪽에만 간선을 저장해 한 방향으로만 따라간다. 400번을 되풀이해도 고정점이 없으면 회로가 \term{발진}{oscillation}하는
+것이다. 릴레이가 자기 코일을 끊는 접점을 가지면 그렇게 된다.
+
+\paragraph{두 가지 되풀이: 동기와 비동기.} \code{rng}가 없으면 ``바뀌어야 할 릴레이를 모두 한꺼번에'' 바꾼다.
+\code{rng}가 있으면 바뀌어야 할 것 가운데 \emph{무작위로 하나만} 바꾸고 다시 계산한다. 실제 릴레이는 같은 순간에
+움직이지 않으므로, 어떤 순서로 움직여도 같은 고정점에 닿아야 한다. 무작위 순서로 수만 번 돌려 결과가 늘 같으면
+회로에 경쟁(\ref{sec:relay-counter}절)이 없다는 근거가 된다. 계수기는 두 방식 모두로 17,576클럭을 통과했다.
+
+한 클럭은 이 고정점 계산 몇 번이다. 확정 상(\code{CK})을 걸고 풀고, 평상 상(\code{NCK})을 걸고 푼다. 그 사이마다
+모든 유닛의 시프터 제어선과 자리마다 슬레이브·마스터의 값을 기준 모델과 비교한다.
+
+\begin{lstlisting}[language=Python,caption={\code{verify\_counter.py}: 전체 구동. 클럭마다 두 시점에서 기준 모델과 비교.},label={lst:v-run}]
+    refs = [Counters(k) for k in ks]
+    seen = do_home(s, rng_mode)
+    check_state(s, seen, refs, f"{label} after HOME")
+    for step in range(1, clocks + 1):
+        for c in refs:
+            c.clock()
+        seen1, seen2 = do_clock(s, rng_mode, skew)
+        check_state(s, seen1, refs, f"{label} clock {step} (commit)", internal=False)
+        check_state(s, seen2, refs, f"{label} clock {step} (release)")
+\end{lstlisting}
+
+\code{HOME}(프리셋) 시험은 릴레이 상태를 \emph{무작위로} 섞은 데서 시작한다. 전원을 넣은 직후 릴레이가 어떤
+상태일지 모르므로, 어떤 상태에서 시작해도 \code{HOME}이 올바른 값을 만들어야 한다.
+
+\section{보드를 묶어 기계 전체를}\label{sec:v-compose}
+
+\Why 보드 한 장이 옳아도 보드 사이의 약속(커넥터의 핀 배치, 케이블의 방향, 카드를 꽂는 방향)이 틀리면 기계는
+틀린다. 그래서 검증의 마지막 단계는 실제로 만들어질 보드들의 넷리스트를 케이블대로 이어 \emph{기계 전체}를 한
+회로로 만들고, 그 출력을 기준 모델과 비교하는 것이다.
+
+\General \ref{ch:verify}장의 층별 시험과 같다. 아래층(보드 한 장)이 맞는다는 것을 먼저 확인해야 위층(유닛 전체)이
+틀렸을 때 원인을 좁힐 수 있다. 그리고 위층의 시험은 아래층 시험이 볼 수 없는 것, 곧 연결부를 본다.
+
+\Ours 네 가지가 있다(그림~\ref{fig:v-compose}).
+
+\begin{itemize}
+\item \textbf{스크램블러 유닛 전체}(\code{wiring-cards/verify\_cards.py}). 시프터 보드 넷리스트 네 벌, 고른 로터 카드
+세 장, 반사판 카드 한 장을 리본 케이블 14가닥대로 잇는다. 케이블 표는 카드가 꽂히는 자세에서 \emph{도출}하고,
+그것이 조립 문서의 표와 같은지도 본다. 위치마다 \code{from\_cores}로 네 시프터의 제어값을 정하고, 입력 26선이 각각
+정확히 출력 한 선에만 닿는지, 그 치환이 Rust 코어의 스크램블러(\ref{ch:rust-bombe}장)와 같은지 비교한다.
+Enigma~I의 로터 순서 60개 × 17,576위치 = 1,054,560위치를 모두 돌려 보았다(약 13분).
+\item \textbf{계수기 공통 보드 + 유닛 보드 셋}(\code{verify\_counter.py}). 오프셋 셋을 고른 유닛 셋을 공통 보드에
+잇고 17,576클럭을 돌려, 아홉 번에 걸쳐 오프셋 26가지를 모두 지나간다.
+\item \textbf{계수기 + 위치 표시}(\code{verify\_display.py}). 계수기 공통 보드의 넷리스트를 17,576클럭 돌리며 위치
+커넥터를 표시 보드에 잇고, 켜진 램프 셋이 기준 모델의 $(l, m, r)$인지 본다.
+\item \textbf{다이얼 동박 × 빗 × 계수기}(\code{verify\_dial.py}). 기판 파일에서 동박 다각형을 읽고, 빗 끝 11개를
+기구 사양대로 놓아 어느 넷이 이어지는지 기하로 구한다. 그 연결을 계수기 유닛 보드의 넷리스트에 꽂아
+\code{HOME}을 시뮬레이션하고, 프리셋이 기준 모델의 $(k, -k)$인지 본다. 멈춤 위치마다 회전 오차 $\pm 3°$, 반지름
+오차 $\pm 0.3$~mm의 모서리 아홉 곳에서 같은 코드가 나와야 하고, 위치 사이를 훑는 동안 비트마다 이웃 두 코드
+밖의 값이 나오면 안 된다.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    bd/.style={blkn,minimum width=18mm,minimum height=8mm,font=\scriptsize},
+    rf/.style={blkg,minimum width=26mm,minimum height=9mm,font=\scriptsize}]
+  \node[bd] (s1) at (0,0) {시프터 ×4};
+  \node[bd] (w) at (2.4,0) {로터 카드 ×3};
+  \node[bd] (u) at (4.8,0) {반사판 카드};
+  \draw[<->] (s1) -- (w); \draw[<->] (w) -- (u);
+  \node[draw,dashed,cgray,fit=(s1)(w)(u),inner sep=3mm,label={[font=\scriptsize]above:넷리스트 + 리본 14가닥 = 유닛 하나}] (unit) {};
+  \node[rf] (core) at (2.4,-2.0) {Rust 스크램블러};
+  \node[blkr,minimum width=20mm,minimum height=9mm,font=\scriptsize] (cmp) at (6.6,-2.0) {치환 비교};
+  \draw[->] (unit.south east) -- (cmp);
+  \draw[->] (core) -- (cmp);
+  \node[bd] (cc) at (9.0,0) {계수기 공통};
+  \node[bd] (cu) at (11.4,0) {유닛 보드 ×3};
+  \node[bd] (dd) at (9.0,-1.4) {위치 표시};
+  \node[bd] (di) at (11.4,-1.4) {다이얼 동박};
+  \draw[<->] (cc) -- (cu); \draw[->] (cc) -- (dd); \draw[->] (di) -- (cu);
+  \node[rf] (cnt) at (10.2,-3.0) {\code{Counters} (기준)};
+  \draw[->,dashed] (cnt) -- (dd); \draw[->,dashed] (cnt) -- (cu);
+\end{tikzpicture}
+\caption{보드를 묶어 시험하기. 왼쪽은 스크램블러 유닛, 오른쪽은 계수기와 그에 물리는 보드들이다. 모두 KiCad가
+내보낸 실제 넷리스트(다이얼은 실제 기판 파일)로 묶는다.}
+\label{fig:v-compose}
+\end{figure}
+
+\begin{lstlisting}[language=Python,caption={\code{verify\_cards.py}: 위치마다 유닛 전체의 치환을 기준과 비교.},label={lst:v-cards}]
+    for l, m, r, k in positions:
+        n += 1
+        rk = (r + k) % N
+        exp = oracle.scrambler(order, l, m, rk) if oracle else scrambler_port(order, l, m, rk)
+        ...
+        perm, problems = unit.permutation(from_cores(l, m, r, k))
+        if problems or perm != exp:
+            fails.append(...)
+\end{lstlisting}
+
+이 시험이 실제로 무엇을 잡았는지가 이 방법의 값어치를 보인다. 유닛의 맨 앞 시프터는 거꾸로 끼우므로 다른
+카드와 반대쪽에서 보인다. 표준 기판을 그대로 쓰면 그 시프터에 꽂히는 리본 네 가닥의 핀 1이 반대 끝에 온다.
+D-sub 커넥터는 모양이 비대칭이라 리본을 뒤집어 꽂을 수 없다. ``커넥터만 기판 뒷면에 납땜하면 되지 않나''라는 안은
+\code{verify\_cards.py}가 기각했다. 뒷면 커넥터의 핀 배열을 풋프린트의 실제 좌표로 계산해 넣었더니 선 A--S가
+거꾸로 이어지고 T--Z는 끊겨, 600가지 위치에서 한 번도 맞지 않았다. 그래서 커넥터를 거울 배치한 전용 기판
+변형을 만들었다(\ref{sec:gen-place}절).
+
+\section{시간이 있는 시뮬레이션}\label{sec:v-time}
+
+계수기는 시간 없이 검증했다. ``각 상에서 고정점이 무엇인가''만 물었다. 그러나 순서기(\ref{sec:t-sequencer}절)와
+테스트 레지스터(\ref{sec:t-register}절)는 시간이 본질이다. 질문이 ``\code{STROBE}는 몇 ms인가'', ``정지 릴레이가
+\code{JUDGE} 안에 붙는가''이기 때문이다.
+
+\Why 그래서 이 둘의 검증기는 \term{사건 구동}{event-driven} 시뮬레이션을 한다. 시간을 일정한 칸으로 나누지 않고,
+``무언가가 바뀌는 시각''들의 목록(우선순위 큐)을 두고 가장 이른 사건부터 처리한다. 사건을 처리하면 회로를 다시
+풀고(연결은 앞 절과 같은 방법), 그 결과로 생기는 새 사건(이 릴레이가 몇 ms 뒤에 붙는다)을 목록에 넣는다.
+
+릴레이의 시간 모형은 결정 0001의 표(\ref{tab:t-relay})다.
+\begin{itemize}
+\item 코일에 전원이 닿으면 2.5--5~ms 뒤에 붙는다. 그 사이에 전원이 끊기면 \emph{붙지 않는다}. 짧은 펄스는 걸러진다.
+\item 전원이 끊기면 1.5--4~ms(다이오드 + 제너) 또는 3--10~ms(다이오드만) 뒤에 놓인다.
+\item 붙거나 놓일 때 접점은 0.2--0.6~ms 동안 공중에 떠 있다(먼저 끊고 나중에 잇기).
+\end{itemize}
+범위 안의 어디를 고를지는 실행 방식이 정한다. 무작위, 모두 가장 느리게, 모두 가장 빠르게, 그리고 \term{모서리}{corner}
+(릴레이마다 최소나 최대 가운데 하나를 무작위로)다. 하한 규칙은 가장 나쁜 조합에서 깨지는데, 그 조합은 대개
+``어떤 것은 가장 빠르고 어떤 것은 가장 느린'' 모서리에 있다.
+
+\begin{lstlisting}[language=Python,caption={\code{seqsim.py}: 코일이 바뀌면 완료 사건을 예약하고, 완료 전에 되돌아가면 취소한다.},label={lst:v-relay}]
+    def draw(self, lo, hi):
+        if self.mode == "slow":
+            return hi
+        if self.mode == "fast":
+            return lo
+        if self.mode == "corner":
+            return lo if self.rng.random() < 0.5 else hi
+        return self.rng.uniform(lo, hi)
+
+    def update_relays(self):
+        for r in self.relays:
+            on = self.lev.get(self.find(r.coil), 0) == 24
+            if r.transit:
+                continue
+            if on != r.state:
+                if r.pend is None or r.pend_to != on:
+                    t = self.t + self.draw(*(r.op if on else r.rel))
+                    r.pend = self.schedule(t, "relay", r)
+                    r.pend_to = on
+            else:
+                r.pend = None          # coil returned to the old state before the move was completed
+
+    def apply_relay(self, serial, r: Relay):
+        if r.pend != serial:
+            return
+        r.pend = None
+        r.transit = True
+        self.schedule(self.t + self.rng.uniform(0.2, 0.6), "land", (r, r.pend_to))
+\end{lstlisting}
+
+예약한 사건에는 일련번호가 있다. 코일이 원래 상태로 돌아가면 \code{r.pend}를 지워 두고, 나중에 그 사건이 큐에서
+나왔을 때 번호가 맞지 않으면 무시한다. 큐에서 사건을 꺼내 지우는 대신 ``이미 무효''로 표시하는 흔한 기법이다.
+\code{transit} 동안은 그 릴레이의 공통이 어디에도 닿지 않는 것으로 푼다.
+
+\paragraph{555도 넷리스트에서.} 순서기 시뮬레이터는 박자를 상수로 두지 않는다. 넷리스트에서 555의 방전 핀과 문턱
+핀 사이 저항을 \emph{그 순간 닫혀 있는 접점으로 이어진 것까지} 더해 $R_2$를 구하고, 커패시터 전압을 지수 함수로
+이어서 계산한다. 그래서 관찰 모드 저항을 단락하는 릴레이 접점이 언제 열리고 닫히는지가 그대로 박자에 반영된다
+(\ref{sec:t-sequencer}절). 커패시터에는 $\pm$3\%의 공차를, 틱마다 $\pm$0.3\%의 흔들림을 넣는다.
+
+\paragraph{규칙을 커넥터 핀에서 잰다.} 시뮬레이션이 끝나면 검증기는 커넥터 핀의 오르내림 기록에서 위치 주기마다
+\code{STROBE}, \code{JUDGE}, \code{CLEAR}를 짝짓고 L1--L9를 하나씩 잰다.
+
+\begin{lstlisting}[language=Python,caption={\code{verify\_sequencer.py}: 위치 주기마다 커넥터 면의 규칙.},label={lst:v-rules}]
+L1, L3, L5 = 7.5, 7.5, 12.5
+L2, L4, L6 = 11.5, 1.5, 1.5
+...
+    for k, ((s0, s1, _), (j0, j1, _), (c0, c1, _)) in enumerate(cyc):
+        m = {"S": s1 - s0, "J": j1 - j0, "C": c1 - c0, "JS": j0 - s0, "CJ": c0 - j1}
+        ...
+        if m["S"] < L1:
+            fails.append(f"L1: STROBE {m['S']:.2f} ms at t={s0:.1f}")
+        if m["JS"] < L2:
+            fails.append(f"L2: JUDGE rise only {m['JS']:.2f} after STROBE rise at t={s0:.1f}")
+        ...
+\end{lstlisting}
+
+짝이 맞지 않는 것도 실패다. \code{STROBE} 뒤에 \code{JUDGE}와 \code{CLEAR}가 오지 않으면 L7, 앞에 \code{STROBE}가
+없는 \code{JUDGE}는 L8 위반이다. 이 밖에 시험한 위치가 0, 1, 2, \ldots로 빠짐없이 이어지는지(정지와 재출발을
+건너도 중복·건너뜀이 없는지), 놓친 정지나 거짓 정지가 없는지, \code{CK}와 \code{NCK}가 동시에 높지 않은지를 본다.
+순서기는 42가지 시나리오(정지, 재출발, \code{HOME}, 대기, 비상 정지 등)와 조작 시나리오 40가지에 더해 17,576위치
+전체를 한 번 돌렸다. 넷리스트 시뮬레이션으로 1,130초에 해당하는 운전을 89초에 계산한다.
+
+\begin{lesson}{\code{HOME} 끝의 \code{CLEAR} 한 번}
+비상 정지는 위치 주기의 어디서나 전원을 끊는다. \code{STROBE} 뒤, \code{CLEAR} 전에 끊기면 테스트 레지스터의 감지
+릴레이가 붙은 채 남는다(감지 릴레이는 비상 정지로 끊기지 않는 전원에 있다). 그 뒤 \code{HOME}으로 처음 위치로
+돌아가 출발하면, 첫 \code{STROBE}가 낡은 감지 릴레이 위에 덧붙는다. 남은 것이 26선 모두였다면 위치 0이 통과로
+보여 그 위치의 정지를 놓친다. 순서기 시뮬레이션이 이 경우를 재현했고, 결정 0003은 ``\code{HOME}은 끝에 \code{CLEAR}를
+정확히 한 번 낸다''는 규칙을 더했다. 지금은 이 \code{CLEAR}를 빼는 변형이 음성 시험에 들어 있어, 누가 지우면
+``위치 0의 정지를 놓침''으로 걸린다. 기어식 제어 보드도 같은 규칙을 같은 방식으로 시험한다.
+\end{lesson}
+
+\section{일부러 틀린 회로: 음성 시험}\label{sec:v-mutants}
+
+\Why 검증기가 ``통과''를 냈다고 하자. 그것은 회로가 옳다는 뜻일 수도 있고, 검증기가 아무것도 보지 않는다는 뜻일
+수도 있다. 비교하는 줄에 오타가 있어 늘 같다고 판정하거나, 기대값을 회로에서 거꾸로 읽어 와 늘 맞거나,
+시뮬레이터가 어떤 부품을 무시하고 있을 수 있다. 통과만 보아서는 둘을 구별할 수 없다.
+
+그래서 \emph{일부러 틀린} 회로를 넣어 검증기가 실패를 내는지 본다. 이것을 \term{음성 시험}{negative test}이라 한다.
+틀린 회로가 통과하면 검증기에 구멍이 있는 것이다. 어떤 실수를 넣을지는 ``실제로 일어날 법한 실수''에서 고른다.
+핀 두 개를 바꿔 다는 것, NC와 NO를 바꾸는 것, 다이오드를 거꾸로 다는 것, 케이블을 바꿔 꽂는 것.
+
+\General 소프트웨어에서는 이것을 \term{돌연변이 시험}{mutation testing}이라 한다. 코드의 \code{<}를 \code{<=}로,
+\code{+}를 \code{-}로 바꾼 ``돌연변이''를 자동으로 만들어 시험을 돌리고, 시험이 잡지 못한 돌연변이가 있으면 시험이
+그 부분을 보지 않는다는 뜻이다. 화재 경보기의 시험 단추도 같은 생각이다. 경보기가 조용한 것이 불이 없어서인지
+고장이어서인지 알려면 가끔 일부러 울려 보아야 한다.
+
+\Ours 모든 검증기가 마지막에 음성 시험을 돌리고, 하나라도 통과하면 전체를 실패로 끝낸다. 시프터 검증기의 변형은
+넷리스트 \emph{텍스트}에서 핀 번호 두 개를 맞바꾸어 만든다.
+
+\begin{lstlisting}[language=Python,caption={\code{verify\_shifter.py}: 음성 시험의 목록과 실행.},label={lst:v-neg}]
+NEGATIVE = [
+    ("swap two outbound OUT lines (J3 pins 3<->4)", "J3", "3", "4"),
+    ("swap two outbound IN lines (J1 pins 1<->2)", "J1", "1", "2"),
+    ("swap two return OUT lines (J4 pins 20<->25)", "J4", "20", "25"),
+    ("swap NC/NO of stage-3 relay K305 pole 1 (pins 3<->5)", "K305", "3", "5"),
+    ("swap control bits CTRL1<->CTRL2 (J5 pins 2<->3)", "J5", "2", "3"),
+]
+...
+    for name, ref, pa, pb in NEGATIVE:
+        bad = check(Netlist(swap_pins(text, ref, pa, pb)), quiet=True)
+        print(f"  {'detected' if bad else 'MISSED  '}: {name} ({len(bad)} discrepancies)")
+        ok &= bool(bad)
+\end{lstlisting}
+
+오프셋 다이얼의 음성 시험은 생성기의 숨은 키워드 인자(\ref{sec:gen-dial}절)로 \emph{틀린 다이얼을 새로 생성해서}
+만든다. 비트 두 개의 링을 바꾼 코드, $a_2 = +k$로 잘못 계산한 코드, 글자 눈금을 한 칸 민 것, 호의 끝을 멈춤
+쪽으로 0.42칸 옮긴 것, 다른 빗 간격에 맞춘 링, 끊어진 공통 링이다. 그 기판 파일을 정상과 똑같은 검증에 넣는다.
+
+\begin{lstlisting}[language=Python,caption={\code{verify\_dial.py}: 틀린 다이얼을 생성해 검증에 넣는다.},label={lst:v-dial-neg}]
+    variants = [
+        ("code: a1 bits 0 and 1 on each other's ring", dict(code=swap_a1_01)),
+        ("code: a2 = +k instead of -k", dict(code=lambda k: (k, k))),
+        ("scale: letters shifted by one position", dict(letter_shift=1)),
+        ("arc ends moved by 0.42 detent pitch (towards the detent)", dict(edge_shift=0.42 * M.ALPHA)),
+        ("rings drawn for a comb of 1.5 mm pitch (tips 1.7 mm)", dict(pitch=1.5)),
+        ("COM ring broken (20 deg gap at A)", dict(com_gap_deg=20.0)),
+    ]
+    for name, kw in variants:
+        fpt = gen_dial.footprint_text(**kw)
+        bt, _ = gen_dial_pcb.build(dial, fpt)
+        _i, _j, errs = check_board(bt, dial, unit, work, "neg")
+\end{lstlisting}
+
+``호의 끝을 0.42칸 옮긴 것''은 0.5칸이 아니라 0.42칸이다. 끝이 멈춤 위치에서 0.08칸(약 1.1°) 떨어진 다이얼은
+멈춤에서는 맞는 코드를 내지만 $\pm 3°$ 허용 오차 안에서 코드가 바뀐다. 검증기가 허용 오차의 모서리까지 실제로
+보는지를 시험하는 변형이다. 이처럼 좋은 음성 시험은 ``아슬아슬하게 틀린'' 것이다. 크게 틀린 회로는 어떤
+검증기로도 잡힌다.
+
+표~\ref{tab:v-neg}는 보드별 음성 시험의 수다. 수가 많은 보드는 결정 0003(공통 전기 인터페이스)이 더한 항목(전원
+입력의 보호 소자 방향, 신호 커넥터에 +24~V가 없음, 금속 틀과 0~V의 분리 등)도 하나씩 틀려 보기 때문이다.
+
+\begin{table}[ht]
+\centering
+\caption{보드별 검증의 규모(각 README의 기록). 음성 시험은 모두 ``검출됨''이어야 통과한다.}
+\label{tab:v-neg}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{30mm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{28mm}}
+\toprule
+보드 & 넷리스트 시뮬레이션 & 음성 시험 \\
+\midrule
+시프터 & 제어값 26 × 선 26 × 방향 4, 샛길·단락 없음 & 10 (+ 기판 2) \\
+계수기 & 공통 + 유닛 셋, 17,576클럭, 오프셋 26가지, 동기·비동기 & 35 (+ 기판 3) \\
+위치 표시 & 26$^3$ 위치, 무작위 릴레이 상태 3,000, 계수기와 끝에서 끝까지 & 16 (+ 기판 3) \\
+배선 카드 & 유닛 전체 대 스크램블러, 최대 1,054,560위치 & 17 (+ 기판 3) \\
+오프셋 다이얼 & 동박 기하 × 빗 × 계수기, 26위치 × 허용 오차 모서리 9 & 8 (+ 기판 3) \\
+테스트 레지스터 & 사건 구동, 위치 주기 438, 정지 176, 최악·최선 시간 & 18 (+ 선 무전류 3) \\
+순서기 & 사건 구동, 시나리오 82, 17,576위치 전체 & 31 \\
+기어식 제어 보드 & 게이트·기구·펌웨어 모델·레지스터 연동 & 19 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{KiCad의 검사: ERC, DRC, 그리고 결정성}\label{sec:v-erc}
+
+직접 짠 시뮬레이터 말고도 KiCad 자신의 검사를 명령행에서 돌린다.
+
+\begin{itemize}
+\item \textbf{ERC}(\term{전기 규칙 검사}{electrical rules check}). 회로도에서 ``이어지지 않은 핀'', ``출력끼리 이어진
+핀'', ``전원을 주는 곳이 없는 전원 넷'' 같은 것을 찾는다. 일부러 쓰지 않는 핀에는 생성기가 \code{no\_connect} 표시를
+달아 ``잊은 것이 아니라 비운 것''임을 밝힌다. 모든 보드가 모든 심각도에서 위반 0건이다.
+\item \textbf{배치 대 회로도}. 기판 파일에서 패드별 넷을 내보내(IPC-D-356이라는 기판 시험용 넷리스트 형식, 또는
+KiCad의 Python 모듈) 회로도의 넷리스트와 비교한다. 회로도의 부품이 모두 기판에 있고, 풋프린트가 같고, 모든 패드의
+넷이 같아야 한다. 패드 두 개의 넷을 바꾼 기판, 풋프린트 하나를 뒷면으로 뒤집은 기판이 음성 시험이다.
+\item \textbf{DRC}(\term{설계 규칙 검사}{design rule check}). 기판에서 부품의 차지 영역이 겹치는지, 구멍과 가장자리의
+거리, 동박 사이의 간격을 본다. 배치만 한 기판이므로 ``이어지지 않은 항목''이 남는데, 그 수가 회로도에서 계산한
+값, 곧 넷마다 (패드 수 $-$ 1)의 합과 같아야 한다. 패드 $n$개를 잇는 데는 선이 최소 $n-1$개 필요하기 때문이다.
+시프터 보드는 1,125개다.
+\item \textbf{결정성}. 생성기를 임시 폴더에 다시 돌려 저장소의 파일과 바이트 단위로 비교한다(\ref{sec:gen-uuid}절).
+\end{itemize}
+
+\section{시뮬레이션이 보지 못하는 것}
+
+이 모든 검증은 \emph{설계}의 검증이다. 각 README는 무엇을 모형에 넣지 않았는지를 적어 둔다.
+
+\begin{itemize}
+\item 접점의 튐은 따로 모형에 없다. 붙는 시간에 안정 시간을 포함시켰을 뿐이다.
+\item 코일 전압의 강하(배선과 다이오드를 지나며 줄어드는 전압)는 계산으로만 보았다. 시뮬레이터에서 코일은 켜지거나
+꺼질 뿐이다.
+\item 릴레이 시간 자체가 데이터시트와 추정에 기댄다(표~\ref{tab:t-relay}). 다이오드만 단 코일의 복귀 시간은 추정이다.
+\item 반도체(MOSFET의 문턱, LED 전류)는 저항값으로 계산해 확인했고 아날로그 시뮬레이션은 하지 않았다.
+\end{itemize}
+
+그래서 각 설계 문서는 시제품에서 잴 것을 목록으로 남긴다. 감지 릴레이가 붙어 유지에 들기까지의 시간 분포,
+놓이는 시간, 순서기 출력 릴레이의 실제 지연, 두 클럭 버스의 어긋남 같은 것이다. 시뮬레이션은 ``이 범위 안이면
+옳다''를 보이고, 실측은 ``실제 부품이 그 범위 안에 있다''를 보인다. 둘이 함께 있어야 기계가 옳다.
+
+\section{정리}
+
+\begin{itemize}
+\item 검증기는 생성기를 부르지 않고 KiCad가 내보낸 파일만 읽는다. 같은 실수를 공유하지 않기 위해서다.
+\item 시간 없는 보드는 합집합--찾기로 연결을 구하고, 기대한 연결 \emph{하나만} 있는지 본다.
+\item 기억이 있는 회로는 고정점까지 되풀이한다. 무작위 순서로 되풀이해도 같은 결과면 경쟁이 없다.
+\item 보드를 케이블대로 묶어 기계 전체를 기준 모델과 비교한다. 연결부의 실수는 여기서만 잡힌다.
+\item 시간이 본질인 보드는 사건 구동으로 돌리고, 릴레이 시간을 범위의 모서리까지 흔들며 하한 규칙을 커넥터 핀에서
+잰다.
+\item 일부러 틀린 회로가 모두 실패해야 검증기를 믿는다. 좋은 음성 시험은 아슬아슬하게 틀린 것이다.
+\end{itemize}
+
+\begin{keybox}[title={5부에서 쓴 방법들}]
+\begin{itemize}
+\item 접점은 양방향 길이다. 논리는 ``전원에서 닫힌 접점만 밟아 올 수 있는가''이고, 샛길을 늘 의심한다.
+\item 기억은 자기 유지, 정확히 하나는 전환 접점, 경쟁 없는 계수는 마스터--슬레이브와 두 상의 클럭.
+\item 흩어지는 부품에는 하한으로 규칙을 정하고, 느려져도 안전하게 만든다. 회로의 면과 커넥터의 면을 나눠 계산한다.
+\item 보드는 기준 모델에서 생성하고, 생성과 무관한 검증기가 파일만 읽어 기준 모델과 대조한다. 그 검증기는 일부러
+틀린 보드로 다시 시험한다.
+\end{itemize}
+\end{keybox}
