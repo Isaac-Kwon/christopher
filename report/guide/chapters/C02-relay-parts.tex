@@ -1,0 +1,308 @@
+\chapter{릴레이와 접점 논리}\label{ch:relay}
+
+1--4부는 프로그램과 디지털 회로의 코드였다. 5부는 전시의 두 번째 기계, 릴레이식 봄베의 회로를 다룬다.
+릴레이식 봄베에는 FPGA도, 트랜지스터로 된 논리 게이트도 거의 없다. 계산을 하는 것은 전자석이 끌어당기는
+금속 접점이다. 이 장은 릴레이 한 개가 어떻게 생겼는지에서 출발해, 접점을 엮어 논리를 만드는 법, 그리고
+그 방법으로 지은 네 가지 회로(위치 표시의 접점 나무, 이진 시프터, 오르기만 하는 계수기)를 차례로 본다.
+전기를 몰라도 읽을 수 있게 썼다. 필요한 것은 ``전류는 끊기지 않은 길로만 흐른다''는 사실 하나다(전압·전류·다이오드가 낯설면
+\ref{ch:39-electric-basics}장을 먼저 본다).
+
+\section{릴레이 한 개: 코일과 접점}\label{sec:relay-one}
+
+\Why \term{릴레이}{relay}는 전기로 움직이는 스위치다. 철심에 감은 전선(\term{코일}{coil})에 전류가 흐르면
+철심이 자석이 되어 얇은 철판(\term{접극자}{armature})을 끌어당긴다. 접극자에는 금속 접점이 붙어 있어서,
+끌려가면 접점이 한쪽 단자에서 떨어져 다른 쪽 단자에 닿는다. 전류를 끊으면 스프링이 접극자를 제자리로
+돌려보낸다(그림~\ref{fig:r-anatomy}). 코일 쪽 회로와 접점 쪽 회로는 전기적으로 이어져 있지 않다. 작은 코일
+전류 하나로 전혀 다른 회로의 길을 열고 닫을 수 있다는 것이 릴레이의 쓸모다.
+
+접점에는 이름이 셋 있다. 움직이는 쪽을 \term{공통}{COM}이라 하고, 코일이 꺼져 있을 때 공통과 닿아 있는
+단자를 \term{상시 닫힘}{NC, normally closed}, 코일이 켜져야 닿는 단자를 \term{상시 열림}{NO, normally open}이라
+한다. 우리말 문헌에서는 NO를 a접점, NC를 b접점이라고도 부른다. 공통 하나에 NC와 NO가 모두 있는 접점을
+\term{전환 접점}{changeover, c접점}이라 한다. 코일 하나가 전환 접점을 몇 벌 움직이는지를 \term{극}{pole}의
+수로 센다. 이 프로젝트의 릴레이는 거의 전부 극이 둘인 전환 접점 릴레이, 곧 \term{DPDT}{double pole, double
+throw}다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \foreach \dx/\on/\ttl in {0/0/{코일 꺼짐},7/1/{코일 켜짐}} {
+    \begin{scope}[xshift=\dx cm]
+      \node[font=\small\bfseries] at (2.2,3.3) {\ttl};
+      % core and coil
+      \fill[cgray!40] (0,0) rectangle (0.6,2.0);
+      \foreach \y in {0.25,0.5,...,1.75} \draw[corange,line width=1.2pt] (-0.1,\y) -- (0.7,\y);
+      \node[note,anchor=north] at (0.3,-0.1) {코일};
+      \ifnum\on=1
+        \foreach \y in {0.5,1.0,1.5} \draw[->,cblue] (0.9,\y) -- (1.25,\y);
+      \fi
+      % armature (pivot at (0.3,2.3))
+      \fill (0.3,2.35) circle (0.06);
+      \ifnum\on=0
+        \draw[line width=2pt,cgray] (0.3,2.35) -- (3.2,2.75);
+        \draw[line width=1pt] (3.2,2.75) -- (3.2,2.35);
+        \fill[cblue] (3.2,2.35) circle (0.07);
+      \else
+        \draw[line width=2pt,cgray] (0.3,2.35) -- (3.2,2.05);
+        \draw[line width=1pt] (3.2,2.05) -- (3.2,1.45);
+        \fill[cblue] (3.2,1.45) circle (0.07);
+      \fi
+      % NC (top) and NO (bottom) terminals
+      \draw[line width=1pt] (3.0,2.42) -- (4.2,2.42) node[right,font=\footnotesize] {NC};
+      \draw[line width=1pt] (3.0,1.38) -- (4.2,1.38) node[right,font=\footnotesize] {NO};
+      \draw[line width=1pt] (0.3,2.35) -- (0.3,2.9) -- (-0.4,2.9) node[left,font=\footnotesize] {COM};
+      \draw[cgreen] (3.9,2.6) -- (3.8,2.68) -- (4.0,2.76) -- (3.8,2.84) -- (4.0,2.92) -- (3.8,3.0) -- (3.9,3.08);
+      \node[note,anchor=west] at (4.0,3.0) {스프링};
+      \ifnum\on=0
+        \node[note,text=cblue,anchor=west] at (0.9,0.7) {COM--NC가\\닿아 있다};
+      \else
+        \node[note,text=cblue,anchor=west] at (1.35,0.7) {COM--NO가\\닿아 있다};
+      \fi
+    \end{scope}
+  }
+\end{tikzpicture}
+\caption{릴레이의 동작. 코일에 전류가 흐르면 철심이 접극자를 끌어당겨 공통(COM)이 NC에서 떨어지고 NO에 닿는다.
+코일 전류를 끊으면 스프링이 되돌린다.}
+\label{fig:r-anatomy}
+\end{figure}
+
+릴레이는 느리다. 코일에 전압을 건 뒤 접점이 실제로 넘어가 흔들림(\term{튐}{bounce})까지 가라앉는 데 이
+프로젝트의 소형 신호 릴레이로 2.5--5~ms가 걸리고, 놓일 때도 몇 ms가 걸린다. FPGA의 플립플롭이 수 나노초에
+바뀌는 것과 비교하면 백만 배쯤 느리다. 이 느림과, 같은 품번이라도 개체마다 시간이 다르다는 점이
+\ref{ch:relay-timing}장의 주제다.
+
+\Ours 릴레이식 봄베의 모든 보드는 Omron G6S-2급의 24~V DPDT 신호 릴레이 한 종류를 쓴다. 회로도 생성기는
+핀 번호와 기능의 대응을 한 줄로 적어 두고 모든 보드가 이 줄을 공유한다.
+
+\begin{lstlisting}[language=Python,caption={\code{gen\_shifter.py}: G6S-2의 핀 기능. 코일은 1(+)과 12($-$), 극 1은 4/3/5, 극 2는 9/10/8.},label={lst:r-pins}]
+# G6S-2 pin functions (verified against the library symbol graphics: the armature of pole 1
+# rests on pin 3, of pole 2 on pin 10, when the coil is off).
+RELAY_PINS = dict(coil_p="1", coil_n="12", c1="4", nc1="3", no1="5", c2="9", nc2="10", no2="8")
+\end{lstlisting}
+
+검증기도 같은 대응을 따로 적는다(\code{POLES = [("4", "3", "5"), ("9", "10", "8")]}). 생성기와 검증기가 같은
+사실을 각자 적어 두는 이유는 \ref{ch:boardverify}장에서 본다.
+
+\section{접점으로 논리를 만든다}\label{sec:relay-logic}
+
+\Why \ref{ch:hdl}장의 게이트는 0과 1을 전압으로 나타냈다. 릴레이 회로에서도 같다. 어떤 선에 +24~V가 닿아
+있으면 1, 아니면 0이다. 다만 계산하는 방법이 다르다. 게이트는 입력 전압을 보고 출력 전압을 새로 만들지만,
+접점은 길을 열고 닫을 뿐이다. 그래서 접점 회로의 논리는 ``전원에서 출발해 닫힌 접점만 밟아 이 점에 올 수
+있는가''라는 길 찾기 문제가 된다. 이 관점은 \ref{ch:boardverify}장의 시뮬레이터가 그대로 쓴다.
+
+\begin{itemize}
+\item 두 접점을 \emph{직렬}로 이으면 둘 다 닫혀야 길이 생긴다. AND다.
+\item 두 접점을 \emph{병렬}로 이으면 하나만 닫혀도 길이 생긴다. OR다.
+\item NC 접점은 코일이 꺼져 있을 때 닫힌다. NOT이다.
+\end{itemize}
+
+\General 계단 조명의 3로 스위치, 자동차의 경적 릴레이, 엘리베이터의 층 선택 회로는 모두 이 세 규칙으로
+만든 것이다. 그림~\ref{fig:r-logic}는 램프 하나를 세 가지 방식으로 켜는 회로다.
+
+\begin{figure}[ht]
+\centering
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=9mm}
+  \foreach \dx/\ttl in {0/AND (직렬),5/OR (병렬),10/NOT (NC 접점)} \node[font=\small\bfseries] at (\dx+1.7,2.4) {\ttl};
+  % AND
+  \draw (0,1.6) node[left,font=\footnotesize] {$+24$ V} to[nos,l={\scriptsize $a$}] (1.4,1.6) to[nos,l={\scriptsize $b$}] (2.8,1.6) -- (3.3,1.6) to[lamp] (3.3,0) -- (0,0) node[left,font=\footnotesize] {0 V};
+  % OR
+  \begin{scope}[xshift=5cm]
+  \draw (0,1.6) node[left,font=\footnotesize] {$+24$ V} -- (0.4,1.6) coordinate (s);
+  \draw (s) to[nos,l={\scriptsize $a$}] (2.2,1.6) coordinate (e);
+  \draw (s) -- (0.4,0.9) to[nos,l_={\scriptsize $b$}] (2.2,0.9) -- (e);
+  \draw (e) -- (3.3,1.6) to[lamp] (3.3,0) -- (0,0) node[left,font=\footnotesize] {0 V};
+  \end{scope}
+  % NOT
+  \begin{scope}[xshift=10cm]
+  \draw (0,1.6) node[left,font=\footnotesize] {$+24$ V} to[ncs,l={\scriptsize $a$}] (2.2,1.6) -- (3.3,1.6) to[lamp] (3.3,0) -- (0,0) node[left,font=\footnotesize] {0 V};
+  \end{scope}
+\end{circuitikz}
+\caption{접점 논리. 접점 $a$, $b$는 각각 다른 릴레이의 접점이다(소문자는 접점, 그 릴레이의 코일은 대문자로
+적는다). 열린 스위치 기호가 NO, 닫힌 기호가 NC다.}
+\label{fig:r-logic}
+\end{figure}
+
+하나 더 있다. \term{다이오드}{diode}는 전류를 한 방향으로만 흘리는 부품이다. 여러 신호를 다이오드 하나씩을
+거쳐 한 점에 모으면, 어느 하나라도 +24~V이면 그 점이 +24~V가 되고 거꾸로 그 점의 전압이 다른 입력으로
+새어 나가지 않는다. 이것을 \term{다이오드 OR}{diode OR}라고 한다. 접점 하나를 쓰지 않고 OR를 만들 수 있어
+이 프로젝트의 계수기는 다이오드를 자리마다 64개나 쓴다.
+
+\Ours 접점 논리가 게이트 논리와 가장 다른 점은 \emph{양방향}이라는 것이다. 게이트는 입력에서 출력으로만
+신호를 보내지만, 닫힌 접점은 그냥 전선이라 양쪽으로 전류가 흐른다. 그래서 의도하지 않은 우회로(\term{샛길}{sneak
+path})가 생기기 쉽다. 이 프로젝트의 시프터 보드는 ``한 단의 릴레이가 모두 함께 움직인다''는 성질로
+샛길을 막고(\ref{sec:relay-shifter}절), 테스트 레지스터는 선마다 다이오드를 넣어 막는다(\ref{sec:t-register}절).
+검증기가 ``기대한 연결 \emph{말고는} 아무것도 이어지지 않았는가''를 꼭 확인하는 이유도 이것이다.
+
+\section{자기 유지: 릴레이로 만든 기억}\label{sec:relay-latch}
+
+\Why 릴레이의 접점이 자기 코일의 전원 길에 들어가면 기억이 생긴다. 한 번 켜진 릴레이가 자기 NO 접점으로
+자기 코일에 전류를 계속 대 주기 때문이다. 처음 켠 신호가 사라져도 릴레이는 켜진 채 남는다. 끄려면 그
+자기 유지 길 어딘가를 따로 끊어야 한다. 이것이 \term{자기 유지}{self-hold} 회로이고, \ref{ch:sync}장의
+플립플롭이 하던 ``1비트 기억''을 릴레이 하나와 접점 하나로 만든 것이다.
+
+\General 공장 기계의 시작/정지 버튼이 전형적인 예다(그림~\ref{fig:r-latch}). 시작 버튼(NO)을 누르면
+릴레이 $K$가 켜지고, $K$의 접점 $k$가 시작 버튼과 병렬로 닫혀 버튼을 놓아도 $K$가 남는다. 정지 버튼(NC)은
+이 길 전체와 직렬이어서, 누르면 길이 끊겨 $K$가 놓이고 $k$도 열린다. 정전 뒤에 기계가 저절로 다시 돌지
+않는다는 안전상의 이점도 있다.
+
+\begin{figure}[ht]
+\centering
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=9mm}
+  \draw (0,1.6) node[left,font=\footnotesize] {$+24$ V} to[ncs,l={\scriptsize 정지}] (1.6,1.6) coordinate (a)
+        to[nos,l={\scriptsize 시작}] (3.4,1.6) coordinate (b) -- (4.2,1.6);
+  \draw (a) -- (1.6,0.7) to[nos,l_={\scriptsize $k$ (자기 유지)}] (3.4,0.7) -- (b);
+  \node[rcoil,anchor=west] (K) at (4.2,1.6) {$K$};
+  \draw (K.east) -- ++(0.4,0) node[right,font=\footnotesize] {0 V};
+  \node[circ] at (a) {}; \node[circ] at (b) {};
+\end{circuitikz}
+\hspace{6mm}
+\begin{tikztimingtable}[timing/slope=0.1,timing/coldist=4pt,xscale=1.5,yscale=1.2,semithick]
+  시작 & 1L .6H 4.4L \\
+  정지 & 4L .6H 1.4L \\
+  $K$   & 1.2L 2.9H 1.9L \\
+\end{tikztimingtable}
+\caption{시작/정지 회로. 시작 버튼을 잠깐 눌러도 $K$는 자기 접점 $k$로 켜진 채 남고, 정지 버튼이 길을 끊어야
+놓인다. 오른쪽의 $K$가 버튼보다 조금 늦게 바뀌는 것은 릴레이의 동작 시간이다.}
+\label{fig:r-latch}
+\end{figure}
+
+\Ours 자기 유지는 이 프로젝트의 릴레이 회로 곳곳에 있다.
+\begin{itemize}
+\item 테스트 레지스터의 감지 릴레이 26개는 시험 전압이 닿은 짧은 순간에 붙고, 자기 유지로 그 결과를 붙든
+뒤 판정을 받는다(\ref{sec:t-register}절). 유지 길을 공통의 \term{유지 버스}{hold bus}에서 먹이므로 그 버스
+하나를 끊으면 26개가 한꺼번에 지워진다.
+\item 계수기의 슬레이브 릴레이는 자기 유지로 값을 기억한다(\ref{sec:relay-counter}절).
+\item 정지 릴레이는 정지를 붙들어 기계를 세워 두고, 해제 버튼이 그 유지를 끊는다.
+\end{itemize}
+
+\section{먼저 끊고 나중에 잇기}\label{sec:relay-bbm}
+
+\Why 전환 접점의 공통은 NC에서 떨어져 NO로 \emph{날아간다}. 그 사이 잠깐(이 프로젝트의 시뮬레이터는
+0.2--0.6~ms로 잡는다) 공통은 어디에도 닿아 있지 않다. 이 성질을 \term{먼저 끊고 나중에 잇기}{break-before-make}라
+한다. 덕분에 NC 쪽 회로와 NO 쪽 회로는 \emph{결코 동시에} 이어지지 않는다. 한 접점이 두 길 가운데 정확히
+하나를 고르는 것이 기계적으로 보장되는 것이다.
+
+릴레이 두 개로 같은 일을 하면 이 보장이 사라진다. 하나는 켜지고 하나는 꺼지는 순간에 두 릴레이의 시간이
+다르면, 잠깐 둘 다 닫혀 있거나 둘 다 열려 있게 된다(그림~\ref{fig:r-bbm}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikztimingtable}[timing/slope=0.1,timing/coldist=4pt,xscale=1.6,yscale=1.2,semithick]
+  코일 & 1L 4H 1L \\
+  NC 쪽 & 1.6H 4L .4H \\
+  NO 쪽 & 1.8L 3.4H .8L \\
+  \textcolor{cred}{릴레이 둘: A} & 1.4H 4L .6H \\
+  \textcolor{cred}{릴레이 둘: B} & 1.2L 4.6H .2L \\
+\extracode
+  \begin{pgfonlayer}{background}
+    \fill[cgreenbg] (1.6,-5.0) rectangle (1.8,1.0);
+    \fill[credbg] (1.2,-9.6) rectangle (1.4,-5.4);
+    \fill[credbg] (5.4,-9.6) rectangle (5.8,-5.4);
+  \end{pgfonlayer}
+  \node[note,text=cgreen,anchor=west] at (6.2,-2.2) {전환 접점 하나: 끊긴 틈(초록)은\\있어도 겹침은 없다};
+  \node[note,text=cred,anchor=west] at (6.2,-7.6) {따로 움직이는 두 릴레이:\\시간이 어긋나면 둘 다 닫힌다(빨강)};
+\end{tikztimingtable}
+\caption{먼저 끊고 나중에 잇기. 위는 전환 접점 하나의 NC와 NO, 아래는 같은 일을 릴레이 두 개(A는 NC처럼,
+B는 NO처럼 쓴 것)에 맡긴 경우다.}
+\label{fig:r-bbm}
+\end{figure}
+
+\General 철도의 선로 전환기가 같은 원리다. 레일이 한쪽에서 떨어진 뒤에야 다른 쪽에 붙으므로 열차가 두 선로에
+동시에 이어지는 일이 없다. 전원 회로에서는 정반대 성질(먼저 잇고 나중에 끊기)이 필요할 때도 있다. 그래서
+부품 자료에는 어느 쪽인지가 꼭 적혀 있다.
+
+\Ours 릴레이식 계수기는 클럭을 \code{CK}와 \code{NCK} 두 선으로 받는다. 둘은 반드시 정반대여야 하고, 둘이
+동시에 켜지면 계수기 값이 틀어진다. 그래서 순서기는 이 두 선을 \emph{릴레이 하나의 한 극}에서 낸다. 공통에
++24~V, NO가 \code{CK}, NC가 \code{NCK}다. 계수기 보드의 설명서는 ``개별 릴레이 둘로 만들어 둘 다 켜지면 값이
+틀어진다(시뮬레이션에서 확인)''고 적고 있고, 순서기의 구조 검사는 \code{CK}와 \code{NCK}가 버스마다 한
+릴레이의 한 극에서만 나오는지를 확인한다. 끊긴 틈 동안에는 둘 다 꺼지는데, 이 틈이 릴레이가 놓이는 시간보다
+훨씬 짧아 계수기의 릴레이들은 그동안 상태를 유지한다.
+
+\section{역기전력 다이오드: 코일을 끌 때}\label{sec:relay-flyback}
+
+\Why 코일은 전류의 변화를 싫어한다. 코일에 흐르던 전류를 갑자기 끊으면 코일은 그 전류를 계속 흘리려고
+매우 큰 전압을 만든다(\term{역기전력}{back EMF}). 전압의 크기는 전류가 줄어드는 빠르기에 비례하므로,
+스위치가 순식간에 열리면 수백 V가 나올 수도 있다. 이 전압은 코일을 끈 스위치(접점이나 트랜지스터)를
+상하게 하고 주변 회로에 잡음을 뿌린다.
+
+해법은 코일 양 끝에 다이오드를 거꾸로 거는 것이다(그림~\ref{fig:r-flyback}). 평소에는 다이오드가 막혀 있어
+아무 일도 하지 않는다. 스위치가 열리는 순간 코일의 전류는 다이오드를 지나 코일로 되돌아가는 작은 고리를
+돌며 천천히 사라진다. 코일 양 끝의 전압은 다이오드 하나의 전압(약 0.7~V)으로 묶인다. 이 다이오드를
+\term{역기전력 다이오드}{flyback diode}라 한다.
+
+\begin{figure}[ht]
+\centering
+\begin{circuitikz}[x=1cm,y=1cm]
+  \ctikzset{bipoles/length=9mm}
+  \foreach \dx/\ttl in {0/켜져 있을 때,6.5/스위치를 연 직후} {
+  \begin{scope}[xshift=\dx cm]
+    \node[font=\small\bfseries] at (1.9,3.3) {\ttl};
+    \draw (0,2.5) node[left,font=\footnotesize] {$+24$ V} -- (0.3,2.5);
+    \ifdim\dx pt=0pt
+      \draw (0.3,2.5) to[cspst] (1.6,2.5);
+    \else
+      \draw (0.3,2.5) to[ospst] (1.6,2.5);
+    \fi
+    \draw (1.6,2.5) -- (2.6,2.5) to[L,l_={코일}] (2.6,0) -- (0,0) node[left,font=\footnotesize] {0 V};
+    \draw (2.6,2.5) -- (3.8,2.5);
+    \draw (3.8,0) to[D*,l_={\scriptsize 다이오드}] (3.8,2.5);
+    \draw (3.8,0) -- (2.6,0);
+    \node[circ] at (2.6,2.5) {}; \node[circ] at (2.6,0) {};
+  \end{scope}}
+  \draw[->,cblue,line width=1pt] (1.2,2.8) -- (2.2,2.8);
+  \draw[->,cblue,line width=1pt] (2.35,2.1) -- (2.35,0.6);
+  \draw[->,corange,line width=1pt] (8.85,2.1) -- (8.85,0.5);
+  \draw[->,corange,line width=1pt] (9.4,-0.25) -- (10.0,-0.25);
+  \draw[->,corange,line width=1pt] (10.55,0.5) -- (10.55,2.0);
+  \draw[->,corange,line width=1pt] (10.0,2.75) -- (9.4,2.75);
+  \node[note,text=corange,anchor=west] at (11.8,1.3) {코일의 전류가\\다이오드로 돌며\\사라진다};
+\end{circuitikz}
+\caption{역기전력 다이오드. 다이오드는 평소에 막혀 있다(삼각형이 가리키는 쪽이 $+$). 스위치가 열리면 코일의
+전류가 다이오드를 지나는 고리로 돌아 천천히 줄어든다.}
+\label{fig:r-flyback}
+\end{figure}
+
+대가가 있다. 전류가 천천히 사라지므로 릴레이가 \emph{늦게 놓인다}. 이 프로젝트는 다이오드만 단 코일의
+복귀 시간을 데이터시트 값의 2--3배인 3--10~ms로 추정한다. 빨리 놓여야 하는 릴레이에는 다이오드에 제너
+다이오드(정해진 전압을 넘으면 거꾸로도 흐르는 다이오드)를 직렬로 더한다. 코일 전압이 0.7~V가 아니라
+약 31~V에서 묶이므로 전류가 훨씬 빨리 줄어 복귀가 1.5--4~ms로 짧아진다. 에너지를 빨리 버리는 대신 순간
+전압이 커지는 맞바꿈이다.
+
+\General 트랜지스터로 릴레이나 모터를 켜고 끄는 회로라면 어디에나 이 다이오드가 있다. 아두이노로 릴레이를
+움직이는 입문 예제에서 다이오드를 빠뜨리면 트랜지스터가 몇 번 만에 망가진다.
+
+\Ours 이 프로젝트의 모든 릴레이 코일에는 역기전력 다이오드(1N4148W)가 하나씩 있다. 시프터 보드 한 장에
+릴레이 130개와 다이오드 130개가 있는 이유다. 생성기는 릴레이를 놓을 때마다 다이오드를 같이 놓는다.
+
+\begin{lstlisting}[language=Python,caption={\code{gen\_shifter.py}: 릴레이마다 코일 양 끝에 다이오드(음극이 $+$ 쪽).},label={lst:r-flyback}]
+        sh.pin_net(S_RELAY, x, y, P["coil_p"], "CTRL")
+        sh.pin_net(S_RELAY, x, y, P["coil_n"], "GND")
+        # flyback diode across the coil (cathode to the + side)
+        dref = f"D{st}{i + 1:02d}"
+        dx = g(x - 24.0)
+        sh.symbol(S_DIODE, dx, y, dref, "1N4148W", FP_DIODE, "", "Coil flyback diode", path, show_value=False)
+        sh.pin_net(S_DIODE, dx, y, "1", "CTRL")   # K
+        sh.pin_net(S_DIODE, dx, y, "2", "GND")    # A
+\end{lstlisting}
+
+테스트 레지스터의 타이밍 릴레이 셋(\code{STROBE}, \code{JUDGE}, \code{CLEAR})은 빨리 놓여야 하므로 다이오드 +
+제너 30~V를 쓴다. 그러면 새 문제가 생긴다. 신호를 끄는 순간 코일의 $+$ 쪽이 약 $-31$~V까지 내려가는데, 그
+$+$ 쪽이 곧 커넥터의 핀이면 그 음전압이 케이블을 타고 신호를 내 준 쪽(기어식의 광센서 출력 등)으로
+나간다. 그래서 결정 0003은 ``받는 쪽이 역기전력을 자기 안에서 처리한다''는 규칙을 두고, 핀과 코일 사이에
+다이오드를 하나 더 넣었다. 끄는 순간 이 다이오드가 막혀 코일의 전류는 보드 안의 클램프로만 돈다. 코일
+전압은 다이오드 강하 0.7~V만큼 줄어든다.
+
+
+\section{정리}
+
+\begin{itemize}
+\item 릴레이는 코일 전류로 접점을 옮기는 스위치다. 접점은 COM, NC(b접점), NO(a접점)이고, 이 프로젝트는 극이
+둘인 전환 접점 릴레이(DPDT) 한 종류를 쓴다.
+\item 접점 논리는 길 찾기다. 직렬은 AND, 병렬은 OR, NC는 NOT, 다이오드 여럿은 OR. 접점은 양방향이라 샛길에
+주의한다.
+\item 자기 유지 접점이 1비트 기억을 만든다. 끄려면 유지 길을 따로 끊는다.
+\item 전환 접점은 먼저 끊고 나중에 잇는다. 정확히 하나를 골라야 하는 두 신호(\code{CK}/\code{NCK})는 한 접점에서
+낸다.
+\item 코일마다 역기전력 다이오드를 단다. 늦게 놓이는 대가가 있어, 빨리 놓여야 하면 제너를 더한다.
+\end{itemize}

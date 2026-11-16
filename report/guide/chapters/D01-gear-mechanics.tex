@@ -628,6 +628,70 @@ $k$번째 칸에서 빠른 드럼이 보이는 글자는 $k$가 아니라
 드럼을 끼우지 않았거나 노브를 돌리지 않으면 그 유닛의 길이 끊긴다. 하드웨어로 따로 검출하지 않는다. 첫 위치에서
 레지스터가 정지를 내고, 감시 장치가 기준 모델의 예상과 견주어 ``드럼 장착을 확인하세요''를 띄운다.
 
+\section{시간: 슬롯 원판이 시계다}\label{sec:t-gear}
+
+기어식에는 클럭이 따로 없다. 드럼이 도는 것 자체가 시간이다.
+
+\Why 빠른 드럼과 기어로 묶여 도는 \term{주기 축}{cycle shaft}에 지름 160~mm의 얇은 원판이 있고, 원판에는 동심원 트랙 셋에
+슬롯(구멍)이 뚫려 있다. 트랙마다 광센서 하나가 슬롯이 지나가는 동안 신호를 낸다. \code{STROBE}, \code{JUDGE},
+\code{CLEAR}가 각각 한 트랙이다. 시각이 각도로 바뀐 것이어서, 속도가 느려지면 모든 구간이 시간으로 길어진다.
+\ref{sec:t-bounds}절의 ``느려지면 늘 안전하다''가 기구로 성립하는 것이다.
+
+주기 축 한 바퀴가 빠른 드럼 30칸이므로 한 위치가 주기 축의 12°이고, 60~rpm에서 1~ms가 0.312°다. 모터는 한 위치에
+400스텝을 가므로 한 스텝이 0.096~ms다. 슬롯의 가장자리는 이 스텝의 정수배에 둔다. 26칸에만 슬롯이 있고 나머지
+네 칸은 가운데 드럼이 한 칸 넘어가는 \term{자리올림}{carry} 구간이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=0.29cm,y=1cm]
+  \draw[->] (-4,0) -- (40,0) node[right,font=\scriptsize] {ms};
+  \foreach \t in {0,10,20,30,38.46} \draw (\t,0.08) -- (\t,-0.08) node[below,font=\tiny] {\t};
+  \fill[clight] (-3,0.25) rectangle (9,4.15);
+  \node[note,anchor=south] at (3,4.15) {드럼 접점의 완전 접촉 ($-3$ … $+9$)};
+  \newcommand{\slotbar}[5]{\fill[#4] (#1,#3-0.18) rectangle (#2,#3+0.18); \node[font=\scriptsize,anchor=east] at (-4.2,#3) {#5};}
+  \slotbar{-2.50}{4.52}{3.6}{cbluebg}{\code{STROBE} 슬롯}
+  \slotbar{0}{6}{3.15}{cblue!50}{접점 면}
+  \slotbar{8.56}{16.63}{2.3}{cgreenbg}{\code{JUDGE} 슬롯}
+  \slotbar{12}{19}{1.85}{cgreen!50}{접점 면}
+  \slotbar{18.65}{31.73}{1.0}{corangebg}{\code{CLEAR} 슬롯}
+  \slotbar{21}{33}{0.55}{corange!50}{접점 면}
+  \fill[cbluebg] (35.96,3.42) rectangle (38.46,3.78);
+  \draw[<->,cred] (31.73,1.45) -- node[above,font=\tiny,text=cred] {정지 자리} (35.96,1.45);
+\end{tikzpicture}
+\caption{기어식 한 위치의 시각표(60~rpm, \code{STROBE} 접점 시작이 0). 신호마다 위의 연한 띠가 슬롯(= 커넥터 면),
+아래의 진한 띠가 결정 0001의 접점 면이다. 슬롯은 접점 면보다 앞서고 넓다. 타이밍 릴레이가 붙고 놓이는 시간을 미리 넣었기
+때문이다. \code{CLEAR} 슬롯 끝과 다음 \code{STROBE} 슬롯 사이(44스텝, 4.23~ms)가 정지했을 때 축이 서는 자리다.}
+\label{fig:t-slots}
+\end{figure}
+
+\Ours 슬롯의 각도는 L1--L9에서 계산했다. \code{JUDGE}와 \code{CLEAR}는 타이밍 릴레이의 지연이 범위 어디에 있어도
+접점 면의 조건이 성립하도록 넓혔고, 각 규칙에 0.5~ms의 공차 여유(원판 가공, 센서 문턱, 전자 회로의 흩어짐을
+더한 값)를 남겼다. 처음 판의 슬롯은 L4의 여유가 정확히 0이었다. 제어 보드의 시뮬레이션이 1.521~ms(하한
+1.5)를 내놓자 기계 공차를 받을 수 없다는 것이 드러나 슬롯을 다시 잡았다. 슬롯 각도의 원본은 CAD의
+\code{params.py} 한 곳이고, 제어 보드의 펌웨어 모델과 시뮬레이션이 같은 파일을 읽는다.
+
+센서에서 커넥터 핀까지의 길에는 \emph{펌웨어가 없다}. 광센서 출력이 RC 필터와 슈미트 트리거(74HC14, \ref{sec:el-cap}절)를 지나
+게이트 몇 개와 고측 구동기를 거쳐 핀으로 나간다. 마이크로컨트롤러는 모터의 가감속과 정지 위치로의 되돌림을
+맡을 뿐, 이 길에는 ``지금 내보내도 된다''는 허가 신호 하나만 준다. 게이트는 두 규칙을 하드웨어로 지킨다.
+
+\begin{lstlisting}[numbers=none,caption={기어식 제어 보드의 타이밍 경로(\code{control-board/README.md} 1.1절).},label={lst:t-gate}]
+  STROBE_G = SLOT_S & TXE
+  CLEAR_G  = SLOT_C & TXE
+  JUDGE_G  = SLOT_J & SEEN & TXE
+  TXE  = TXEN | CYC          TXEN = from the MCU (0 during HOME / moving back)
+  CYC  : set while STROBE_G is high, cleared by the fall of CLEAR_G        (L7)
+  SEEN : set by the rise of STROBE_G,
+         cleared on power-up | HOMING | fall of STOP_LATCH                   (L8)
+\end{lstlisting}
+
+\code{CYC}는 ``\code{STROBE}를 냈으면 그 주기의 \code{CLEAR}까지는 낸다''(L7)를 지킨다. 펌웨어가 주기 한가운데서
+허가를 거두어도 시작한 주기는 끝난다. \code{SEEN}은 ``\code{STROBE} 없이 \code{JUDGE}를 내지 않는다''(L8)를
+지킨다. 비어 있는 레지스터에 \code{JUDGE}가 가면 곧 정지가 되기 때문이다.
+
+두 기계를 나란히 놓으면 같은 생각이 두 번 나타난다. 시간 기준(슬롯 원판, 555와 4017)은 ``언제''만 정하고, 그
+시간 기준이 아무리 흔들려도 틱이 짧아지지 않게 만들며, 순서와 조건은 각 기계의 방식대로(기어식은 게이트,
+릴레이식은 릴레이 접점) 하드웨어가 지킨다.
+
 \section{정리}
 
 \begin{itemize}
@@ -643,4 +707,5 @@ $k$번째 칸에서 빠른 드럼이 보이는 글자는 $k$가 아니라
 \item 원점은 세 원점 센서만으로 정해지지 않는다(빈 칸 $k = 26$). \code{STROBE} 슬롯의 오름을 함께 본다.
 \item 인덱스는 V홈 26개와 둥근 핀 셋, 노브는 4분의 1바퀴 베이오넷, 덮개가 열리면 무여자 작동 브레이크가 F를 잡아 드럼을
 바꾸는 동안 기계의 상태를 지킨다.
+\item 기어식에는 클럭이 따로 없다. 슬롯 원판이 시각을 각도로 갖고, 펌웨어 없는 게이트가 L7과 L8을 지킨다.
 \end{itemize}

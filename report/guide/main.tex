@@ -33,49 +33,60 @@
 \maketitle
 \tableofcontents
 
-\input{chapters/00-intro}
+\input{chapters/A00-intro}
 
-\part{FPGA 설계의 사고방식}
-\input{chapters/01-hdl}
-\input{chapters/02-sync}
-\input{chapters/03-resources}
-\input{chapters/04-pipeline}
-\input{chapters/05-verify}
-\input{chapters/06-lesson}
+\part{연결과 탐색}
+\input{chapters/A01-connection}
+\input{chapters/A02-finding}
 
-\part{코드 해설: Rust 코어}
-\input{chapters/10-rust-enigma}
-\input{chapters/11-rust-menu}
-\input{chapters/12-rust-bombe}
-\input{chapters/13-rust-check}
-\input{chapters/14-rust-search}
-\input{chapters/15-python-api}
+\part{기준 답: Rust 코어}
+\input{chapters/B01-rust-enigma}
+\input{chapters/B02-rust-menu}
+\input{chapters/B03-rust-bombe}
+\input{chapters/B04-rust-check}
 
-\part{코드 해설: 기준 RTL}
-\input{chapters/20-rtl-scrambler}
-\input{chapters/21-rtl-core}
-\input{chapters/22-rtl-sweep}
+\part{전기와 릴레이: 부품}
+\input{chapters/C01-electric-basics}
+\input{chapters/C02-relay-parts}
+\input{chapters/C03-timing}
 
-\part{코드 해설: FPGA 엔진}
-\input{chapters/30-fpga-engine}
-\input{chapters/31-fpga-host}
-\input{chapters/32-menu-cards}
+\part{기어식: 드럼이 연결을 바꾼다}
+\input{chapters/D01-gear-mechanics}
 
-\part{하드웨어: 릴레이와 전기 회로}
-\input{chapters/39-electric-basics}
-\input{chapters/40-relay-logic}
-\input{chapters/41-relay-timing}
-\input{chapters/42-board-generators}
-\input{chapters/43-board-verify}
-\input{chapters/44-power-safety}
+\part{릴레이식: 회전을 접점으로}
+\input{chapters/E01-relay-machine}
+\input{chapters/E02-relay-sequencer}
 
-\part{하드웨어: 기어식 기계}
-\input{chapters/50-gear-mechanics}
-\input{chapters/51-gear-cad}
-\input{chapters/52-gear-control}
+\part{릴레이에서 FPGA로: 접점을 논리로, 전류를 반복으로}
+\input{chapters/F01-relay-to-fpga}
+\input{chapters/F02-hdl}
+\input{chapters/F03-sync}
+\input{chapters/F04-resources}
+\input{chapters/F05-pipeline}
+\input{chapters/F06-verify}
+\input{chapters/F07-lesson}
+
+\part{FPGA 코드: 기준 RTL과 엔진}
+\input{chapters/G01-rtl-scrambler}
+\input{chapters/G02-rtl-core}
+\input{chapters/G03-rtl-sweep}
+\input{chapters/G04-fpga-engine}
+
+\part{실물로 만들고 검증하기}
+\input{chapters/H01-board-generators}
+\input{chapters/H02-board-verify}
+\input{chapters/H03-power-safety}
+\input{chapters/H04-gear-cad}
+\input{chapters/H05-gear-control}
+
+\part{운영 소프트웨어}
+\input{chapters/I01-rust-search}
+\input{chapters/I02-python-api}
+\input{chapters/I03-fpga-host}
+\input{chapters/I04-menu-cards}
 
 \appendix
-\input{chapters/a1-run}
+\input{chapters/Z1-run}
 
 \printbibliography[heading=bibintoc,title={참고 문헌}]
 \end{document}
