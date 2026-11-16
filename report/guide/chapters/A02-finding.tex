@@ -1,3 +1,276 @@
 \chapter{이어진 선을 찾는 법}\label{ch:find}
 
-(작성 예정)
+앞 장에서 봄베의 일을 둘로 나누었다. 위치마다 연결을 만드는 일과, 전압을 건 선에서 이어진 선을 모두 찾는
+일이다. 이 장은 둘째 일을 본다. 먼저 찾은 결과가 무엇을 뜻하는지 보고, 찾는 방법 세 가지를 비교한다. 세 방법은
+이 문서의 세 기계와 기준 모델에 하나씩 대응하고, 끝에서 그 대응으로 문서 전체의 지도를 그린다.
+
+\section{전압을 걸면 무엇이 켜지는가}\label{sec:f-light}
+
+그림~\ref{fig:c-graph}의 작은 봄베에서 케이블 \texttt{A}의 \texttt{a}번 선에 전압을 건다. ``\texttt{A}의 짝은
+\texttt{A}다(짝 없음)''라는 가설을 시험하는 것이다. 전압은 연결을 따라 퍼진다. $S_1$을 지나 \texttt{B}의
+\texttt{b}번 선이, $S_3$을 거꾸로 지나 \texttt{C}의 \texttt{c}번 선이 켜지고, 그 선들에서 다시 퍼진다. 더 퍼질
+곳이 없을 때 켜진 선은 그림~\ref{fig:f-groups}의 파란 점 12개다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=-5.5mm,
+    dot/.style={circle,draw,fill=white,inner sep=1.5pt},
+    b/.style={fill=cblue,draw=cblue}, g/.style={fill=cgreen,draw=cgreen}, o/.style={fill=corange,draw=corange},
+    lb/.style={line width=1.1pt,cblue}, lg/.style={line width=1.1pt,cgreen}, lo/.style={line width=1.1pt,corange}]
+  \foreach \col/\name/\key in {0/A/A,3/B/B,6/C/C,9/A/Z} {
+    \node[font=\small\bfseries] at (\col,-1.1) {\texttt{\name}};
+    \foreach \l [count=\i from 0] in {a,b,c,d,e,f} { \coordinate (\key\l) at (\col,\i); }
+  }
+  \foreach \l [count=\i from 0] in {a,b,c,d,e,f} {
+    \node[font=\ttfamily\scriptsize,anchor=east] at (-0.15,\i) {\l};
+  }
+  % S1: a-b b-a c-f d-e e-d f-c
+  \draw[lb] (Aa) -- (Bb); \draw[lb] (Ab) -- (Ba); \draw[lb] (Ac) -- (Bf); \draw[lg] (Ad) -- (Be);
+  \draw[lb] (Ae) -- (Bd); \draw[lo] (Af) -- (Bc);
+  % S2: a-b b-a c-d d-c e-f f-e
+  \draw[lb] (Ba) -- (Cb); \draw[lb] (Bb) -- (Ca); \draw[lo] (Bc) -- (Cd); \draw[lb] (Bd) -- (Cc);
+  \draw[lg] (Be) -- (Cf); \draw[lb] (Bf) -- (Ce);
+  % S3: a-c b-e c-a d-f e-b f-d
+  \draw[lb] (Ca) -- (Zc); \draw[lb] (Cb) -- (Ze); \draw[lb] (Cc) -- (Za); \draw[lo] (Cd) -- (Zf);
+  \draw[lb] (Ce) -- (Zb); \draw[lg] (Cf) -- (Zd);
+  \foreach \k in {A,Z} { \foreach \l in {a,b,c,e} { \node[dot,b] at (\k\l) {}; }
+    \node[dot,g] at (\k d) {}; \node[dot,o] at (\k f) {}; }
+  \foreach \l in {a,b,d,f} { \node[dot,b] at (B\l) {}; } \node[dot,g] at (Be) {}; \node[dot,o] at (Bc) {};
+  \foreach \l in {a,b,c,e} { \node[dot,b] at (C\l) {}; } \node[dot,g] at (Cf) {}; \node[dot,o] at (Cd) {};
+  \draw[<-,line width=1pt] ([xshift=-1mm]Aa) ++(-0.35,0) -- ++(-0.9,0) node[left,font=\footnotesize] {전압};
+  \node[note,anchor=west,align=left,text=cblue] at (9.5,0.5) {덩어리 1 (12개)\\전압을 건 선의 덩어리};
+  \node[note,anchor=west,align=left,text=cgreen] at (9.5,3.0) {덩어리 2 (3개)\\\texttt{A}$\to$d, \texttt{B}$\to$e, \texttt{C}$\to$f};
+  \node[note,anchor=west,align=left,text=corange] at (9.5,5.0) {덩어리 3 (3개)\\\texttt{A}$\to$f, \texttt{B}$\to$c, \texttt{C}$\to$d};
+\end{tikzpicture}
+\caption{그림~\ref{fig:c-graph}의 연결은 덩어리 셋으로 나뉜다. \texttt{A}의 \texttt{a}번 선에 건 전압은 파란 덩어리에만
+퍼진다. 케이블 \texttt{A}에서는 \texttt{a}, \texttt{b}, \texttt{c}, \texttt{e}가 켜지고 \texttt{d}, \texttt{f}가 꺼진 채로 남는다.}
+\label{fig:f-groups}
+\end{figure}
+
+이 연결 18개는 서로 만나지 않는 덩어리 셋으로 나뉜다. 전압은 건 선의 덩어리 안에서만 퍼지므로 다른 덩어리의
+선은 꺼진 채로 남는다. 어느 선에 전압을 걸든 결과는 ``그 선이 속한 덩어리 전체가 켜진다''이다.
+
+\section{켜진 선을 읽는 법: 테스트 레지스터}\label{sec:f-register}
+
+켜진 선이 무엇을 말해 주는가? 핵심은 앞 장의 두 사실이다. 연결 하나는 추론 하나이고, 케이블 하나의 26가닥
+가운데 참인 가설은 꼭 하나다.
+
+\Why 전압을 건 가설이 참이라고 해 보자. 그러면 연결을 따라 켜진 선은 모두 그 가설에서 추론한 것이므로 모두
+참이어야 한다. 그런데 그림~\ref{fig:f-groups}에서 케이블 \texttt{A}에 켜진 선이 넷이다. 한 글자의 짝이 넷일 수는
+없다. 그러므로 처음 가설은 거짓이다. 연결에는 방향이 없으므로 같은 논리가 켜진 넷 모두에 적용된다. 넷 가운데
+어느 것에서 출발해도 같은 덩어리가 켜지기 때문이다. 넷은 함께 서고 함께 넘어지며, 여기서는 함께 넘어졌다.
+남은 것은 꺼진 \texttt{d}와 \texttt{f}다.
+
+이제 두 경우를 나눈다.
+
+\begin{itemize}
+\item 케이블 \texttt{A}의 선이 \emph{전부} 켜지면, 짝에 대한 가설이 하나도 남지 않는다. 이 위치에서는 메뉴를 만족하는
+플러그보드가 있을 수 없다. 다음 위치로 간다.
+\item 하나라도 꺼진 선이 남으면, 그 가설은 아직 모순이 드러나지 않았다. 기계가 \emph{정지}한다.
+\end{itemize}
+
+그래서 봄베는 케이블 하나만 지켜본다. 이 케이블을 \term{테스트 레지스터}{test register}라 하고, 그 글자를
+\term{테스트 글자}{test letter}라 한다. 판정은 한 문장이다. \emph{테스트 레지스터의 선이 전부 켜졌는가.}
+
+표~\ref{tab:f-two}는 같은 메뉴를 두 위치에서 시험한 것이다. 두 위치는 $S_3$만 다르다. 위치 1은 앞의 그림이고,
+위치 2에서는 전압이 18개 선 전부에 퍼져 테스트 레지스터가 찬다.
+
+\begin{table}[ht]
+\centering
+\caption{작은 봄베의 두 위치. 두 경우 모두 \texttt{A}의 \texttt{a}번 선에 전압을 걸었다.}
+\label{tab:f-two}
+\small
+\begin{tabular}{l l l l}
+\toprule
+& $S_3$ & 테스트 레지스터(케이블 \texttt{A}) & 판정 \\
+\midrule
+위치 1 & a$\leftrightarrow$c, b$\leftrightarrow$e, d$\leftrightarrow$f & a b c e 켜짐, d f 꺼짐 & 정지 \\
+위치 2 & a$\leftrightarrow$c, b$\leftrightarrow$d, e$\leftrightarrow$f & 여섯 모두 켜짐 & 다음 위치로 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\General 스도쿠를 풀다 막히면 ``이 칸이 3이라고 해 보자''로 시작해 귀결을 따라간다. 같은 줄에 3이 둘 나오면
+가정이 틀린 것이다. 봄베는 이것을 가설 26개에 대해, 위치마다 한다. 다만 가정을 하나씩 해 보지 않는다. 가설 하나에
+전압을 걸면 같은 덩어리의 가설이 한꺼번에 시험되고, 위의 판정은 그 덩어리 전체에 대한 것이다.
+
+\Ours 실물 두 기계는 테스트 레지스터의 26선마다 \emph{감지 릴레이}를 하나씩 달아, 선에 전류가 오면 릴레이가 붙고
+스스로를 붙들게 한다(\ref{sec:t-register}절). FPGA는 26비트를 ``모두 1''과 비교하고(\code{test\_q != FULL}), Rust는
+정수 하나를 비교한다(\code{reg != FULL}, \ref{ch:rust-bombe}장).
+
+\paragraph{정지는 답이 아니라 후보다.} 위치 1에서 꺼진 채 남은 것은 \texttt{d}와 \texttt{f} 둘이다. 이 작은 봄베의
+메뉴는 실제로 ``\texttt{A}의 짝은 \texttt{D}, \texttt{B}는 \texttt{E}, \texttt{C}는 \texttt{F}''인 플러그보드로 만든
+것이고, 그것이 초록 덩어리다. 참인 가설의 덩어리는 거짓으로 넘어갈 수 없으므로 언제나 꺼진 채 남는다. 그런데 주황
+덩어리(\texttt{A}의 짝은 \texttt{F})도 거짓인데 꺼진 채 남았다. 이 덩어리 안에서는 모순이 드러나지 않았을 뿐이다.
+틀린 위치에서도 우연히 모순이 드러나지 않으면 정지가 난다. 정지한 위치에서 남은 가설을 하나씩 따져 진짜를 가리는
+뒷단계를 \term{체킹}{checking}이라 한다(\ref{ch:rust-check}장). 실제 봄베의 정지도 대부분 이런 거짓 정지였다.
+
+\paragraph{모순은 루프에서 나온다.} 메뉴가 루프 없이 \texttt{A}--\texttt{B}--\texttt{C}로 끝난다고 해 보자. 그러면
+케이블 \texttt{A}의 선 하나는 \texttt{B}의 선 하나, \texttt{C}의 선 하나와만 이어지고, 다시 \texttt{A}로 돌아오는 길이
+없다. 케이블 \texttt{A}에 켜지는 선은 언제나 하나뿐이어서 모순이 드러나지 않는다. 모든 위치에서 정지한다. 루프가
+있어야 추론이 출발한 케이블로 돌아와 ``짝이 둘''을 만든다. 해독자가 루프가 많은 크립을 고르고(그림~\ref{fig:g-menu}의
+파란 루프), 루프가 지나는 글자를 테스트 글자로 삼는 까닭이다. 대각선 보드는 루프가 아닌 길에서도 케이블 사이를
+되돌아오는 길을 더해 주므로, 루프가 적은 메뉴로도 모순을 만든다.
+
+\section{방법 하나: 전류에 맡긴다}\label{sec:f-current}
+
+\Why 이어진 선을 찾는 가장 쉬운 방법은 찾지 않는 것이다. 선이 실제 전선이고 연결이 실제 금속의 접촉이면, 전압을
+거는 순간 이어진 선이 모두 같은 전압이 된다. 순서도, 단계도, ``다 찾았는가''의 확인도 없다. 676가닥이 몇 개의
+연결을 거치든 거의 한순간이다. 탐색 전체를 물리가 공짜로 해 준다.
+
+남는 일은 \emph{시간을 맞추는 것}이다. 연결이 다 자리 잡은 뒤에 전압을 걸고, 감지 릴레이가 붙을 만큼 기다린 뒤에
+판정하고, 다음 위치로 연결이 바뀌기 전에 전압과 기억을 지워야 한다. 릴레이가 붙는 데에 수 밀리초가 걸리고 그
+시간이 개체마다 들쭉날쭉하다는 것이 실물 기계 설계의 어려움이다(\ref{ch:relay-timing}장).
+
+\General 물을 부어 미로의 출구를 찾는 것과 같다. 입구에 물을 부으면 물은 이어진 통로를 모두 동시에 채운다.
+갈림길마다 고민하는 것은 물이 아니라 미로 속을 걷는 사람이다.
+
+\Ours 1940년대의 봄베, 그리고 이 프로젝트의 기어식과 릴레이식이 이 방법을 쓴다. 두 기계가 다른 것은 연결을
+만드는 방법(드럼을 돌리는가, 접점을 바꾸는가)과 시간을 맞추는 방법(슬롯 원판인가, 순서기인가)이고, 이어진 선을
+찾는 방법은 같다.
+
+\section{방법 둘: 한 가닥씩 따라간다}\label{sec:f-stack}
+
+\Why 프로그램에는 전류가 없다. 선은 메모리의 비트이고, 비트는 이웃 비트가 켜졌다고 저절로 켜지지 않는다. 그래서
+하나씩 따라간다. ``켜졌지만 아직 이웃을 살피지 않은 선''의 목록을 두고, 목록에서 선을 하나 꺼내 그 선과 연결된
+선 가운데 꺼진 것을 켜고 목록에 넣는다. 목록이 비면 끝이다.
+
+이 방법이 빠짐없이 찾는 이유는 간단하다. 닿을 수 있는 선은 언젠가 목록에 들어가고, 목록에 들어간 선은 언젠가
+꺼내져 이웃이 살펴진다. 한 번 켜진 선은 다시 넣지 않으므로 반드시 끝난다. 그림~\ref{fig:f-groups}에서 이 방법으로
+따라가면, 한 가지 순서로는 \texttt{Aa}, \texttt{Bb}, \texttt{Cc}, \texttt{Bd}, \texttt{Ae}, \texttt{Cb}, \texttt{Ba},
+\texttt{Ab}, \texttt{Ce}, \texttt{Bf}, \texttt{Ac}, \texttt{Ca}의 차례로 켜진다(\texttt{Aa}는 케이블 \texttt{A}의
+\texttt{a}번 선). 열두 번 꺼내고 끝난다.
+
+\General 그림판의 ``채우기''가 이 방법이다. 한 점에서 시작해 같은 색으로 이어진 점을 모두 칠한다. 칠한 점을
+목록에 넣고, 하나씩 꺼내 상하좌우를 살핀다.
+
+\Ours Rust 기준 모델의 \code{propagate} 함수가 이 방법이다(\ref{sec:propagate}절). 컴퓨터는 한 가닥씩 따라가지만
+아주 빨라서, PC 한 대가 초당 수백만 위치를 시험한다. 덧붙여, 기판을 검증하는 프로그램은 같은 물음을 또 다른 방법으로
+푼다. 연결 하나를 볼 때마다 두 덩어리를 하나로 합치는 \term{합집합--찾기}{union--find}다(\ref{sec:v-uf}절).
+
+\section{방법 셋: 모두 함께 한 걸음씩}\label{sec:f-rounds}
+
+\Why FPGA는 게이트와 전선으로 된 회로이니 전류에 맡기면 될 것 같지만 그렇지 않다. 게이트에는 방향이 있다. 입력이
+출력을 정하지 그 반대는 아니다. 방향 없는 연결을 게이트로 쓰면 ``\texttt{B}의 선은 \texttt{A}의 선으로 켜지고''와
+``\texttt{A}의 선은 \texttt{B}의 선으로 켜진다''가 함께 있어야 하고, 게이트의 출력이 돌고 돌아 자기 입력이 되는
+고리가 생긴다. 이 고리는 한번 켜지면 꺼지지 않아서, 다음 위치를 시험하려고 지울 방법이 없다(\ref{ch:rtl-core}장).
+
+그래서 FPGA는 676가닥의 상태를 레지스터(기억 소자)에 담아 두고, 클럭이 한 번 뛸 때마다 \emph{켜진 선 전부가 동시에
+한 걸음씩} 퍼지게 한다. 걸음마다 새로 켜진 선이 없으면 끝이다. 표~\ref{tab:f-rounds}는 그림~\ref{fig:f-groups}를
+이렇게 푼 것이다.
+
+\begin{table}[ht]
+\centering
+\caption{위치 1을 걸음 단위로 퍼뜨린 결과. 걸음마다 켜진 선 \emph{모두}의 이웃이 함께 켜진다.}
+\label{tab:f-rounds}
+\small
+\begin{tabular}{c l c}
+\toprule
+걸음 & 새로 켜진 선 & 케이블 \texttt{A}에 켜진 선 \\
+\midrule
+0 & \texttt{Aa} (전압) & a \\
+1 & \texttt{Bb}, \texttt{Cc} & a \\
+2 & \texttt{Bd}, \texttt{Ca} & a \\
+3 & \texttt{Ac}, \texttt{Ae} & a c e \\
+4 & \texttt{Bf}, \texttt{Cb} & a c e \\
+5 & \texttt{Ba}, \texttt{Ce} & a c e \\
+6 & \texttt{Ab} & a b c e \\
+7 & 없음 --- 끝 & a b c e (정지) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+더 바뀌지 않는 상태를 \term{고정점}{fixed point}이라 한다. 위치 1은 여섯 걸음 만에 고정점에 닿았고, 일곱째 걸음에서
+바뀐 것이 없음을 확인했다. 위치 2는 아홉 걸음이 걸린다. 테스트 레지스터가 다 차면 더 볼 것이 없으므로 거기서
+끝낸다.
+
+\General 산불이 번지는 것을 한 시간마다 지도에 칠한다고 생각하면 된다. 매시간, 지난 시간까지 탄 곳의 이웃이 모두
+함께 탄다. 새로 칠할 곳이 없으면 불이 다 번진 것이다. 몇 시간이 걸리는지는 지형이 정한다.
+
+\Ours 이 방법의 대가는 두 가지다. 첫째, 걸음 수만큼 클럭이 든다. 이 프로젝트의 FPGA 엔진은 위치 하나에 약 12--17클럭을
+쓴다. 둘째, 한 걸음에 \emph{모든} 연결을 동시에 처리하므로, 연결 수백 개마다 회로가 따로 있어야 한다. 이 회로를 어떻게
+적느냐에 따라 크기가 약 열 배 달라졌다. 첫 구현은 칩 용량의 약 세 배였다(\ref{ch:lesson}장). FPGA 쪽 설계의 많은
+부분이 ``전류가 공짜로 하던 일을 회로로 얼마나 싸게 짓는가''이다.
+
+\section{셋이 같은 답을 내는 까닭}\label{sec:f-same}
+
+세 방법은 따라가는 순서가 전혀 다르다. 전류에는 순서가 없고, 목록은 한 가닥씩, 걸음은 한 겹씩 간다. 그래도 결과는
+같다. 구하는 것이 ``전압을 건 선의 덩어리''이고 덩어리는 하나로 정해져 있기 때문이다. 어떤 순서로 따라가든 닿을 수
+있는 선에는 언젠가 닿고, 닿을 수 없는 선에는 끝내 닿지 않는다. 켜진 선이 다시 꺼지는 일도 없다.
+
+이 사실이 이 프로젝트의 검증을 받친다. 세 기계와 Rust 모델은 같은 메뉴에서 같은 정지를 내야 하고, 그래서 정지
+목록을 하나하나 맞대어 볼 수 있다. Rust 모델을 정답표로 삼아 회로를 맞대는 방법은 \ref{ch:verify}장에서, 릴레이
+기판을 맞대는 방법은 \ref{ch:boardverify}장에서 본다.
+
+\section{무엇이 공짜이고 무엇이 비싼가}\label{sec:f-cost}
+
+두 가지 일을 다시 놓고 보면, 실물 기계와 FPGA는 비싼 쪽이 정반대다.
+
+\begin{itemize}
+\item \textbf{실물 기계}에서 이어진 선을 찾는 일은 공짜다. 비싼 것은 연결을 바꾸는 일이다. 드럼이 한 칸 돌거나
+릴레이가 넘어가는 데 밀리초가 들고, 그 사이 판정 시각을 맞춰야 한다.
+\item \textbf{FPGA}에서 연결을 바꾸는 일은 싸다. 표에서 다른 칸을 읽으면 되고 나노초면 된다. 비싼 것은 이어진 선을
+찾는 일이다. 걸음을 되풀이해야 하고, 그 걸음을 위한 회로가 칩을 차지한다.
+\end{itemize}
+
+표~\ref{tab:f-speed}는 그 결과다. 실물 두 기계는 1940년대 봄베와 같은 규모의 속도이고, FPGA는 약 10만 배 빠르다.
+
+\begin{table}[ht]
+\centering
+\caption{위치 하나에 드는 시간. 이 프로젝트의 값은 모두 설계값이며 실측 전이다(보고서 6장의 표에서 옮김).}
+\label{tab:f-speed}
+\small
+\begin{tabular}{l r l}
+\toprule
+기계 & 위치당 & 시간을 정하는 것 \\
+\midrule
+영국 봄베(1940년대) & 35 ms & 드럼의 회전 \\
+기어식 & 44 ms (추정) & 드럼의 회전 \\
+릴레이식 & 63 ms (계산) & 릴레이가 넘어가고 붙는 시간 \\
+FPGA (50 MHz) & 0.3 $\mu$s (추정) & 퍼뜨리는 걸음 수 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{이 문서의 지도}\label{sec:f-map}
+
+표~\ref{tab:f-map}가 이 문서의 지도다. 가로줄이 기계 하나이고, 세로줄이 그 기계가 각 일을 하는 수단과 그것을 다루는
+장이다.
+
+\begin{table}[ht]
+\centering
+\caption{세 기계와 기준 모델이 봄베의 일을 하는 수단.}
+\label{tab:f-map}
+\small
+\begin{tabularx}{\linewidth}{l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+& 선 676가닥 & 연결을 만든다 & 이어진 선을 찾는다 & 결과를 읽고 박자를 맞춘다 \\
+\midrule
+Rust 모델 & 정수 26개의 비트 (\ref{ch:rust-bombe}장) & 미리 계산한 치환표 & 목록으로 한 가닥씩 & \code{reg != FULL}, 차례대로 \\
+기어식 & 전선 & 드럼이 돈다 (\ref{ch:50-gear-mechanics}장) & 전류 & 감지 릴레이 (\ref{ch:relay-timing}장), 슬롯 원판 (\ref{sec:t-gear}절) \\
+릴레이식 & 전선 & 접점이 밀기를 고른다 (\ref{ch:relay-machine}장) & 전류 & 감지 릴레이, 순서기 (\ref{ch:relay-sequencer}장) \\
+FPGA & 레지스터의 비트 & 메모리의 치환표 (\ref{ch:rtl-scrambler}장, \ref{ch:fpga-engine}장) & 클럭마다 한 걸음 (\ref{ch:rtl-core}장, \ref{ch:lesson}장) & \code{test\_q != FULL}, 클럭 (\ref{ch:sync}장) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+이 문서는 이 표를 위에서 아래로 읽는다.
+
+\begin{itemize}
+\item \textbf{B부}는 Rust 모델이다. 모든 기계가 내야 할 답을 정하는 정답표이고, 위의 일들을 가장 읽기 쉬운 형태로 보여 준다.
+\item \textbf{C부}는 실물 두 기계가 함께 쓰는 부품이다. 전기의 기초, 릴레이, 그리고 결과를 읽고 박자를 맞추는 시간 규칙과 테스트 레지스터.
+\item \textbf{D부}는 기어식, \textbf{E부}는 릴레이식이다. 연결을 만드는 방법이 어떻게 다른지가 중심이다.
+\item \textbf{F부}는 릴레이식 회로를 FPGA로 옮기면서 무엇이 바뀌는지를 개념별로 보고, \textbf{G부}는 그 FPGA의 코드를 읽는다.
+\item \textbf{H부}는 실물을 만들고 검증하는 도구, \textbf{I부}는 기계를 부리는 소프트웨어다.
+\end{itemize}
+
+\section{정리}
+
+\begin{itemize}
+\item 연결은 선들을 덩어리로 나눈다. 전압을 건 선의 덩어리 전체가 그 가설의 귀결이다.
+\item 테스트 레지스터의 선이 전부 켜지면 가설이 하나도 남지 않으므로 다음 위치로 간다. 하나라도 꺼져 있으면 정지한다.
+정지는 후보이고, 체킹이 가린다. 모순은 루프(와 대각선 보드)에서 나온다.
+\item 이어진 선을 찾는 방법은 셋이다. 전류에 맡기기(실물 기계), 목록으로 한 가닥씩(Rust), 모두 함께 한 걸음씩(FPGA).
+덩어리는 하나로 정해져 있으므로 셋은 같은 답을 낸다.
+\item 실물 기계는 찾기가 공짜이고 연결을 바꾸기가 비싸다. FPGA는 그 반대다.
+\end{itemize}

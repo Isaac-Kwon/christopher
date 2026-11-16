@@ -6,6 +6,8 @@
 \usetikzlibrary{shapes.gates.logic.US}
 
 % ---------- 이 문서 전용 ----------
+% 부 번호는 알파벳(A부, B부, ...). 장 파일 이름의 접두 글자와 같다. 부록은 Z1, Z2, ...로 예약.
+\renewcommand{\thepart}{\Alph{part}}
 % 개념마다 세 단계로 설명한다: 왜 그런가 / 일반적인 예 / 이 프로젝트에서
 \newcommand{\steptag}[3]{\par\medskip\noindent
   \tcbox[on line,colback=#1,colframe=#2,boxrule=0.5pt,arc=1.5pt,left=1.5mm,right=1.5mm,top=0.4mm,bottom=0.4mm]%

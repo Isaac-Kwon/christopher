@@ -1,3 +1,288 @@
 \chapter{연결이란 무엇인가}\label{ch:connect}
 
-(작성 예정)
+이 문서에는 기계가 셋 나온다. 드럼이 도는 기어식, 릴레이로 된 릴레이식, 움직이는 부품이 없는 FPGA다. 생김새는
+전혀 다르지만 세 기계가 하는 일은 하나다. 이 장과 다음 장은 그 일을 코드도 회로도 없이 설명한다. 이 장은
+봄베가 무엇을 묻는지, 그리고 그 물음이 왜 ``선과 선의 연결''이라는 모양이 되는지를 본다. 다음 장(\ref{ch:find}장)은
+그 연결을 따라가는 방법을 보고, 세 기계가 그 방법을 각각 어떻게 하는지로 이 문서 전체의 지도를 만든다.
+
+\section{에니그마, 크립, 메뉴}\label{sec:bombe-one-page}
+
+자세한 설명과 출처는 프로젝트 보고서에 있고, 여기서는 뒤에서 쓸 만큼만 요약한다.
+
+\paragraph{에니그마.} 에니그마는 글자 하나를 누를 때마다 다른 치환표로 바꿔 주는 암호기다. 전류는
+\emph{플러그보드, 로터 세 개, 반사판, 로터 세 개(역방향), 플러그보드} 순으로 흐른다. 로터와 반사판을 묶어
+\term{스크램블러}{scrambler}라 한다. 플러그보드는 글자 쌍을 맞바꾸는 배선판이고, 서로 이어진 두 글자를
+\term{스테커}{Stecker} 짝이라고 한다. 로터는 글자를 칠 때마다 한 칸씩 돌아가므로 스크램블러의 치환은
+매번 달라진다. 플러그보드는 하루 동안 그대로다.
+
+스크램블러에는 성질이 둘 있다. 첫째, \emph{되돌릴 수 있다}. $x$를 $y$로 바꾸는 순간이면 $y$를 넣어도 $x$가
+나온다. 전류가 반사판에서 되돌아 나오는 구조이기 때문이다. 같은 기계로 암호화와 복호화를 하는 것도 이
+성질 덕이다. 둘째, 어떤 글자도 자기 자신으로 바뀌지 않는다. 뒤에서 쓰는 것은 첫째 성질이다.
+
+\paragraph{크립과 메뉴.} 해독자는 평문의 일부를 추측한다. 이것이 \term{크립}{crib}이다. 크립을 암호문에
+맞춰 놓으면 ``$k$번째 글자에서 평문 $p$가 암호문 $c$가 되었다''는 관계가 글자 수만큼 생긴다. 글자를
+점으로, 이 관계를 선으로 그린 그래프가 \term{메뉴}{menu}다(그림~\ref{fig:g-menu}).
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+    el/.style={font=\scriptsize,fill=white,inner sep=1pt,text=cgray}]
+  \node[ltr,fill=corangebg,draw=corange,line width=1pt] (E) at (0,0) {E};
+  \node[ltr] (I) at (2,1.0) {I};
+  \node[ltr] (W) at (4,0) {W};
+  \node[ltr] (A) at (2,-1.0) {A};
+  \node[ltr] (L) at (-2,1.0) {L};
+  \node[ltr] (T) at (-4,1.0) {T};
+  \node[ltr] (U) at (-2,-1.0) {U};
+  \node[ltr] (R) at (4,1.9) {R};
+  \node[ltr] (H) at (6,0) {H};
+  \draw[line width=1.4pt,cblue] (E) -- node[el] {5} (I) -- node[el] {1} (W) -- node[el] {14} (A) -- node[el] {11} (E);
+  \draw (E) -- node[el] {2} (L) -- node[el] {4} (T);
+  \draw (E) -- node[el] {16} (U);
+  \draw (I) -- node[el] {6} (R);
+  \draw (W) -- node[el] {10} (H);
+  \node[font=\scriptsize,text=corange,anchor=east] at (-0.42,0) {테스트 글자};
+  \node[note,text=cblue] at (2,0) {루프};
+\end{tikzpicture}
+\caption{메뉴의 예(일부). 선의 숫자는 크립 안에서의 위치다. 파란 선은 출발한 글자로 돌아오는 루프다.}
+\label{fig:g-menu}
+\end{figure}
+
+\paragraph{봄베가 묻는 것.} 그날의 로터 위치를 모르므로 봄베는 가능한 위치 $26^3 = 17{,}576$가지를 하나씩
+지나간다. 위치마다 묻는 것은 하나다. \emph{``이 위치에서 메뉴의 모든 관계를 동시에 만족하는 플러그보드가 있을 수
+있는가?''} 있을 수 없으면 다음 위치로 가고, 있을 수 있으면 멈춘다. 멈추는 것을 \term{정지}{stop}라 한다.
+
+그림~\ref{fig:g-bombe-front}는 1940년대의 영국 봄베를 문헌의 기술에 따라 그린 것이다. 앞면의 드럼 세 개
+한 벌이 스크램블러 하나이고, 뒷면의 잭에 케이블을 꽂아 메뉴를 배선한다. 이 장의 나머지는 이 기계가 위의 물음을
+어떻게 ``전선의 연결''로 바꾸었는지를 본다.
+
+\begin{figure}[p]
+\centering
+\input{../figures/bombe-front}
+\caption{영국 3로터 봄베의 도해(직접 그린 것이며 사진을 옮긴 것이 아니다). 뱅크와 드럼의 수, 지시 드럼의
+위치, 뒷면 잭 열의 용도, 외형 치수는 문헌~\cite{us6812report1944,ellsbury1998bombe,jackson-bh10}을
+따랐다. 드럼의 정확한 간격과 위치, 지시 드럼의 배열 방향, 잭의 개수와 간격은 어림해 그렸다.}
+\label{fig:g-bombe-front}
+\end{figure}
+
+\section{가설 하나를 선 하나로}\label{sec:c-wire}
+
+\Why 플러그보드를 모른다는 것은 글자마다 짝을 모른다는 것이다. 글자 \texttt{E}의 짝은 \texttt{A}일 수도,
+\texttt{B}일 수도, \ldots, \texttt{Z}일 수도 있다(짝이 없으면 자기 자신이다). 가능성이 26가지이니 \texttt{E}에
+대한 가설은 26개다. 봄베는 이 가설 하나하나에 전선 한 가닥을 준다. 글자마다 26가닥을 묶은
+\term{케이블}{cable}이 있고, 케이블 \texttt{E}의 \texttt{v}번 선에 전류가 흐른다는 것은 ``\texttt{E}의 짝이
+\texttt{V}다''라는 가설이 \emph{살아 있다}는 뜻이다(그림~\ref{fig:c-cable}). 글자가 26개이므로 선은 모두
+$26 \times 26 = 676$가닥이다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=4.6mm,y=1cm]
+  \node[font=\small,anchor=east] at (-1.0,0) {케이블 \texttt{E}};
+  \foreach \l [count=\i from 0] in {a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z} {
+    \draw[cgray!70,fill=white] (\i-0.42,-0.3) rectangle (\i+0.42,0.3);
+    \node[font=\ttfamily\scriptsize] at (\i,-0.55) {\l};
+  }
+  \fill[cblue] (21-0.42,-0.3) rectangle (21+0.42,0.3);
+  \draw[<-,cblue] (21,0.35) -- (21,0.9) node[above,font=\footnotesize] {``\texttt{E}의 짝은 \texttt{V}다''에 전류};
+  \draw[decorate,decoration={brace,amplitude=4pt,mirror}] (-0.42,-0.8) -- (25.42,-0.8)
+    node[midway,below=3pt,note] {가설 26개 = 선 26가닥. 짝은 하나뿐이므로 이 가운데 참은 꼭 하나다.};
+\end{tikzpicture}
+\caption{케이블 하나는 글자 하나에 대한 가설 26개다. 케이블이 26개이므로 봄베의 선은 676가닥이다.}
+\label{fig:c-cable}
+\end{figure}
+
+\General 퀴즈의 보기에 번호를 매기고 보기마다 전구를 하나씩 단다고 생각하면 된다. 전구가 켜진 보기는 ``아직
+지워지지 않은 보기''다. 정답은 하나뿐이므로, 어느 문제의 전구가 \emph{모두} 켜졌다면 무엇인가 앞에서 잘못된
+것이다.
+
+\Ours 이 676가닥이 세 기계의 상태 전부다. 기어식과 릴레이식에서는 실제 전선이고, FPGA와 Rust에서는 676개의
+비트다(\ref{ch:rust-bombe}장의 \code{live} 배열, \ref{ch:rtl-core}장의 \code{live\_q} 레지스터). 무엇으로
+만들든 ``선이 켜졌다 = 가설이 살아 있다''는 뜻은 같다.
+
+\section{전기에서 빌려 올 사실 하나}\label{sec:c-current}
+
+이 두 장에서 필요한 전기 지식은 한 줄이다. \emph{전류는 끊기지 않은 길로만 흐르고, 전압을 건 선과 이어진
+선은 모두 같은 전압이 된다.} 두 선 사이에 금속이 닿아 있으면 이어져 있고, 스위치가 열려 있으면 끊겨 있다.
+이어진 선이 다시 다른 선과 이어져 있으면 그 선도 같은 전압이 된다. 전압·전류·저항은 \ref{ch:39-electric-basics}장에서
+제대로 다룬다.
+
+이 문서에서 \term{연결}{connection}은 이 뜻이다. 두 선이 연결되어 있으면 한쪽에 전압을 걸 때 다른 쪽에도
+전압이 온다. 거꾸로도 마찬가지다. 전선의 연결에는 방향이 없다.
+
+\section{스크램블러: 추론 하나가 연결 하나}\label{sec:c-scrambler}
+
+\Why 메뉴의 선 하나, 곧 ``$k$번째 글자에서 평문 $p$가 암호문 $c$가 되었다''를 생각한다. 에니그마 안에서 전류는
+플러그보드를 지나 $p$의 짝이 되고, 스크램블러를 지나고, 다시 플러그보드를 지나 $c$가 되었다. 플러그보드는
+되돌릴 수 있으므로 이것은 ``$p$의 짝을 스크램블러에 넣으면 $c$의 짝이 나온다''와 같다. 그러면 추론이 하나
+생긴다.
+
+\begin{center}
+``$p$의 짝이 $x$라면, $c$의 짝은 스크램블러가 $x$를 바꾼 글자다.''
+\end{center}
+
+봄베는 이 추론을 전선으로 만든다. 메뉴의 선마다 스크램블러 하나를 두고, 케이블 $p$의 $x$번 선을 그
+스크램블러를 지나 케이블 $c$의 (바뀐 글자)번 선에 \emph{잇는다}. 26가닥 모두에 대해서다. 스크램블러가
+되돌릴 수 있으므로 이 연결은 거꾸로 읽어도 맞는 추론이다. ``$c$의 짝이 $y$라면 $p$의 짝은 스크램블러가 $y$를
+바꾼 글자다.'' 그래서 방향이 없는 전선으로 만들어도 된다.
+
+그림~\ref{fig:c-scr}는 글자가 여섯 개(\texttt{A}--\texttt{F})뿐인 작은 봄베에서 스크램블러 하나가 두 케이블을
+잇는 모습이다. 이 장과 다음 장의 그림은 모두 이 작은 봄베로 그린다. 글자가 26개이면 선이 많아질 뿐 원리는 같다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=-5.5mm,
+    dot/.style={circle,draw,fill=white,inner sep=1.5pt}]
+  \foreach \col/\name in {0/A,3.6/B} {
+    \node[font=\small\bfseries] at (\col,-1.1) {케이블 \texttt{\name}};
+    \foreach \l [count=\i from 0] in {a,b,c,d,e,f} {
+      \node[dot] (\name\l) at (\col,\i) {};
+    }
+  }
+  \foreach \l [count=\i from 0] in {a,b,c,d,e,f} {
+    \node[font=\ttfamily\scriptsize,anchor=east] at (-0.15,\i) {\l};
+    \node[font=\ttfamily\scriptsize,anchor=west] at (3.75,\i) {\l};
+  }
+  \foreach \x/\y in {a/b,b/a,c/f,d/e,e/d,f/c} { \draw[wire] (A\x) -- (B\y); }
+  \draw[live] (Ad) -- (Be);
+  \node[blkn,font=\footnotesize] at (1.8,6.3) {스크램블러 $S_1$\\{\scriptsize a$\leftrightarrow$b, c$\leftrightarrow$f, d$\leftrightarrow$e}};
+  \node[note,anchor=west,align=left] at (5.0,1.5) {파란 선: ``\texttt{A}의 짝이 \texttt{D}이면\\
+    \texttt{B}의 짝은 \texttt{E}다''이자\\``\texttt{B}의 짝이 \texttt{E}이면\\\texttt{A}의 짝은 \texttt{D}다''};
+\end{tikzpicture}
+\caption{작은 봄베(글자 여섯 개)에서 메뉴의 선 \texttt{A}--\texttt{B} 하나. 스크램블러가 바꾸는 쌍대로 두 케이블의
+선이 이어진다. 선 하나가 추론 하나이고, 방향이 없으므로 양쪽으로 읽힌다.}
+\label{fig:c-scr}
+\end{figure}
+
+\General 지하철 노선도의 환승 통로와 비슷하다. 통로는 두 역을 잇고, 어느 쪽에서 들어가도 다른 쪽으로 나온다.
+노선도를 보고 ``이 역에서 갈 수 있는 역''을 묻는 것과 봄베의 물음은 같은 꼴이다.
+
+\Ours 실제 봄베에서는 드럼 세 개 한 벌이 스크램블러 하나이고, 메뉴의 선 하나마다 한 벌을 쓴다. 크립이 16글자이고
+그 모든 관계를 메뉴에 쓰면 메뉴의 선이 16개이고, 스크램블러 16벌이 $16 \times 26 = 416$개의 연결을 만든다.
+
+\section{대각선 보드: 늘 있는 연결}\label{sec:c-diagonal}
+
+\Why 플러그보드는 글자를 \emph{쌍으로} 바꾼다. 그러므로 ``\texttt{A}의 짝이 \texttt{C}다''와 ``\texttt{C}의 짝이
+\texttt{A}다''는 같은 말이다. 하나가 살아 있으면 다른 하나도 살아 있어야 한다. 이것을 전선으로 넣은 것이
+\term{대각선 보드}{diagonal board}다. 케이블 $X$의 $y$번 선과 케이블 $Y$의 $x$번 선을 잇는다.
+
+이름은 그림~\ref{fig:c-diag}에서 나왔다. 676가닥을 케이블(가로줄) × 선(세로줄)의 정사각형으로 늘어놓으면,
+대각선 보드가 잇는 두 칸은 대각선을 사이에 두고 마주 보는 거울상 자리다. 대각선 위의 칸(``\texttt{A}의 짝은
+\texttt{A}다'', 곧 짝 없음)은 자기 자신과 짝이 된다. 26글자이면 대각선 밖의 칸 $676 - 26 = 650$개가 둘씩 묶여
+연결 325개가 된다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=7mm,y=-7mm]
+  \foreach \r/\R in {0/A,1/B,2/C,3/D,4/E,5/F} {
+    \node[font=\ttfamily\footnotesize,anchor=east] at (-0.6,\r) {\R};
+    \foreach \c in {0,...,5} {
+      \ifnum\r=\c \def\fillc{clight}\else \def\fillc{white}\fi
+      \draw[cgray!70,fill=\fillc] (\c-0.45,\r-0.45) rectangle (\c+0.45,\r+0.45);
+    }
+  }
+  \foreach \l [count=\c from 0] in {a,b,c,d,e,f} { \node[font=\ttfamily\footnotesize] at (\c,-0.9) {\l}; }
+  \node[font=\footnotesize,anchor=east] at (-1.2,2.5) {케이블};
+  \node[font=\footnotesize] at (2.5,-1.6) {선};
+  \draw[cgray,dashed] (-0.45,-0.45) -- (5.45,5.45);
+  \fill[cblue] (2-0.45,0-0.45) rectangle (2+0.45,0+0.45);
+  \fill[cblue] (0-0.45,2-0.45) rectangle (0+0.45,2+0.45);
+  \draw[live,<->,bend left=35] (2.2,0.35) to (0.35,2.2);
+  \fill[corange] (4-0.45,1-0.45) rectangle (4+0.45,1+0.45);
+  \fill[corange] (1-0.45,4-0.45) rectangle (1+0.45,4+0.45);
+  \draw[line width=1.1pt,corange,<->,bend left=25] (4.1,1.4) to (1.4,4.1);
+  \node[note,anchor=west,align=left] at (6.4,0.6) {파란 칸: ``\texttt{A}의 짝은 \texttt{C}''와\\``\texttt{C}의 짝은 \texttt{A}''};
+  \node[note,anchor=west,align=left] at (6.4,2.4) {주황 칸: ``\texttt{B}의 짝은 \texttt{E}''와\\``\texttt{E}의 짝은 \texttt{B}''};
+  \node[note,anchor=west,align=left] at (6.4,4.2) {회색 칸(대각선): 짝 없음.\\자기 자신과 이어진다};
+\end{tikzpicture}
+\caption{대각선 보드. 선 전체를 케이블 × 선의 정사각형으로 놓으면, 이어지는 두 선은 대각선을 사이에 둔 거울상
+자리다. 작은 봄베에서는 연결이 15개, 26글자에서는 325개다.}
+\label{fig:c-diag}
+\end{figure}
+
+\General 친구 관계와 같다. ``철수가 영희의 친구다''가 참이면 ``영희가 철수의 친구다''도 참이다. 친구 명단을
+표로 만들면 표가 대각선에 대해 대칭이 된다.
+
+\Ours 대각선 보드의 연결은 드럼 위치와 무관하다. 기계가 도는 동안 한 번도 바뀌지 않는 고정 배선이다. 실제
+봄베에서도 그랬고(웰치먼의 개량), 이 프로젝트의 세 기계에서도 그렇다. 릴레이식과 기어식은 함께 쓰는 기판 다섯
+장의 구리 배선으로, FPGA는 스위치도 선택도 없는 고정 배선으로(\ref{ch:fpga-engine}장) 만든다. 메뉴의 선만으로도 봄베는 동작하지만, 이 연결이 더해지면 모순이 훨씬 빨리 드러나
+쓸모없는 정지가 크게 줄어든다.
+
+\section{위치가 바뀌면 연결이 바뀐다}\label{sec:c-position}
+
+스크램블러의 치환은 로터의 위치에 따라 달라진다. 그러므로 메뉴의 선이 만드는 연결은 드럼 위치마다 다르다.
+게다가 메뉴의 선마다 크립 안의 위치 $k$가 다르므로, 같은 순간에도 선마다 $k$칸씩 어긋난 위치의 스크램블러를 쓴다.
+메뉴의 선이 16개라면, 봄베가 위치를 하나 넘길 때마다 416개의 연결이 한꺼번에 다른 연결로 바뀐다. 대각선 보드의
+325개만 그대로다.
+
+그래서 봄베의 일은 두 가지로 나뉜다.
+
+\begin{keybox}[title={봄베의 두 가지 일}]
+\begin{enumerate}
+\item \textbf{연결을 만든다.} 지금 위치에서 메뉴의 선마다 스크램블러가 어떤 연결을 만드는지 정한다. 위치를 넘기면
+다시 만든다.
+\item \textbf{이어진 선을 찾는다.} 가설 하나의 선에 전압을 걸고, 그 선과 (여러 연결을 거쳐) 이어진 선을 모두 찾는다.
+\end{enumerate}
+\end{keybox}
+
+세 기계는 이 두 일을 서로 다른 수단으로 한다. 첫째 일만 미리 보면 이렇다.
+
+\begin{itemize}
+\item \textbf{기어식}은 실제 봄베처럼 드럼을 돌린다. 드럼 안에 로터의 배선이 들어 있어, 드럼이 한 칸 돌면 배선이
+닿는 자리가 바뀌고 연결이 바뀐다(\ref{ch:50-gear-mechanics}장).
+\item \textbf{릴레이식}에는 도는 것이 없다. 로터의 회전을 ``몇 칸 밀어서 배선에 넣는가''로 바꾸고, 그 밀기를
+릴레이 접점이 고른다(\ref{ch:relay-machine}장).
+\item \textbf{FPGA}에는 움직이는 것도 접점도 없다. 치환표를 메모리에 두고 위치에 맞는 표를 골라 읽는다
+(\ref{ch:rtl-scrambler}장, \ref{ch:fpga-engine}장). Rust의 기준 모델도 같다(\ref{ch:rust-bombe}장).
+\end{itemize}
+
+\section{연결은 그래프다}\label{sec:c-graph}
+
+선을 점으로, 연결을 점 사이의 선분으로 그리면 \term{그래프}{graph}가 된다. 메뉴도 그래프였지만(글자가 점) 이것은
+한 층 아래의 그래프다. 점이 676개이고, 선분은 메뉴가 만드는 연결과 대각선 보드의 연결이다.
+
+그림~\ref{fig:c-graph}는 작은 봄베의 메뉴가 \texttt{A}--\texttt{B}--\texttt{C}--\texttt{A}의 루프 하나일 때, 어느
+위치에서 생긴 연결을 그린 것이다. 루프를 펼쳐 그렸으므로 맨 오른쪽 열은 맨 왼쪽의 케이블 \texttt{A}와 같은 선이다.
+그림을 단순하게 하려고 대각선 보드의 연결은 그리지 않았다.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[x=1cm,y=-5.5mm,
+    dot/.style={circle,draw,fill=white,inner sep=1.5pt}]
+  \foreach \col/\name/\key in {0/A/A,3/B/B,6/C/C,9/A/Z} {
+    \node[font=\small\bfseries] at (\col,-1.1) {\texttt{\name}};
+    \foreach \l [count=\i from 0] in {a,b,c,d,e,f} {
+      \node[dot] (\key\l) at (\col,\i) {};
+    }
+  }
+  \foreach \l [count=\i from 0] in {a,b,c,d,e,f} {
+    \node[font=\ttfamily\scriptsize,anchor=east] at (-0.15,\i) {\l};
+  }
+  \foreach \x/\y in {a/b,b/a,c/f,d/e,e/d,f/c} { \draw[wire] (A\x) -- (B\y); }
+  \foreach \x/\y in {a/b,b/a,c/d,d/c,e/f,f/e} { \draw[wire] (B\x) -- (C\y); }
+  \foreach \x/\y in {a/c,b/e,c/a,d/f,e/b,f/d} { \draw[wire] (C\x) -- (Z\y); }
+  \node[note] at (1.5,6.2) {$S_1$};
+  \node[note] at (4.5,6.2) {$S_2$};
+  \node[note] at (7.5,6.2) {$S_3$};
+  \draw[cgray,dashed,->] (9,6.6) -- (9,7.1) -| node[pos=0.25,below,note] {같은 케이블 \texttt{A}} (0,6.6);
+\end{tikzpicture}
+\caption{작은 봄베의 루프 메뉴 \texttt{A}--\texttt{B}--\texttt{C}--\texttt{A}가 어느 위치에서 만드는 연결. 점 18개(케이블 셋 × 선
+여섯)와 선분 18개로 된 그래프다. 다음 장에서 이 그림에 전압을 건다.}
+\label{fig:c-graph}
+\end{figure}
+
+\Why 그래프로 보면 봄베의 둘째 일이 익숙한 물음이 된다. ``이 점에서 선분을 따라 갈 수 있는 점은 어디인가.''
+그래프의 점들은 서로 이어진 \term{덩어리}{connected component}로 나뉘고, 전압을 건 선의 덩어리 전체가 그 가설의 귀결
+전부다. 그림~\ref{fig:c-graph}의 18개 점도 덩어리 몇 개로 나뉜다. 어떻게 나뉘는지, 그리고 그것이 왜 해독의 답이
+되는지가 다음 장의 내용이다.
+
+\section{정리}
+
+\begin{itemize}
+\item 봄베는 위치 17,576가지마다 ``메뉴를 만족하는 플러그보드가 있을 수 있는가''를 묻는다.
+\item 글자마다 짝에 대한 가설이 26개이고, 가설 하나가 선 하나다. 선은 676가닥이다.
+\item 메뉴의 선 하나는 스크램블러를 지나 두 케이블의 선 26쌍을 잇는다. 연결 하나가 추론 하나이고, 스크램블러가
+되돌릴 수 있으므로 방향이 없다.
+\item 대각선 보드는 ``$X$의 짝이 $y$이면 $Y$의 짝은 $x$''를 325개의 고정 연결로 넣는다.
+\item 메뉴의 연결은 위치마다 바뀐다. 봄베의 일은 \emph{연결을 만드는 것}과 \emph{이어진 선을 찾는 것} 둘이다.
+\item 선과 연결은 그래프이고, 이어진 선을 찾는 것은 그래프의 덩어리를 찾는 것이다.
+\end{itemize}
