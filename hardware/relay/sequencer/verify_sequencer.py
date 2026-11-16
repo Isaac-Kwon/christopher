@@ -16,7 +16,13 @@ What is checked (all on the connector face unless stated):
   decision 0003 4.4, AT_HOME), END at the 17,576th position or at the slice end, standby (CK = NCK = 0, HOME needed), emergency stop
   (power loss), thermostat; emergency stop in the middle of a cycle with the register's sense relays left latched, then HOME:
   the stop at position 0 must not be missed (stale-K scenario).
-Negative tests mutate the netlist and require the verification to fail (the flush mutants also through the stale-K scenario).
+Dial-strip controls (J10): observation mode (every position cycle >= 250 ms, with register stops); the selector thrown at random
+  instants during a run (no partial cycle, no double CK, no 555 tick shorter than the fast tick); single step (exactly one cycle
+  per press with contact bounce, a 25 ms tap, a 1.5 s hold, none while STOP_LATCH is high, the advance-only cycle after the
+  release, the selector thrown mid-cycle, the step cycle at observation speed even with the selector at fast, the counters stand
+  still during a stop); step, then START in the middle of the step cycle.
+Negative tests mutate the netlist and require the verification to fail (the flush mutants also through the stale-K scenario,
+the step / speed mutants through the step and observation scenarios).
 """
 from __future__ import annotations
 
@@ -27,6 +33,9 @@ import sys
 import time
 from pathlib import Path
 
+import re
+
+import seqdesign
 import seqnet
 from seqbench import N_POS, SHIFT_MS, Bench
 from seqsim import Sim
@@ -509,6 +518,202 @@ def scen_stale(nl, seed, mode, stats, cut_after=4.5):
     return fails, sim, b
 
 
+# ----------------------------------------------------------------------------- observation mode and single step (J10)
+OBS_PERIOD_MIN = 250.0          # concept.md 6: observation mode = 4 positions / s or fewer
+OBS_TICK_MIN = 20.0             # a ring state of a step cycle (Q2..Q8) at observation speed (27 ms nominal, fast tick 6.3)
+
+
+def rises(edges, t0=-1.0, t1=1e18):
+    return [t for t, lv in edges if lv and t0 <= t < t1]
+
+
+def ring_states(sim, t0, t1):
+    """[(state, entered, duration)] of the ring states entered in [t0, t1) whose end is known"""
+    log = sim.ring_log
+    out = []
+    for k in range(len(log) - 1):
+        t, q = log[k]
+        if t0 <= t < t1:
+            out.append((q, t, log[k + 1][0] - t))
+    return out
+
+
+def check_tick_floor(sim, fails, label):
+    """the time base never makes a tick shorter than the fast tick, whatever the selector / step relays do (README 2.1)"""
+    floor = sim.t_tick * sim.ctol * (1 - 2 * sim.jit) - 1e-6
+    if sim.min_period < floor:
+        fails.append(f"{label}: 555 period {sim.min_period:.3f} ms shorter than the fast tick {floor:.3f} ms")
+    return sim.min_period / (sim.t_tick * sim.ctol)
+
+
+def scen_obs(nl, seed, mode, stats, n_cycles=24, stops=(5, 11, 12)):
+    """observation mode (selector closed from power-up): HOME, run with register stops; every position cycle >= 250 ms"""
+    fails: list[str] = []
+    sim, b = make(nl, seed, mode, oracle=set(stops))
+    b.set_speed(True)
+    sim.run_until(400)
+    hw = [home_sequence(sim, b, fails)]
+    b.set_start(True)
+    if not wait_for(sim, lambda: len(b.tested) >= n_cycles, 60000, step=25.0):
+        fails.append(f"observation run: only {len(b.tested)} of {n_cycles} cycles")
+    b.set_start(False)
+    sim.run_until(sim.t + 600)
+    stats.runs += 1
+    fails += analyze(sim, b, stats, 0, hw)
+    sr = rises(sim.edge_list("STROBE"))
+    gaps = [y - x for x, y in zip(sr, sr[1:])]
+    if gaps:
+        stats.add("OBSP", min(gaps))
+        if min(gaps) < OBS_PERIOD_MIN:
+            fails.append(f"observation mode: position cycle {min(gaps):.1f} ms < {OBS_PERIOD_MIN} ms "
+                         f"({1000 / min(gaps):.2f} positions/s > 4)")
+    seen = {s_["pos"] for s_ in b.stops}
+    want = set(stops) & {p_ for _, p_ in b.tested}
+    if want - seen:
+        fails.append(f"observation mode: missed stops at {sorted(want - seen)}")
+    check_tick_floor(sim, fails, "observation run")
+    return fails, sim, b
+
+
+def scen_modeswitch(nl, seed, mode, stats, n_cycles=40, stops=(7, 19, 20)):
+    """running with register stops while the selector is thrown back and forth at random instants (mid-cycle included):
+    no partial cycle, no double CK, L1-L9 in every cycle, no tick shorter than the fast tick"""
+    fails: list[str] = []
+    sim, b = make(nl, seed, mode, oracle=set(stops))
+    sim.run_until(300)
+    hw = [home_sequence(sim, b, fails)]
+    rng = random.Random(seed * 13 + 5)
+    b.set_start(True)
+    obs = False
+    t = sim.t
+    for _ in range(36):
+        t += rng.uniform(15.0, 420.0)
+        obs = not obs
+        b.at(t, lambda o=obs: b.set_speed(o))
+    if not wait_for(sim, lambda: len(b.tested) >= n_cycles and sim.t > t + 50, 90000, step=25.0):
+        fails.append(f"mode switching run: only {len(b.tested)} of {n_cycles} cycles")
+    b.set_start(False)
+    sim.run_until(sim.t + 700)
+    stats.runs += 1
+    fails += analyze(sim, b, stats, 0, hw)
+    ck = rises(sim.edge_list("CK_A"))
+    if len(ck) != b.advances:
+        fails.append(f"mode switching run: {len(ck)} CK pulses but {b.advances} advances")
+    stats.add("TICKRATIO", check_tick_floor(sim, fails, "mode switching run"))
+    seen = {s_["pos"] for s_ in b.stops}
+    want = set(stops) & {p_ for _, p_ in b.tested}
+    if want - seen:
+        fails.append(f"mode switching run: missed stops at {sorted(want - seen)}")
+    return fails, sim, b
+
+
+def step_window(sim, t0, t1):
+    hb = [h for h in getattr(sim, "_home_windows", [])]
+    c = [x for x in rises(sim.edge_list("CLEAR"), t0, t1) if not any(a <= x <= z for a, z in hb)]
+    return dict(S=len(rises(sim.edge_list("STROBE"), t0, t1)), J=len(rises(sim.edge_list("JUDGE"), t0, t1)), C=len(c),
+                CK=len(rises(sim.edge_list("CK_A"), t0, t1)))
+
+
+def scen_step(nl, seed, mode, stats, obs=True):
+    """single step (START off): presses with bounce, a short tap, a held button, a press into a register stop, a press during
+    the stop, the advance-only press after the release, the selector thrown in the middle of a step cycle.  Each press must
+    give exactly the expected cycle; a step cycle runs at observation speed even with the selector at fast."""
+    fails: list[str] = []
+    sim, b = make(nl, seed, mode, oracle={3}, auto_release=False)
+    b.set_speed(obs)
+    sim.run_until(400)
+    hw = [home_sequence(sim, b, fails)]
+    sim._home_windows = hw
+    sim.run_until(sim.t + 300)
+    tag = "obs" if obs else "fast"
+    plan = [  # (label, press ms, (S, C, CK) expected in the window, action before the press)
+        ("press 120 ms", 120.0, (1, 1, 1), None),
+        ("tap 25 ms", 25.0, (1, 1, 1), None),
+        ("held 1.5 s", 1500.0, (1, 1, 1), None),
+        ("press into the stop at position 3", 150.0, (1, 1, 0), None),
+        ("press while STOP_LATCH is high", 150.0, (0, 0, 0), None),
+        ("press after the release (advance only)", 150.0, (0, 1, 1), "release"),
+        ("press, selector thrown mid-cycle", 150.0, (1, 1, 1), "toggle"),
+        ("press", 90.0, (1, 1, 1), None),
+    ]
+    n_expected_tests = 0
+    for label, dur, (es, ec, eck), act in plan:
+        if act == "release":
+            b.press_release()
+            sim.run_until(sim.t + 400)
+        t0 = sim.t + 7.0
+        b.step_press(t0, dur, bounce=True)
+        if act == "toggle":
+            for dt in (60.0, 75.0, 140.0, 205.0):
+                b.at(t0 + dt, lambda: b.set_speed(not sim.ext["SPEED_OBS"]))
+            b.at(t0 + 260.0, lambda o=obs: b.set_speed(o))
+        sim.run_until(t0 + dur + 700.0)
+        w = step_window(sim, t0, sim.t)
+        got = (w["S"], w["C"], w["CK"])
+        if got != (es, ec, eck) or w["J"] != es:
+            fails.append(f"step [{tag}] {label}: STROBE/CLEAR/CK = {got}, JUDGE {w['J']}, expected {(es, ec, eck)} "
+                         f"(cycles for one press)")
+        n_expected_tests += es
+        if label.startswith("press into the stop") and not sim.ext.get("STOP_LATCH"):
+            fails.append(f"step [{tag}]: no register stop at position 3")
+        if es:
+            # step cycle at observation speed: ring states Q2..Q8 of this cycle
+            slow = [d for q, t_, d in ring_states(sim, t0, sim.t) if 2 <= q <= 8]
+            if slow:
+                stats.add("STEPTICK", min(slow))
+                if min(slow) < OBS_TICK_MIN:
+                    fails.append(f"step [{tag}] {label}: ring state of {min(slow):.1f} ms (step cycle not at observation speed)")
+    if len(b.tested) != n_expected_tests:
+        fails.append(f"step [{tag}]: {len(b.tested)} positions tested, expected {n_expected_tests}")
+    if b.n != 6:
+        fails.append(f"step [{tag}]: counters at {b.n} after the presses, expected 6")
+    stats.runs += 1
+    fails += analyze(sim, b, stats, 0, hw)
+    check_tick_floor(sim, fails, f"step [{tag}]")
+    return fails, sim, b
+
+
+def scen_step_start(nl, seed, mode, stats):
+    """step, then the START switch turned on in the middle of a step cycle (selector at fast): the cycle completes once, the
+    run goes on at the selected speed (the step relays let go), stops and releases as usual; START off, step again"""
+    fails: list[str] = []
+    sim, b = make(nl, seed, mode, oracle={6})
+    sim.run_until(300)
+    hw = [home_sequence(sim, b, fails)]
+    sim._home_windows = hw
+    sim.run_until(sim.t + 300)
+    for _ in range(2):
+        t0 = sim.t + 5.0
+        b.step_press(t0, 100.0)
+        sim.run_until(t0 + 700.0)
+    t0 = sim.t + 5.0
+    b.step_press(t0, 100.0)
+    rng = random.Random(seed)
+    t_on = t0 + rng.uniform(40.0, 260.0)
+    b.at(t_on, lambda: b.set_start(True))
+    if not wait_for(sim, lambda: len(b.tested) >= 14, 20000, step=20.0):
+        fails.append(f"step then START: only {len(b.tested)} positions")
+    b.set_start(False)
+    sim.run_until(sim.t + 500)
+    sr = rises(sim.edge_list("STROBE"), t_on + 400.0)
+    gaps = [y - x for x, y in zip(sr, sr[1:])]
+    if not gaps or min(gaps) > 100.0:
+        fails.append(f"step then START: the run did not return to the fast tick (shortest cycle {min(gaps) if gaps else None})")
+    n0 = len(b.tested)
+    for _ in range(2):
+        t1 = sim.t + 5.0
+        b.step_press(t1, 100.0)
+        sim.run_until(t1 + 700.0)
+    if len(b.tested) - n0 not in (1, 2):
+        fails.append(f"step after the run: {len(b.tested) - n0} positions for two presses")
+    stats.runs += 1
+    fails += analyze(sim, b, stats, 0, hw)
+    if not any(s_["pos"] == 6 for s_ in b.stops):
+        fails.append("step then START: no stop at position 6")
+    check_tick_floor(sim, fails, "step then START")
+    return fails, sim, b
+
+
 # ----------------------------------------------------------------------------- structural checks
 def structural(nl):
     errs, n_ok = [], 0
@@ -520,7 +725,7 @@ def structural(nl):
         else:
             errs.append(msg)
     P = nl.parts
-    chk(sum(1 for p in P.values() if p["value"].startswith("G6S-2")) == 44, "relay count")
+    chk(sum(1 for p in P.values() if p["value"].startswith("G6S-2")) == 50, "relay count")
     # control connector J2 (0003 5.2)
     exp = {1: "STROBE", 2: "RUN", 3: "STOPPED", 4: "HOME", 5: "AT_HOME", 6: "END", 22: "ESTOP_A", 23: "ESTOP_RET", 24: "ILOCK_A",
            25: "ILOCK_RET", 34: "JUDGE", 35: "CLEAR", 36: "STOP_LATCH"}
@@ -560,6 +765,44 @@ def structural(nl):
         chk(len(dz) == 1, f"{name}: zener clamp on the coil side")
         res = [x for x, p in P.items() if x.startswith("R") and p["value"] == "22k" and {nl.net(x, "1"), nl.net(x, "2")} == {pin, "GND"}]
         chk(len(res) == 1, f"{name}: pin pull-down")
+    # dial-strip controls (J10, offset-dial README 5): fused switch supply, two follower inputs with the same input rules
+    # (a plain flyback diode is a coil-side clamp too: 0003 2.2 allows diode or diode + zener)
+    chk(nl.net("J10", "1") == "PANEL_SUP" and nl.net("J10", "2") == "SPEED_OBS" and nl.net("J10", "3") == "STEP", "J10 PANEL pins 1-3")
+    n4 = nl.net("J10", "4")
+    chk(n4 is not None and n4.startswith("unconnected"), "J10 pin 4 spare (unconnected)")
+    chk(any(r.startswith("F") and {nl.net(r, "1"), nl.net(r, "2")} == {"SW", "PANEL_SUP"} for r in P), "J10 switch supply fused")
+    for name, pin in (("KOBS", "SPEED_OBS"), ("KSP", "STEP")):
+        r = ref_of(nl, name)
+        coil = nl.net(r, "1")
+        ds = [x for x, p in P.items() if x.startswith("D") and "Schottky" in p["value"] and nl.net(x, "2") == pin and nl.net(x, "1") == coil]
+        chk(len(ds) == 1, f"{name}: series Schottky pin -> coil")
+        cl = [x for x, p in P.items() if re.fullmatch(r"D\d+", x) and "Schottky" not in p["value"] and nl.net(x, "1") == coil and nl.net(x, "2") == "GND"]
+        chk(len(cl) == 1, f"{name}: flyback clamp on the coil side")
+        res = [x for x, p in P.items() if x.startswith("R") and p["value"] == "22k" and {nl.net(x, "1"), nl.net(x, "2")} == {pin, "GND"}]
+        chk(len(res) == 1, f"{name}: pin pull-down")
+        chk(len(nl.nets[pin]) == 4 and ("J10", "2" if pin == "SPEED_OBS" else "3") in nl.nets[pin],
+            f"{pin}: J10 + Schottky + pull-down + lamp resistor only")
+    # time base: only a RESISTANCE is switched (README 2.1): R_slow in series with R2, shorted by KOBS NC in series with KSCb NC
+    rs = [r for r, p in P.items() if r.startswith("R") and {nl.net(r, "1"), nl.net(r, "2")} == {"DIS", "RSL"}]
+    chk(len(rs) == 1 and P[rs[0]]["value"] == seqdesign.R_SLOW, "observation resistor DIS-RSL")
+    chk(nl.net(ref_of(nl, "KOBS"), "4") == "DIS" and nl.net(ref_of(nl, "KOBS"), "3") == "RSM", "KOBS NC: DIS -> RSM")
+    chk(nl.net(ref_of(nl, "KSCb"), "9") == "RSM" and nl.net(ref_of(nl, "KSCb"), "10") == "RSL", "KSCb NC: RSM -> RSL")
+    chk(sorted(r for r, _ in nl.nets["RSM"]) == sorted([ref_of(nl, "KOBS"), ref_of(nl, "KSCb")]), "short chain RSM: two contacts only")
+    caps_th = [r for r in P if r.startswith("C") and {nl.net(r, "1"), nl.net(r, "2")} == {"TH", "GND"}]
+    chk(len(caps_th) == 1 and not any(r.startswith("K") for r, _ in nl.nets["TH"]), "timing capacitor fixed (no contact on TH)")
+    # single step: driver channel 3 sets KSC from the STROBE window through KSAb; GO entry after the STOP_LATCH NC;
+    # CK decision of a step cycle through the STOP_LATCH NC
+    chk(nl.net("U4", "3") == "SCIN" and nl.net("U4", "16") == "SC_OUT", "U4 channel 3 = step-cycle set")
+    chk({r for r, _ in nl.nets["SCIN"] if r.startswith("K")} == {ref_of(nl, "KSAb")} and nl.net(ref_of(nl, "KSAb"), "4") == "WS",
+        "SCIN only from WS through KSAb")
+    kslr = ref_of(nl, "KSL")
+    chk(nl.net(kslr, "4") == "SW" and nl.net(kslr, "3") == "GA1", "KSL NC: SW -> GA1 (head of GO and quiet chains)")
+    chk(nl.net(ref_of(nl, "KSA"), "9") == "GA1" and nl.net(ref_of(nl, "KSA"), "8") == "GS1"
+        and nl.net(ref_of(nl, "KSC"), "9") == "GS1" and nl.net(ref_of(nl, "KSC"), "10") == "GA2", "step GO: GA1 -> KSA NO -> KSC NC -> GA2")
+    chk(nl.net(kslr, "9") == "Q6" and nl.net(kslr, "10") == "Q6S" and nl.net(ref_of(nl, "KSCb"), "4") == "Q6S"
+        and nl.net(ref_of(nl, "KSCb"), "5") == "KHS", "step CK: Q6 -> KSL NC -> KSCb NO -> KHS")
+    chk(nl.net(ref_of(nl, "KR"), "3") == "RN" and nl.net(ref_of(nl, "KSA"), "4") == "RN" and nl.net(ref_of(nl, "KSC"), "4") == "RN",
+        "step latch holds fed from RUN low (RUN dominates)")
     # drivers on +24V_SW, ring counter + clock wiring, no other supply of the TBD
     for u in ("U3", "U4"):
         chk(nl.net(u, "9") == "SW" and nl.net(u, "10") == "GND", f"{u} supply")
@@ -610,7 +853,6 @@ def mutants(nl):
     out.append(("LOAD relay never driven (LOAD window contact open)", [(R("KHLc"), "5", "GND")]))
     out.append(("HOME done never set (DONE window contact open)", [(R("KHLc"), "8", "GND")]))
     out.append(("HOME keeps the counters' clock supply on (KHL window contact tied to the READY drive)", [(R("KHL"), "8", "KEN1")]))
-    out.append(("GO chain ignores STOP_LATCH (KSL NC bypassed)", [(R("KSL"), "3", "GA1")]))
     out.append(("END hold cut (KATb pole 2)", [(R("KATb"), "10", "GND")]))
     out.append(("r = 25 decode open (KR25 contact)", [(R("KR25"), "5", "GND")]))
     out.append(("driver supply on 5 V instead of +24V_SW", [("U3", "9", "V5")]))
@@ -627,6 +869,23 @@ def flush_mutants(nl):
     return [("HOME flush CLEAR removed (KHLd pole 2 open)", [(R("KHLd"), "9", "FLUSH_CUT")], "random", "MISSED STOP at position 0"),
             ("HOME flush CLEAR removed", [(R("KHLd"), "9", "FLUSH_CUT")], "corner", "MISSED STOP at position 0"),
             ("flush CLEAR self-hold removed (KC pole 2 open)", [(R("KC"), "9", "HOLD_CUT")], "fast", "flush CLEAR")]
+
+
+def step_mutants(nl):
+    """negative tests of the speed selector / single step: (name, edits, scenario, must-substring)"""
+    R = lambda n: ref_of(nl, n)      # noqa: E731
+    obs = lambda m: scen_obs(m, 1, "random", Stats())                      # noqa: E731
+    step_o = lambda m: scen_step(m, 1, "corner", Stats(), obs=True)      # noqa: E731
+    step_f = lambda m: scen_step(m, 1, "corner", Stats(), obs=False)     # noqa: E731
+    return [
+        ("step latch removed: step GO not cut when the cycle starts (KSA straight to GA2)", [(R("KSA"), "8", "GA2")], step_o, "cycles for one press"),
+        ("held button repeats: step cycle not kept while armed (KSAb pole 2 open)", [(R("KSAb"), "8", "SCH_CUT")], step_o, "cycles for one press"),
+        ("step GO ignores STOP_LATCH (KSL NC bypassed: KRX common on +24 V)", [(R("KRX"), "4", "SW"), (R("KSA"), "9", "SW")], step_o, "cycles for one press"),
+        ("step CK ignores STOP_LATCH (KSL pole 2 bypassed)", [(R("KSCb"), "4", "Q6")], step_o, "STOP_LATCH"),
+        ("step CK path open (KSCb pole 1)", [(R("KSCb"), "5", "STEPCK_CUT")], step_o, "cycles for one press"),
+        ("step cycle not forced to observation speed (KSCb pole 2 bypassed)", [(R("KOBS"), "3", "RSL")], step_f, "observation speed"),
+        ("observation resistor never switched in (KOBS contact bypassed)", [(R("KSCb"), "9", "DIS")], obs, "positions/s"),
+    ]
 
 
 def quick_suite(nl, seed=1, mode="corner"):
@@ -693,6 +952,31 @@ def main():
                 allf += [f"[stale K {mode} {sd}] {x}" for x in f[:6]]
                 print(f"  stale K {mode} seed {sd}: {len(f)} failures, first: {f[0]}")
     print(f"emergency stop mid-cycle -> HOME -> stop at position 0: {n_stale} runs")
+    groups = {"observation": Stats(), "mode switch": Stats(), "step": Stats()}
+    n_ctrl = 0
+    for mode in (("random", "corner", "slow", "fast") if not a.quick else ("corner",)):
+        for sd in ((1, 2) if not a.quick else (1,)):
+            for fn, label, grp in ((scen_obs, "observation", "observation"), (scen_modeswitch, "mode switch", "mode switch"),
+                                   (lambda *x: scen_step(*x, obs=True), "step obs", "step"),
+                                   (lambda *x: scen_step(*x, obs=False), "step fast", "step"),
+                                   (scen_step_start, "step then START", "step")):
+                f, sim, b = fn(nl, sd, mode, groups[grp])
+                runs += 1
+                n_ctrl += 1
+                if f:
+                    allf += [f"[{label} {mode} {sd}] {x}" for x in f[:6]]
+                    print(f"  {label} {mode} seed {sd}: {len(f)} failures, first: {f[0]}")
+    print(f"dial-strip controls: {n_ctrl} runs")
+    for grp, so in groups.items():
+        print(f" {grp}: position cycles {so.cycles}, register stops {so.stops}, HOME flush CLEARs {getattr(so, 'home_flush', 0)}")
+        for k, lab in (("S", "STROBE width"), ("J", "JUDGE width"), ("C", "CLEAR width"), ("JS", "JUDGE rise - STROBE rise"),
+                       ("CJ", "CLEAR rise - JUDGE fall"), ("SC", "next STROBE rise - CLEAR fall"), ("CKw", "CK width"),
+                       ("CK_to_S", "CK rise -> next STROBE rise"), ("CK_after_C", "CK rise - CLEAR rise"),
+                       ("HC", "HOME flush CLEAR width"), ("HSC", "next STROBE - HOME flush CLEAR"),
+                       ("OBSP", "STROBE -> next STROBE (position cycle)"), ("STEPTICK", "step cycle ring state Q2-Q8"),
+                       ("TICKRATIO", "shortest 555 period / fast tick")):
+            if k in so.min:
+                print(f"  {lab:40s} min {so.min[k]:8.2f}  max {so.max[k]:9.2f}")
     print(f"scenario runs: {runs}; position cycles checked: {st.cycles}; register stops: {st.stops}; "
           f"HOME passes with exactly one flush CLEAR: {getattr(st, 'home_flush', 0)}")
     for k, lab in (("S", "STROBE width"), ("J", "JUDGE width"), ("C", "CLEAR width"), ("JS", "JUDGE rise - STROBE rise"),
@@ -748,6 +1032,20 @@ def main():
                   + (f"  ({[x for x in f if must in x][0][:100]})" if hit else (f"  ({f[0][:90]})" if f else "")))
         print(f"flush negative tests: {fdet}/{len(fms)} detected")
         neg_fail += len(fms) - fdet
+        sdet = 0
+        sms = step_mutants(nl)
+        for name, edits, fn, must in sms:
+            m = mutate(nl, edits)
+            try:
+                f, *_ = fn(m)
+            except Exception as ex:      # noqa: BLE001
+                f = [f"exception {type(ex).__name__}: {ex}"]
+            hit = any(must in x for x in f)
+            sdet += hit
+            print(f"  negative test (controls): {name}: {'detected' if hit else 'NOT DETECTED'}"
+                  + (f"  ({[x for x in f if must in x][0][:110]})" if hit else (f"  ({f[0][:90]})" if f else "")))
+        print(f"controls negative tests: {sdet}/{len(sms)} detected")
+        neg_fail += len(sms) - sdet
         if neg_fail:
             allf.append("negative tests not detected")
     print(f"RESULT: {'PASS' if not allf else 'FAIL'}  ({time.time() - t0:.0f} s)")

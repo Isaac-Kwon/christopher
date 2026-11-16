@@ -9,8 +9,9 @@ Run with the Python that ships with KiCad (needs the `pcbnew` module):
 
 Floor plan (mm, origin top-left, y down; board 250 x 228 = the counter / shifter card size, 4 layers, 40 mm height budget):
     top band      power input (J1, fuse, P-MOSFET, TVS, 5 V), time base (LMC555, 74HC4017, ring lamps, windows), 2 x TBD62783A
-    middle        44 G6S-2 relays in two rows, each with its coil clamp diode / zener / series diode / lamp below it
-    lower band    diode-OR feeds, output fuses, solder jumpers, terminals J7 (safety loops), J8 (idle timer), J9 (thermostat)
+    middle        50 G6S-2 relays in three rows of 17 (pitch 12 mm), each with its coil clamp diode / zener / series diode / lamp below it
+    lower band    diode-OR feeds, output fuses, solder jumpers
+    right side    terminals J7 (safety loops), J8 (idle timer), J9 (thermostat), J10 (dial-strip controls)
     bottom edge   D-sub: J2 control (37), J5 POS in (25), J6 UNIT_BUS tap (25), J3 / J4 CLOCK buses A / B (9)
 """
 from __future__ import annotations
@@ -251,8 +252,8 @@ def build_board():
     # ---- relays: two rows, each with its clamp diodes / lamp parts below ------------------------------------
     relays = sorted((r for r in nl.comp if nl.comp[r]["value"].startswith("G6S-2 ")), key=lambda s: int(s[1:]))
     x0 = 6.0
-    pitch = 13.0
-    per_row = 15
+    pitch = 12.0
+    per_row = 17
     ys = [54.0, 98.0, 142.0]
     for i, r in enumerate(relays):
         row, col = divmod(i, per_row)
@@ -303,11 +304,11 @@ def build_board():
             placed.add(ref)
     # ---- the rest (diode-OR networks, fuses, jumpers, terminals) in the lower band --------------------------------------
     big = Shelf(pl, 4.0, 182.0, 226.0, 200.0)
-    term = Shelf(pl, 206.0, 100.0, W - 4.0, 170.0)
+    term = Shelf(pl, 210.0, 100.0, W - 4.0, 170.0)
     for ref in sorted(nl.comp, key=key):
         if ref in placed or ref in DSUBS or ref.startswith("H"):
             continue
-        (term if ref in ("J7", "J8", "J9") else big).add(ref, 0)
+        (term if ref in ("J7", "J8", "J9", "J10") else big).add(ref, 0)
         placed.add(ref)
     # ---- mounting holes ----------------------------------------------------------------------------------------------------
     for ref, (x, y) in {"H1": (5.0, 5.0), "H2": (W - 5.0, 5.0), "H3": (5.0, H - 5.0), "H4": (W - 5.0, H - 5.0)}.items():

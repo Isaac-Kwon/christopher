@@ -5,7 +5,7 @@
 	(uuid "8cc8c467-4e71-5e7e-9700-c9c179a24c1e")
 	(paper "A2")
 	(title_block
-		(title "Relay machine clock sequencer (CK/NCK, STROBE/JUDGE/CLEAR, HOME/LOAD, END, standby)")
+		(title "Relay machine clock sequencer (CK/NCK, STROBE/JUDGE/CLEAR, HOME/LOAD, END, standby, observation / step)")
 		(date "2026-11-15")
 		(rev "A")
 		(comment 1 "Project Christopher - relay bank clock sequencer 'Q' (hardware/relay/layout.md 3.5: 250 x 228 x 40 card)")
@@ -315,7 +315,7 @@
 			)
 		)
 	)
-	(text "Relay machine clock sequencer: 37 G6S-2 relays do the sequencing (windows -> relay contacts); the only active timing part is one\nLMC555 + one 74HC4017 (the 'when' of the position cycle).  Stop / run / home / end decisions are relay contacts.\nSee README.md: principle, timetable, verification."
+	(text "Relay machine clock sequencer: 50 G6S-2 relays do the sequencing (windows -> relay contacts); the only active timing part is one\nLMC555 + one 74HC4017 (the 'when' of the position cycle).  Stop / run / home / end decisions are relay contacts.\nSpeed selector (observation 27 ms tick) and single-step button on J10.  See README.md: principle, timetable, verification."
 		(exclude_from_sim no)
 		(at 30 20 0)
 		(effects

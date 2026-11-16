@@ -6,7 +6,9 @@ The bench replaces what is NOT on the sequencer board:
     RELEASE button (50 ms or longer), start switch;
   * the counter board (counter-board README 2.5 / 4): CK/NCK/LOAD at the connector face, advance on a CK pulse of
     5 ms or longer, POS lines of the r digit and the m-carry rail A1B, HOME preset rules, shifter transition windows;
-  * the idle timer (external on-delay relay, 120 s +-10 %) and the thermostat.
+  * the idle timer (external on-delay relay, 120 s +-10 %) and the thermostat;
+  * the dial-strip controls on J10 (offset-dial README 5): speed selector (level) and single-step button (with contact bounce:
+    segments of 0.05-1.2 ms for up to 5 ms after each make and each break).
 The stop decision of the register is replaced by an ORACLE (set of positions where the register must stop).
 """
 from __future__ import annotations
@@ -15,7 +17,7 @@ N_POS = 17576
 SHIFT_MS = 13.0        # CK rise -> shifter contacts settled: slave 4 + relay 4 + shifter 5 (counter README 4, shifter README)
 CK_MIN = 5.0
 WATCH = ("STROBE", "JUDGE", "CLEAR", "STOPPED", "AT_HOME", "END", "CK_A", "NCK_A", "LOAD_A", "CK_B", "NCK_B", "LOAD_B", "TMRC")
-EXT = ("RUN", "STOP_LATCH", "HOME", "POS10_IN", "POS13_IN", "POS14_IN", "A1B", "TMR_RET", "HT_C")
+EXT = ("RUN", "STOP_LATCH", "HOME", "POS10_IN", "POS13_IN", "POS14_IN", "A1B", "TMR_RET", "HT_C", "SPEED_OBS", "STEP")
 
 
 class TimingRelay:
@@ -53,7 +55,7 @@ class Bench:
         self.release_delay = release_delay
         self.errors: list[str] = []
         self.notes: list[str] = []
-        sim.watch_names = set(WATCH) | {"RUN", "STOP_LATCH", "HOME"}
+        sim.watch_names = set(WATCH) | {"RUN", "STOP_LATCH", "HOME", "SPEED_OBS", "STEP"}
         sim.on_change = self.on_change
         for k in EXT:
             sim.ext[k] = False
@@ -104,6 +106,7 @@ class Bench:
         self.strobe_high_since = None
         self.timer_tok = None
         self.hot = False
+        self.step_presses = []
         self.update_run()
         self.drive_pos()
 
@@ -222,6 +225,9 @@ class Bench:
         k34_op = self.sim.draw(2.5, 5.0)
 
         def clear_all():
+            if self.stops and self.stopped and self.n != self.stops[-1]["pos"]:
+                self.errors.append(f"t={self.sim.t:.1f} counters moved during the stop at position {self.stops[-1]['pos']} "
+                                   f"(now {self.n}): the bank must stand at the stop position until the release")
             self.stopped = False
             self.valid_strobe = False
             self.k_held = self.k_full = False
@@ -330,6 +336,8 @@ class Bench:
             if name.startswith("CK_") and bus == "A":
                 if lv:
                     self.ck_rise = t
+                    if self.sim.ext.get("STOP_LATCH"):
+                        self.errors.append(f"t={t:.1f} CK rises while STOP_LATCH is high (advance past a register stop)")
                     self.a1b_on = (self.n % 26 == 25 and (self.n // 26) % 26 == 25)
                     if self.a1b_on:
                         self.sim.ext["A1B"] = True
@@ -388,3 +396,30 @@ class Bench:
 
     def at(self, t, fn):
         self.sim.schedule(t, "cb", fn)
+
+    def set_speed(self, obs):
+        """speed selector: True = observation (J10 pin 2 closed)"""
+        self.sim.ext["SPEED_OBS"] = bool(obs)
+
+    def bounce(self, t, final, rng):
+        """contact bounce after a make (final=True) or a break (final=False): alternating segments of 0.05-1.2 ms during
+        up to 5 ms, then the final level"""
+        lv = final
+        t_end = t + rng.uniform(0.0, 5.0)
+        while t < t_end:
+            self.at(t, lambda lv=lv: self.sim.ext.__setitem__("STEP", lv))
+            t += rng.uniform(0.05, 1.2)
+            lv = not lv
+        self.at(t, lambda: self.sim.ext.__setitem__("STEP", final))
+
+    def step_press(self, t, dur, bounce=True):
+        """single-step button pressed at t for dur ms (with contact bounce at the make and at the break)"""
+        self.step_presses.append((t, dur))
+        if bounce:
+            self.bounce(t, True, self.rng)
+            self.bounce(t + dur, False, self.rng)
+        else:
+            self.at(t, lambda: self.sim.ext.__setitem__("STEP", True))
+            self.at(t + dur, lambda: self.sim.ext.__setitem__("STEP", False))
+
+    step_presses: list = []

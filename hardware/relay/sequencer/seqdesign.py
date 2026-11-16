@@ -32,6 +32,8 @@ FP = dict(
     hole="MountingHole:MountingHole_3.2mm_M3_Pad")
 
 T_NOM = 6.3              # ring tick, ms (555 astable, README 3)
+R_SLOW = "680k"          # observation-mode resistor in series with R2 (README 2.1): T = 6.3 -> 27.0 ms, 270 ms / position
+T_OBS = 27.0             # nominal observation tick, ms (0.693 (R1 + 2 (R2 + RV1 + R_SLOW)) C)
 RING_WINDOWS = {         # ring state -> diode-OR window nets it feeds
     "WS": (0, 1), "WJ": (3, 4), "WC": (6, 7, 8), "WK": (7, 8), "HKON": (5, 6, 7, 8), "HLD": (3, 4, 5, 6)}
 
@@ -151,9 +153,13 @@ def build() -> Design:
     st = "timebase"
     S(st, "555", "U", "LMC555", FP["so8"],
       {"1": "GND", "8": "V5", "2": "TH", "6": "TH", "7": "DIS", "3": "CLK", "4": "V5", "5": "CTL"},
-      "CMOS 555 astable: tick period T = 0.693 (R1 + 2 (R2 + RV1)) C = 6.3 ms (adjustable 4.7-7.8 ms)", ref="U1")
+      "CMOS 555 astable: tick period T = 0.693 (R1 + 2 (R2 + RV1)) C = 6.3 ms (adjustable 4.7-7.8 ms); observation mode "
+      "(R_SLOW in series with R2) 27 ms", ref="U1")
     d.R(st, "V5", "DIS", "10k", "555 R1")
-    d.R(st, "DIS", "RM", "150k", "555 R2 (fixed part)")
+    d.R(st, "DIS", "RSL", R_SLOW, "555 observation-mode resistor in series with R2 (shorted by the KOBS / KSCb NC contacts in fast "
+        "mode).  Only a resistance changes, never the capacitor: the capacitor voltage is continuous, so a switch at any instant "
+        "can only lengthen the running tick, never shorten it below the fast tick")
+    d.R(st, "RSL", "RM", "150k", "555 R2 (fixed part)")
     S(st, "POT", "RV", "100k trim", FP["pot"], {"1": "RM", "2": "TH", "3": "TH"}, "Tick trimmer: R2 = 150k + RV1 (set T = 6.3 ms with an oscilloscope)")
     d.C(st, "TH", "GND", "22n C0G", "Timing capacitor (NP0 / C0G: tick tolerance 3 %)")
     d.C(st, "CTL", "GND", "10n", "555 control pin capacitor")
@@ -179,28 +185,39 @@ def build() -> Design:
             "18": "S_OUT", "17": "J_OUT", "16": "C_OUT", "15": "CK_OUT", "14": "EN_OUT", "13": "LD_OUT", "12": "DONE_OUT",
             "11": "ADV_OUT", "9": "SW", "10": "GND"}
     S(sd, "TBD", "U", "TBD62783A", FP["so18w"], tbd1, "High-side driver 1: STROBE, JUDGE, CLEAR, CK, KEN, LOAD, DONE, ADV relays", ref="U3")
-    tbd2 = {"1": "PARK", "2": "KHIN", "3": "GND", "4": "GND", "5": "GND", "6": "GND", "7": "GND", "8": "GND", "9": "SW", "10": "GND",
-            "18": "ST_OUT", "17": "KH_OUT"}
-    S(sd, "TBD", "U", "TBD62783A", FP["so18w"], tbd2, "High-side driver 2: STOPPED relay (channel 1), CK decision relay KCKH (channel 2); the other channels unused", ref="U4",
-      nc=("16", "15", "14", "13", "12", "11"))
+    tbd2 = {"1": "PARK", "2": "KHIN", "3": "SCIN", "4": "GND", "5": "GND", "6": "GND", "7": "GND", "8": "GND", "9": "SW", "10": "GND",
+            "18": "ST_OUT", "17": "KH_OUT", "16": "SC_OUT"}
+    S(sd, "TBD", "U", "TBD62783A", FP["so18w"], tbd2, "High-side driver 2: STOPPED relay (channel 1), CK decision relay KCKH (channel 2), "
+      "step-cycle relay KSC (channel 3, set in the STROBE window of an armed step); the other channels unused", ref="U4",
+      nc=("15", "14", "13", "12", "11"))
     d.C(sd, "SW", "GND", "100n 50V", "Driver supply decoupling", FP["c8"])
     d.C(sd, "SW", "GND", "100n 50V", "Driver supply decoupling", FP["c8"])
-    for n in ("INS", "INJ", "INC", "CKIN", "KENIN", "LDIN", "DONEIN", "ADVIN", "PARK", "KHIN"):
+    for n in ("INS", "INJ", "INC", "CKIN", "KENIN", "LDIN", "DONEIN", "ADVIN", "PARK", "KHIN", "SCIN"):
         d.R(sd, n, "GND", "47k", f"{n} driver-input pull-down (defined low while the contact is open)")
 
     # =========================================================================== INPUT FOLLOWER RELAYS
     si = "inputs"
     for name, pin, coilnet, desc in (("KR", "RUN", "RUN_C", "RUN follower"), ("KSL", "STOP_LATCH", "SL_C", "STOP_LATCH follower"),
                                      ("KHM", "HOME", "HM_C", "HOME follower"), ("KP0", "POS10_IN", "P0_C", "POS10 (r bit 0) follower"),
-                                     ("KP3", "POS13_IN", "P3_C", "POS13 (r bit 3) follower"), ("KP4", "POS14_IN", "P4_C", "POS14 (r bit 4) follower")):
+                                     ("KP3", "POS13_IN", "P3_C", "POS13 (r bit 3) follower"), ("KP4", "POS14_IN", "P4_C", "POS14 (r bit 4) follower"),
+                                     ("KOBS", "SPEED_OBS", "OBS_C", "speed selector (observation) follower"),
+                                     ("KSP", "STEP", "SP_C", "single-step button follower")):
         # decision 0003 2.2: pin -> series Schottky diode -> coil, clamp on the coil side, pull-down + LED on the pin side
         d.R(si, pin, "GND", "22k", f"{pin} pin pull-down")
         d.R(si, pin, f"LP_{name}", "6.8k", f"{pin} indicator resistor")
         d.add(si, "LED", "DL", "LED", FP["led"], {"1": "GND", "2": f"LP_{name}"}, f"{pin} indicator LED")
         d.DS(si, pin, coilnet, f"{name}: series Schottky (pin -> coil); the clamp is on the coil side")
-    d.relay(si, "KR", "RUN_C", ("SW", None, "KRX_C"), ("Q6", None, "KHS"), fast=True,
-            desc="RUN follower. pole 1: SW -> KRX coil; pole 2: ring state Q6 -> sample drive of the CK decision relay KCKH while RUN is high")
-    d.relay(si, "KSL", "SL_C", ("GA1", "GA2", None), ("KQ1", "KQ_C", None), fast=True, desc="STOP_LATCH follower. NC contacts in the GO chain and the quiet chain")
+    d.relay(si, "KR", "RUN_C", ("SW", "RN", "KRX_C"), ("Q6", None, "KHS"), fast=True,
+            desc="RUN follower. pole 1: SW -> KRX coil (NO), SW -> RN = RUN low (NC: feeds the step latch holds, so RUN dominates a "
+                 "step); pole 2: ring state Q6 -> sample drive of the CK decision relay KCKH while RUN is high")
+    d.relay(si, "KSL", "SL_C", ("SW", "GA1", None), ("Q6", "Q6S", None), fast=True,
+            desc="STOP_LATCH follower. pole 1 NC: SW -> GA1 (head of the GO chain and the quiet chain, both through KRX); "
+                 "pole 2 NC: Q6 -> Q6S = sample of the step-cycle CK decision (a step never advances past a register stop)")
+    d.relay(si, "KOBS", "OBS_C", ("DIS", "RSM", None), led=None,
+            desc="Speed selector follower (observation).  pole 1 NC: shorts the observation resistor of the 555 (with KSCb) in fast mode")
+    d.relay(si, "KSP", "SP_C", ("SAP", None, "SAS"), ("SAH1", None, "SA_C"),
+            desc="STEP button follower.  Plain flyback clamp (release 3-10 ms): contact bounce shorter than that never releases it.  "
+                 "pole 1: step arm (parked -> KSA coil); pole 2: KSA hold while the button is held (no repeat)")
     d.relay(si, "KHM", "HM_C", ("SW", None, "HA1"), ("SW", "SBH1", None), fast=True, desc="HOME follower. NO: HOME accept chain; NC: standby hold")
     d.relay(si, "KP0", "P0_C", ("SW", None, "E1"), fast=True, desc="r bit 0 follower: r = 25 chain contact (SW -> E1)")
     d.relay(si, "KP3", "P3_C", ("E1", None, "E2"), fast=True, desc="r bit 3 follower: r = 25 chain contact (E1 -> E2)")
@@ -210,13 +227,13 @@ def build() -> Design:
     # =========================================================================== STATE RELAYS (24 V logic)
     sl = "logic"
     d.relay(sl, "KR25", "R25_C", ("A1B", None, "ENDSET"), led="r = 25", desc="r = 25 decoded from POS10 / POS13 / POS14 (static, before the last CK).  Contact: m carry A1B -> END set.  Its release delay keeps the chain closed until the END relay has operated")
-    d.relay(sl, "KRX", "KRX_C", ("SW", "KQ1", "GA1"), desc="RUN secondary (contact multiplier). NO -> GO chain, NC -> quiet chain")
+    d.relay(sl, "KRX", "KRX_C", ("GA1", "KQ_C", "GA2"), desc="RUN secondary (contact multiplier).  COM = GA1 (after the STOP_LATCH NC): NO -> GO chain, NC -> quiet coil")
     d.relay(sl, "KQ", "KQ_C", ("HA1", None, "HA2"), ("ID1", None, "TMRC"), desc="Quiet = RUN low and STOP_LATCH low. HOME accept chain, idle chain")
     # GO relay: ring runs (leaves Q9) while GO
     d.D(sl, "GA6", "GO_C", "1N4148W", "GO chain A diode (OR)")
     d.D(sl, "GB4", "GO_C", "1N4148W", "GO chain B (HOME program) diode (OR)")
-    d.relay(sl, "KGO", "GO_C", ("Q9", "PARK", None), fast=True, led="GO (ring runs)",
-            desc="GO. NC contact: Q9 -> PARK (clock inhibit) unless GO.  Chain A: RUN & not STOP_LATCH & cycle enable (KENK) & not END & not hot.  Chain B: HOMING and not at home")
+    d.relay(sl, "KGO", "GO_C", ("Q9", "PARK", None), ("SAH1", None, "SA_C"), fast=True, led="GO (ring runs)",
+            desc="GO. NC contact: Q9 -> PARK (clock inhibit) unless GO.  Chain A: (RUN or an armed step) & not STOP_LATCH & cycle enable (KENK) & not END & not hot.  Chain B: HOMING and not at home.  p2: holds an armed step (KSA) once the ring has been released, so a short tap is not lost")
     d.relay(sl, "KRDY", "RDY_C", ("HD1", None, "RDY_C"), led="READY",
             desc="READY: counters hold a valid position (set by HOME done; cleared by standby).  p1 hold")
     d.relay(sl, "KRDYb", "RDY_C", ("SW", None, "KE1"), ("V5", None, "KEN1"),
@@ -248,7 +265,8 @@ def build() -> Design:
     d.relay(sl, "KST", "ST_OUT", ("SW", None, "STP_OUT"), ("HOTS1", None, "HOTS2"), led="STOPPED (parked)",
             desc="Parked (ring in Q9, no GO): STOPPED output; thermostat standby only when parked")
     d.relay(sl, "KSTb", "ST_OUT", ("HA3", None, "HA4"), ("SW", None, "ID1"), desc="Parked twin: HOME accepted only when parked; idle timer only when parked")
-    d.relay(sl, "KSTc", "ST_OUT", ("SW", "HDH1", None), desc="Parked twin: ends the HOME done pass (KHD hold is cut when the ring is parked)")
+    d.relay(sl, "KSTc", "ST_OUT", ("SW", "HDH1", "SAP"), ("SCH1", "SC_C", None),
+            desc="Parked twin: p1 NC ends the HOME done pass (KHD hold is cut when the ring is parked), p1 NO: a step is accepted only when parked; p2 NC: holds the step-cycle relay KSC while the ring runs")
     d.relay(sl, "KENK", "KE_C", ("WK", None, "WKE"), ("WC", None, "INC"), desc="Enable chain: READY and not HOMING. CK window and CLEAR window gating")
     d.relay(sl, "KENKb", "KE_C", ("SW", None, "EW1"), desc="Enable twin: feeds the STROBE/JUDGE enable chain")
     d.relay(sl, "KENKc", "KE_C", ("GA2", None, "GA3"), ("GB2", "GB3", None), desc="Enable twin: GO chain A starts a run cycle only when the cycle windows are enabled; chain B (HOME) waits until KENK has released")
@@ -256,6 +274,22 @@ def build() -> Design:
     d.relay(sl, "KENW", "EW_C", ("WS", None, "INS"), ("WJ", None, "INJ"), fast=True, desc="STROBE/JUDGE window gating (READY, not HOMING, no advance pending)")
     d.relay(sl, "KENWb", "EW_C", ("GA3", "GA3y", "GA4a"), ("GB3", "GB4", None),
             desc="KENW twin: GO chain A starts a cycle only when KENW is operated (or an advance-only cycle with KENW released); chain B (HOME) waits until KENW has released")
+    # --- single step (offset-dial README 5, decision 0003 4.2): one press = one ring revolution = one position cycle
+    #   KSA  armed:      set = parked (KSTc) & button (KSP);  hold = RUN low (RN) & (button held | ring released (KGO p2))
+    #   KSC  step cycle: set = STROBE window WS & armed (TBD channel 3);  hold = RUN low & (ring not parked | still armed)
+    #   GO   step:       GA1 (= not STOP_LATCH) -> KSA -> KSC NC -> GA2 (rest of chain A: enable, advance-pending, END, hot)
+    #   CK   step:       Q6 -> KSL NC (not STOP_LATCH) -> KSCb NO -> KHS (the CK decision that RUN gives in a run cycle)
+    #   speed            KSCb p2 NC opens the 555 short: a step cycle always runs at observation speed
+    d.D(sl, "SAS", "SA_C", "1N4148W", "Step arm (parked & button) -> KSA coil")
+    d.relay(sl, "KSA", "SA_C", ("RN", None, "SAH1"), ("GA1", None, "GS1"),
+            desc="Step ARMED.  p1: hold (RUN low, then the button KSP or the released ring KGO); p2: GO chain A entry of the step (GA1 -> GS1 -> KSC NC -> GA2)")
+    d.relay(sl, "KSAb", "SA_C", ("WS", None, "SCIN"), ("SCH1", None, "SC_C"),
+            desc="Step armed twin: p1 sets the step-cycle relay KSC in the STROBE window (WS -> driver channel); p2 keeps KSC while the button is held after the cycle (no repeat)")
+    d.D(sl, "SC_OUT", "SC_C", "1N4148W", "KSC: series diode (driver -> coil)")
+    d.relay(sl, "KSC", "SC_C", ("RN", None, "SCH1"), ("GS1", "GA2", None), led="STEP cycle",
+            desc="STEP CYCLE: set when the ring has left Q9 for an armed step, held until the ring parks again and the button is released.  p1 hold; p2 NC cuts the step GO as soon as the cycle has started (exactly one cycle per press)")
+    d.relay(sl, "KSCb", "SC_C", ("Q6S", None, "KHS"), ("RSM", "RSL", None),
+            desc="Step cycle twin: p1 = CK decision of a step cycle (Q6 & not STOP_LATCH -> KCKH sample); p2 NC opens the 555 short: a step cycle runs at observation speed")
     # coil feeds of the chain-driven relays
     d.D(sl, "HA4", "HL_C", "1N4148W", "HOME accept -> HOMING coil (OR with the hold)")
     d.D(sl, "DONE_OUT", "RDY_C", "1N4148W", "HOME done -> READY coil")
@@ -329,6 +363,10 @@ def build() -> Design:
     S(sc, "T2", "J", "THERMOSTAT", FP["t2"], {"1": "SW", "2": "HT_C"},
       "Thermostat (bimetal, NO, closes at 45 degC; layout 3.7): 1 = +24V_SW, 2 = to the hot-follower coil", ref="J9")
     d.R(sc, "TMR_RET", "GND", "47k", "Timer return pull-down")
+    d.PTC(sc, "SW", "PANEL_SUP", "PTC 0.1A hold", FP["f1206"], "Panel switch supply fuse (two follower inputs, about 28 mA at 26.4 V)")
+    S(sc, "T4", "J", "PANEL", FP["t4"], {"1": "PANEL_SUP", "2": "SPEED_OBS", "3": "STEP"},
+      "Dial-strip controls (offset-dial README 5): 1 = +24V_SW switch supply (fused), 2 = speed selector return (closed = observation), "
+      "3 = single-step button return (NO), 4 = spare", nc=("4",), ref="J10")
     return d
 
 

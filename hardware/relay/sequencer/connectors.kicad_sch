@@ -5,7 +5,7 @@
 	(uuid "442e1a81-cf2f-509f-8cf5-d63978fcbb94")
 	(paper "A0")
 	(title_block
-		(title "Connectors: J2 control (0003 5.2), J3/J4 CLOCK buses, J5 POS in, J6 UNIT_BUS tap, J7 safety loops, J8 timer, J9 thermostat")
+		(title "Connectors: J2 control (0003 5.2), J3/J4 CLOCK buses, J5 POS in, J6 UNIT_BUS tap, J7 safety loops, J8 timer, J9 thermostat, J10 panel controls")
 		(date "2026-11-15")
 		(rev "A")
 		(comment 1 "Project Christopher - relay machine clock sequencer; sheet CONNECTORS")
@@ -4330,6 +4330,171 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Device:Polyfuse"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "F"
+				(at -2.54 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "Polyfuse"
+				(at 2.54 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 1.27 -5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Resettable fuse, polymeric positive temperature coefficient"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "resettable fuse PTC PPTC polyfuse polyswitch"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "*polyfuse* *PTC*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "Polyfuse_0_1"
+				(polyline
+					(pts
+						(xy -1.524 2.54) (xy -1.524 1.524) (xy 1.524 -1.524) (xy 1.524 -2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -0.762 2.54)
+					(end 0.762 -2.54)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0 -2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "Polyfuse_1_1"
+				(pin passive line
+					(at 0 3.81 270)
+					(length 1.27)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 1.27)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(symbol
 		(lib_id "Connector:DC37_Pins")
@@ -7583,7 +7748,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "288e5c4a-da69-567a-acda-36f703144f82")
-		(property "Reference" "R56"
+		(property "Reference" "R63"
 			(at 416.56 48.26 0)
 			(effects
 				(font
@@ -7640,7 +7805,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/828858df-f214-584c-bead-2317c3797198"
-					(reference "R56")
+					(reference "R63")
 					(unit 1)
 				)
 			)
@@ -7715,7 +7880,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "d6e7b770-ae4a-5414-a886-01e4eaf19347")
-		(property "Reference" "DL29"
+		(property "Reference" "DL32"
 			(at 449.58 45.72 0)
 			(effects
 				(font
@@ -7773,7 +7938,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/828858df-f214-584c-bead-2317c3797198"
-					(reference "DL29")
+					(reference "DL32")
 					(unit 1)
 				)
 			)
@@ -7848,7 +8013,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "d1b547ff-25bf-50d0-aa2a-74cd1f7b0d96")
-		(property "Reference" "R57"
+		(property "Reference" "R64"
 			(at 485.14 48.26 0)
 			(effects
 				(font
@@ -7905,7 +8070,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/828858df-f214-584c-bead-2317c3797198"
-					(reference "R57")
+					(reference "R64")
 					(unit 1)
 				)
 			)
@@ -7980,7 +8145,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "354a1fc5-657a-5485-b188-a84331d63f3c")
-		(property "Reference" "DL30"
+		(property "Reference" "DL33"
 			(at 518.16 45.72 0)
 			(effects
 				(font
@@ -8038,7 +8203,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/828858df-f214-584c-bead-2317c3797198"
-					(reference "DL30")
+					(reference "DL33")
 					(unit 1)
 				)
 			)
@@ -8443,7 +8608,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "3cbc8637-9fb5-5c35-8f3d-3ca1909cf6d8")
-		(property "Reference" "R58"
+		(property "Reference" "R65"
 			(at 632.46 48.26 0)
 			(effects
 				(font
@@ -8500,7 +8665,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/828858df-f214-584c-bead-2317c3797198"
-					(reference "R58")
+					(reference "R65")
 					(unit 1)
 				)
 			)
@@ -8565,6 +8730,311 @@
 				(hide yes)
 			)
 		)
+	)
+	(symbol
+		(lib_id "Device:Polyfuse")
+		(at 665.48 48.26 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "bd3d686e-322f-57aa-a062-99f7144bf3b1")
+		(property "Reference" "F27"
+			(at 662.94 48.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "PTC 0.1A hold"
+			(at 668.02 48.26 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Fuse:Fuse_1206_3216Metric"
+			(at 665.48 48.26 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 665.48 48.26 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Panel switch supply fuse (two follower inputs, about 28 mA at 26.4 V)"
+			(at 665.48 48.26 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "f25fb9da-be2c-5183-8821-3477776854d0")
+		)
+		(pin "2"
+			(uuid "3e0758ef-acc4-565e-a962-82cf0a1480aa")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/828858df-f214-584c-bead-2317c3797198"
+					(reference "F27")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 665.48 44.45) (xy 665.48 39.37)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bdb82c85-365d-59d0-963e-2bbe38ac5a36")
+	)
+	(global_label "SW"
+		(shape passive)
+		(at 665.48 39.37 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "d77c29db-6572-59f9-a5a5-0d823f47d419")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 665.48 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 665.48 52.07) (xy 665.48 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5fd0a756-8991-52fd-9217-af6faa0e6e60")
+	)
+	(global_label "PANEL_SUP"
+		(shape passive)
+		(at 665.48 57.15 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "cf722e0f-df31-5352-8de6-9baaf8abd21c")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 665.48 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:Screw_Terminal_01x04")
+		(at 701.04 55.88 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "35c9d61b-4227-5fa5-8be3-d91694aa5d56")
+		(property "Reference" "J10"
+			(at 701.04 50.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "PANEL"
+			(at 701.04 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal"
+			(at 701.04 55.88 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 701.04 55.88 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "Dial-strip controls (offset-dial README 5): 1 = +24V_SW switch supply (fused), 2 = speed selector return (closed = observation), 3 = single-step button return (NO), 4 = spare"
+			(at 701.04 55.88 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "4eb1f1c6-bec2-58fc-afc3-a73d101ca999")
+		)
+		(pin "2"
+			(uuid "8fe1edd3-3dee-58ec-8047-52bdc9a8c366")
+		)
+		(pin "3"
+			(uuid "8bd5be65-b54c-5435-852a-b3f8d01e7f34")
+		)
+		(pin "4"
+			(uuid "0227f04a-ac85-5123-8d88-ee48f7d2ce0e")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/828858df-f214-584c-bead-2317c3797198"
+					(reference "J10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 695.96 53.34) (xy 690.88 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "126e7a29-ed4d-5d94-807c-4d9aae7b1fc8")
+	)
+	(global_label "PANEL_SUP"
+		(shape passive)
+		(at 690.88 53.34 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c8311a44-4e56-55d9-9a61-8e570cc8faea")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 690.88 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 695.96 55.88) (xy 690.88 55.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "086a14a3-8478-5b86-8822-a5c03b412e2b")
+	)
+	(global_label "SPEED_OBS"
+		(shape passive)
+		(at 690.88 55.88 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "72a41756-c402-5002-91d3-530192bedf36")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 690.88 55.88 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 695.96 58.42) (xy 690.88 58.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b39c29e6-a1d5-510c-9ce7-3f5db0a52287")
+	)
+	(global_label "STEP"
+		(shape passive)
+		(at 690.88 58.42 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "fc716fb9-a491-5283-8b96-6cd4c0b05938")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 690.88 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 695.96 60.96)
+		(uuid "6e7726f9-45f7-5002-abe6-e5ae5e2809de")
 	)
 	(embedded_fonts no)
 )

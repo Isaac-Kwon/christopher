@@ -5,7 +5,7 @@
 	(uuid "c27e0176-de27-5e73-b0e1-b9ac27ce6340")
 	(paper "A0")
 	(title_block
-		(title "Input follower relays: RUN, STOP_LATCH, HOME, POS10 / POS13 / POS14 (0003 2.2: series diode, clamp on the coil side)")
+		(title "Input follower relays: RUN, STOP_LATCH, HOME, POS10 / POS13 / POS14, speed selector, step button (0003 2.2: series diode, clamp on the coil side)")
 		(date "2026-11-15")
 		(rev "A")
 		(comment 1 "Project Christopher - relay machine clock sequencer; sheet INPUTS")
@@ -1487,7 +1487,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "9186a29b-98aa-500f-a0cb-189b3e3d68b9")
-		(property "Reference" "R33"
+		(property "Reference" "R35"
 			(at 50.8 48.26 0)
 			(effects
 				(font
@@ -1544,7 +1544,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R33")
+					(reference "R35")
 					(unit 1)
 				)
 			)
@@ -1619,7 +1619,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "5e4ccbdf-5f2f-5e50-b6d9-f84fc176b3bd")
-		(property "Reference" "R34"
+		(property "Reference" "R36"
 			(at 83.82 48.26 0)
 			(effects
 				(font
@@ -1676,7 +1676,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R34")
+					(reference "R36")
 					(unit 1)
 				)
 			)
@@ -2017,7 +2017,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "b226059a-5610-529f-a649-45517d9017b6")
-		(property "Reference" "R35"
+		(property "Reference" "R37"
 			(at 185.42 48.26 0)
 			(effects
 				(font
@@ -2074,7 +2074,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R35")
+					(reference "R37")
 					(unit 1)
 				)
 			)
@@ -2149,7 +2149,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "b7857295-db46-50de-8cae-bdaa9948018f")
-		(property "Reference" "R36"
+		(property "Reference" "R38"
 			(at 218.44 48.26 0)
 			(effects
 				(font
@@ -2206,7 +2206,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R36")
+					(reference "R38")
 					(unit 1)
 				)
 			)
@@ -2547,7 +2547,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "f17ea2b3-718c-5d9a-8867-11fda7850c2e")
-		(property "Reference" "R37"
+		(property "Reference" "R39"
 			(at 322.58 48.26 0)
 			(effects
 				(font
@@ -2604,7 +2604,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R37")
+					(reference "R39")
 					(unit 1)
 				)
 			)
@@ -2679,7 +2679,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "4a60c4c1-4466-5ee0-8e49-c885e41ea921")
-		(property "Reference" "R38"
+		(property "Reference" "R40"
 			(at 355.6 48.26 0)
 			(effects
 				(font
@@ -2736,7 +2736,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R38")
+					(reference "R40")
 					(unit 1)
 				)
 			)
@@ -3077,7 +3077,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "7af94b31-f9b7-5bcd-af1a-53921a40ca32")
-		(property "Reference" "R39"
+		(property "Reference" "R41"
 			(at 457.2 48.26 0)
 			(effects
 				(font
@@ -3134,7 +3134,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R39")
+					(reference "R41")
 					(unit 1)
 				)
 			)
@@ -3209,7 +3209,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "4cbdb7ca-89c6-510c-ae94-9138eea757cf")
-		(property "Reference" "R40"
+		(property "Reference" "R42"
 			(at 492.76 48.26 0)
 			(effects
 				(font
@@ -3266,7 +3266,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R40")
+					(reference "R42")
 					(unit 1)
 				)
 			)
@@ -3607,7 +3607,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "71ba4833-77cd-5b5c-89b0-91546084aeea")
-		(property "Reference" "R41"
+		(property "Reference" "R43"
 			(at 594.36 48.26 0)
 			(effects
 				(font
@@ -3664,7 +3664,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R41")
+					(reference "R43")
 					(unit 1)
 				)
 			)
@@ -3739,7 +3739,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "62ca1b97-ccf2-5b79-81ca-580d3680e245")
-		(property "Reference" "R42"
+		(property "Reference" "R44"
 			(at 627.38 48.26 0)
 			(effects
 				(font
@@ -3796,7 +3796,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R42")
+					(reference "R44")
 					(unit 1)
 				)
 			)
@@ -4137,7 +4137,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "2077e31c-6f4c-5067-995f-425ffbf3af05")
-		(property "Reference" "R43"
+		(property "Reference" "R45"
 			(at 728.98 48.26 0)
 			(effects
 				(font
@@ -4194,7 +4194,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R43")
+					(reference "R45")
 					(unit 1)
 				)
 			)
@@ -4269,7 +4269,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "fa74a178-348c-51fd-a887-94389b7adfcf")
-		(property "Reference" "R44"
+		(property "Reference" "R46"
 			(at 764.54 48.26 0)
 			(effects
 				(font
@@ -4326,7 +4326,7 @@
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R44")
+					(reference "R46")
 					(unit 1)
 				)
 			)
@@ -4659,16 +4659,16 @@
 		)
 	)
 	(symbol
-		(lib_id "Relay:G6S-2")
-		(at 129.54 86.36 0)
+		(lib_id "Device:R_US")
+		(at 114.3 73.66 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "47b76342-426e-5687-be6e-e2a7abf2d41b")
-		(property "Reference" "K1"
-			(at 146.05 82.55 0)
+		(property "Reference" "R47"
+			(at 116.84 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4676,8 +4676,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "G6S-2 KR"
-			(at 146.05 85.09 0)
+		(property "Value" "22k"
+			(at 111.76 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4685,8 +4685,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Relay_THT:Relay_DPDT_Omron_G6S-2"
-			(at 129.54 86.36 0)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 114.3 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -4695,8 +4695,8 @@
 				(justify left)
 			)
 		)
-		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
-			(at 129.54 86.36 0)
+		(property "Datasheet" ""
+			(at 114.3 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -4705,8 +4705,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "KR: RUN follower. pole 1: SW -> KRX coil; pole 2: ring state Q6 -> sample drive of the CK decision relay KCKH while RUN is high"
-			(at 129.54 86.36 0)
+		(property "Description" "SPEED_OBS pin pull-down"
+			(at 114.3 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -4718,31 +4718,13 @@
 		(pin "1"
 			(uuid "99689fa0-7c01-5040-b7a8-81a9072cccd3")
 		)
-		(pin "3"
+		(pin "2"
 			(uuid "d0915072-0dca-59a8-a204-0d93a9642c27")
-		)
-		(pin "4"
-			(uuid "229ca905-6d84-573e-9f1c-5eface6e9243")
-		)
-		(pin "5"
-			(uuid "02878e64-8d5d-5455-8f26-84e27bf64acf")
-		)
-		(pin "8"
-			(uuid "1eb522ca-0acd-50c6-9eff-e8be75b68af5")
-		)
-		(pin "9"
-			(uuid "edf62cc5-3aab-5ff0-8afa-f8f0d3bda4d1")
-		)
-		(pin "10"
-			(uuid "3e8c795a-098c-582d-bc0e-d38d62c8278e")
-		)
-		(pin "12"
-			(uuid "cab98bca-9a08-547c-bdf0-7d1a7e05ae05")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "K1")
+					(reference "R47")
 					(unit 1)
 				)
 			)
@@ -4750,60 +4732,26 @@
 	)
 	(wire
 		(pts
-			(xy 119.38 78.74) (xy 119.38 71.12)
+			(xy 114.3 69.85) (xy 114.3 64.77)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "442ccae8-e512-526a-a659-ab5cd9c1873c")
+		(uuid "39a57a23-503a-5ef0-adc5-11d337fe3aaa")
 	)
-	(global_label "RUN_C"
+	(global_label "SPEED_OBS"
 		(shape passive)
-		(at 119.38 71.12 90)
+		(at 114.3 64.77 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "8b661dc1-4303-5f36-bdc6-40d858272506")
+		(uuid "4f90e90f-f999-5063-bf2b-bf7fdcb76768")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 119.38 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(no_connect
-		(at 127 78.74)
-		(uuid "a76bce87-f0d5-5b02-a3b8-290e29b500a6")
-	)
-	(wire
-		(pts
-			(xy 129.54 93.98) (xy 129.54 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "248b41dd-8f1e-5368-8b99-9738870eea00")
-	)
-	(global_label "SW"
-		(shape passive)
-		(at 129.54 101.6 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "8eaee36e-bdef-54b9-814f-72aeaa621ef0")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 129.54 101.6 0)
+			(at 114.3 64.77 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4814,120 +4762,26 @@
 	)
 	(wire
 		(pts
-			(xy 132.08 78.74) (xy 132.08 71.12)
+			(xy 114.3 77.47) (xy 114.3 82.55)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "48bb1573-5297-5b94-8faa-f69598aa822b")
-	)
-	(global_label "KRX_C"
-		(shape passive)
-		(at 132.08 71.12 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "05b153af-06e9-541b-9649-5a79d27b0ad0")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 132.08 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 142.24 78.74) (xy 142.24 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "06869eb7-8917-505b-b24a-4ccc667c4a79")
-	)
-	(global_label "KHS"
-		(shape passive)
-		(at 142.24 71.12 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "348c68f3-6b6a-5c45-86ce-651cad717102")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 142.24 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 139.7 93.98) (xy 139.7 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e01113b1-bd6e-583c-87bc-ec85a18bf2b8")
-	)
-	(global_label "Q6"
-		(shape passive)
-		(at 139.7 101.6 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "edbdb810-d6db-50fa-a309-6b333da4b62c")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 139.7 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(no_connect
-		(at 137.16 78.74)
-		(uuid "f69211bd-1d09-5b16-99ed-e8770b116e0e")
-	)
-	(wire
-		(pts
-			(xy 119.38 93.98) (xy 119.38 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "381c4b0b-896b-53bd-bd74-3e34b45e950f")
+		(uuid "01f546c4-ea3f-55f3-9cdf-cffd67b2c004")
 	)
 	(global_label "GND"
 		(shape passive)
-		(at 119.38 101.6 270)
+		(at 114.3 82.55 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "90e22363-be41-57bb-813a-eb784cdf7685")
+		(uuid "26608748-0a18-5e16-9490-e413315cbfbe")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 119.38 101.6 0)
+			(at 114.3 82.55 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4937,16 +4791,16 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:D")
-		(at 177.8 73.66 0)
+		(lib_id "Device:R_US")
+		(at 149.86 73.66 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "fad2c062-0619-5c74-8ccd-c5e9ad299684")
-		(property "Reference" "D25"
-			(at 177.8 71.12 0)
+		(uuid "27fd6b7b-d8c6-5384-9182-ec54313bbd20")
+		(property "Reference" "R48"
+			(at 152.4 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4954,9 +4808,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1N4148W"
-			(at 177.8 76.2 0)
-			(hide yes)
+		(property "Value" "6.8k"
+			(at 147.32 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4964,8 +4817,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 177.8 73.66 0)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 149.86 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -4975,7 +4828,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 177.8 73.66 0)
+			(at 149.86 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -4984,8 +4837,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "RUN_C: coil clamp diode (with the zener: fast release)"
-			(at 177.8 73.66 0)
+		(property "Description" "SPEED_OBS indicator resistor"
+			(at 149.86 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -4995,10 +4848,276 @@
 			)
 		)
 		(pin "1"
-			(uuid "d1b9cd3e-4ffe-5bb6-8df6-07aa989944d6")
+			(uuid "cab98bca-9a08-547c-bdf0-7d1a7e05ae05")
 		)
 		(pin "2"
-			(uuid "5b55c854-27bc-55b7-8646-55e8cfec1f4a")
+			(uuid "ab651c8a-b43b-5c9f-9325-c464e6ec3fe1")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "R48")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 149.86 69.85) (xy 149.86 64.77)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9c0a023a-f226-5ff1-a1ce-2f5508221547")
+	)
+	(global_label "SPEED_OBS"
+		(shape passive)
+		(at 149.86 64.77 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "48e4e263-82f1-576f-a021-6c9b8683a986")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 149.86 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 149.86 77.47) (xy 149.86 82.55)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "248b41dd-8f1e-5368-8b99-9738870eea00")
+	)
+	(global_label "LP_KOBS"
+		(shape passive)
+		(at 149.86 82.55 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "8eaee36e-bdef-54b9-814f-72aeaa621ef0")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 149.86 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:LED")
+		(at 182.88 73.66 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "0ba6c0f7-d586-5863-984e-34dcad78963f")
+		(property "Reference" "DL18"
+			(at 182.88 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "LED"
+			(at 182.88 76.2 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
+			(at 182.88 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 182.88 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "SPEED_OBS indicator LED"
+			(at 182.88 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "c65800e6-aed3-5848-8776-2c169a2bc471")
+		)
+		(pin "2"
+			(uuid "5286038a-e79e-5b62-bbcc-e31a5f893349")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "DL18")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 179.07 73.66) (xy 173.99 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bdb7533c-4b17-544e-8a22-180bed56a77f")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 173.99 73.66 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "fd2abe8b-daa6-5757-9411-6c8ddcd2c254")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 173.99 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 186.69 73.66) (xy 191.77 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "42947b7f-f165-5e90-906d-f0af6a13d503")
+	)
+	(global_label "LP_KOBS"
+		(shape passive)
+		(at 191.77 73.66 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "e24f0b29-1d17-5863-adfe-c7e76405d00d")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 191.77 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Schottky")
+		(at 215.9 73.66 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "38a92130-ce72-50fd-b0dd-8fd1f1690624")
+		(property "Reference" "D25"
+			(at 215.9 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "BAT54 / SS14 Schottky"
+			(at 215.9 76.2 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 215.9 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 215.9 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "KOBS: series Schottky (pin -> coil); the clamp is on the coil side"
+			(at 215.9 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "595ecf09-1223-5eac-9ec7-2c0379a79d45")
+		)
+		(pin "2"
+			(uuid "c1b049a4-194b-5a02-81b3-72e42999a1b6")
 		)
 		(instances
 			(project "sequencer"
@@ -5011,26 +5130,26 @@
 	)
 	(wire
 		(pts
-			(xy 173.99 73.66) (xy 168.91 73.66)
+			(xy 212.09 73.66) (xy 207.01 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "e27e686a-aa17-59db-81d8-ef460a969d8e")
+		(uuid "3006a4b5-9496-5a92-81a0-96dc8caa12d4")
 	)
-	(global_label "X_RUN_C"
+	(global_label "OBS_C"
 		(shape passive)
-		(at 168.91 73.66 180)
+		(at 207.01 73.66 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "82d0d73c-0e3e-56ff-aaed-c2f25451bfce")
+		(uuid "6fdfa54d-89b5-58ad-a3db-13baef075c48")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 168.91 73.66 0)
+			(at 207.01 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5041,26 +5160,26 @@
 	)
 	(wire
 		(pts
-			(xy 181.61 73.66) (xy 186.69 73.66)
+			(xy 219.71 73.66) (xy 224.79 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "179d2139-0e21-54e7-bab5-2b9cc75a4d4c")
+		(uuid "e27e686a-aa17-59db-81d8-ef460a969d8e")
 	)
-	(global_label "GND"
+	(global_label "SPEED_OBS"
 		(shape passive)
-		(at 186.69 73.66 0)
+		(at 224.79 73.66 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "de74b4fb-ff00-531c-ac89-966dec7a2508")
+		(uuid "82d0d73c-0e3e-56ff-aaed-c2f25451bfce")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 186.69 73.66 0)
+			(at 224.79 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5070,16 +5189,16 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:D_Zener")
-		(at 210.82 73.66 0)
+		(lib_id "Device:R_US")
+		(at 251.46 73.66 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "74dfee86-c472-5682-8605-1e4256bd3910")
-		(property "Reference" "DZ2"
-			(at 210.82 71.12 0)
+		(uuid "2069bb24-fa86-5da7-987a-b94db1c08611")
+		(property "Reference" "R49"
+			(at 254 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5087,9 +5206,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "BZT52C30"
-			(at 210.82 76.2 0)
-			(hide yes)
+		(property "Value" "22k"
+			(at 248.92 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5097,8 +5215,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 210.82 73.66 0)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 251.46 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -5108,7 +5226,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 210.82 73.66 0)
+			(at 251.46 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -5117,8 +5235,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "RUN_C: coil clamp zener 30 V"
-			(at 210.82 73.66 0)
+		(property "Description" "STEP pin pull-down"
+			(at 251.46 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -5128,15 +5246,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "9c683348-dcf7-585f-8979-742748a3c276")
+			(uuid "ec24d99f-9053-53b3-b484-95c92fae90f8")
 		)
 		(pin "2"
-			(uuid "123c7f97-a3b1-5c40-9f69-6304a9665670")
+			(uuid "c932d059-eff8-5c56-9b50-63aca461f42b")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "DZ2")
+					(reference "R49")
 					(unit 1)
 				)
 			)
@@ -5144,7 +5262,37 @@
 	)
 	(wire
 		(pts
-			(xy 207.01 73.66) (xy 201.93 73.66)
+			(xy 251.46 69.85) (xy 251.46 64.77)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ccc9b1a4-0ff8-5ee1-80df-949ac7571fae")
+	)
+	(global_label "STEP"
+		(shape passive)
+		(at 251.46 64.77 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ff9119f1-bea1-5d7e-b1b0-f28f6e6ea426")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 251.46 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 251.46 77.47) (xy 251.46 82.55)
 		)
 		(stroke
 			(width 0)
@@ -5152,9 +5300,9 @@
 		)
 		(uuid "2e63255b-9cd0-56de-95ee-b114c01e7534")
 	)
-	(global_label "X_RUN_C"
+	(global_label "GND"
 		(shape passive)
-		(at 201.93 73.66 180)
+		(at 251.46 82.55 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5163,37 +5311,7 @@
 		)
 		(uuid "5b8585e1-5c94-56ca-9531-74da46fdadb9")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 201.93 73.66 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 214.63 73.66) (xy 219.71 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1f0a5241-b0ad-57b5-ae08-5a9ad5026d62")
-	)
-	(global_label "RUN_C"
-		(shape passive)
-		(at 219.71 73.66 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "146552fa-4f4b-53e3-863a-f4f6e179a2ed")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 219.71 73.66 0)
+			(at 251.46 82.55 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5203,16 +5321,16 @@
 		)
 	)
 	(symbol
-		(lib_id "Relay:G6S-2")
-		(at 259.08 86.36 0)
+		(lib_id "Device:R_US")
+		(at 284.48 73.66 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "866ffcd6-a24d-593e-b20d-b417d53cc79c")
-		(property "Reference" "K2"
-			(at 275.59 82.55 0)
+		(uuid "c7cb078d-73f4-5186-bbac-434d53f95556")
+		(property "Reference" "R50"
+			(at 287.02 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5220,8 +5338,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "G6S-2 KSL"
-			(at 275.59 85.09 0)
+		(property "Value" "6.8k"
+			(at 281.94 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5229,287 +5347,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Relay_THT:Relay_DPDT_Omron_G6S-2"
-			(at 259.08 86.36 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
-			(at 259.08 86.36 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Description" "KSL: STOP_LATCH follower. NC contacts in the GO chain and the quiet chain"
-			(at 259.08 86.36 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(pin "1"
-			(uuid "3220cd4a-a1c3-5562-99ba-f7a72ae44c11")
-		)
-		(pin "3"
-			(uuid "746fb47b-b294-533c-a038-4f015b469d50")
-		)
-		(pin "4"
-			(uuid "e3c39fc8-d806-50ae-9d8d-f17e8dac4660")
-		)
-		(pin "5"
-			(uuid "35a30f28-56f3-5672-9318-358dad642373")
-		)
-		(pin "8"
-			(uuid "88078213-2126-533c-ab82-be6ee64c1059")
-		)
-		(pin "9"
-			(uuid "8fd0248f-1000-5158-b5be-75e745d368f5")
-		)
-		(pin "10"
-			(uuid "93599ecf-7a5c-5f54-8a81-9c08631ee30e")
-		)
-		(pin "12"
-			(uuid "75227668-f6c6-569c-b896-d646341c613b")
-		)
-		(instances
-			(project "sequencer"
-				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "K2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 248.92 78.74) (xy 248.92 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a6856591-765b-540a-a06b-03ae80fe8e12")
-	)
-	(global_label "SL_C"
-		(shape passive)
-		(at 248.92 71.12 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "405f46f6-ecbc-5bc4-a8c4-3b625e7b9ca9")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 248.92 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 256.54 78.74) (xy 256.54 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "542856d5-9d73-5d80-8f0e-afcbf9cc9445")
-	)
-	(global_label "GA2"
-		(shape passive)
-		(at 256.54 71.12 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "05429da1-e734-5076-95d0-6967d5e39432")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 256.54 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 259.08 93.98) (xy 259.08 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c6c569aa-2d42-5108-b880-811d0d36497c")
-	)
-	(global_label "GA1"
-		(shape passive)
-		(at 259.08 101.6 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "5938f6c6-fa63-538b-8c45-64b37755ca48")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 259.08 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(no_connect
-		(at 261.62 78.74)
-		(uuid "791d2eff-f413-5c68-a4bb-c0887f005c94")
-	)
-	(no_connect
-		(at 271.78 78.74)
-		(uuid "2a284e12-3cef-5406-8cca-f15a9e50046f")
-	)
-	(wire
-		(pts
-			(xy 269.24 93.98) (xy 269.24 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "434d6fc4-645d-503f-b1f9-edc0b818b516")
-	)
-	(global_label "KQ1"
-		(shape passive)
-		(at 269.24 101.6 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "b041bc27-fa19-5991-bc7b-290eb5a871b2")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 269.24 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 266.7 78.74) (xy 266.7 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "756c0cd5-dc64-53b1-8d65-05e81b93b141")
-	)
-	(global_label "KQ_C"
-		(shape passive)
-		(at 266.7 71.12 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "bf1f74f4-67f8-53d8-811a-1df9b1f23686")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 266.7 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 248.92 93.98) (xy 248.92 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "57cfc9c3-f8a2-5b9f-b939-2f1b36b81720")
-	)
-	(global_label "GND"
-		(shape passive)
-		(at 248.92 101.6 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "d005d2d9-c141-580f-acaa-3a2c9d52162f")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 248.92 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:D")
-		(at 307.34 73.66 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "218b3ce2-8da5-5ff3-9f4f-5c4354ee5b20")
-		(property "Reference" "D26"
-			(at 307.34 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1N4148W"
-			(at 307.34 76.2 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 307.34 73.66 0)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 284.48 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -5519,7 +5358,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 307.34 73.66 0)
+			(at 284.48 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -5528,8 +5367,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "SL_C: coil clamp diode (with the zener: fast release)"
-			(at 307.34 73.66 0)
+		(property "Description" "STEP indicator resistor"
+			(at 284.48 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -5539,10 +5378,276 @@
 			)
 		)
 		(pin "1"
-			(uuid "c06515a3-ae37-51d7-b21d-f374abebe0f9")
+			(uuid "82280aac-9694-5848-92ef-e48af121acea")
 		)
 		(pin "2"
-			(uuid "f128079f-5b92-5732-af8e-9020be306cc9")
+			(uuid "bfd80c4d-1d55-558b-bb09-9c078026b470")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "R50")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 284.48 69.85) (xy 284.48 64.77)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9cf4bb58-ab90-5534-be0f-f66931bb37ab")
+	)
+	(global_label "STEP"
+		(shape passive)
+		(at 284.48 64.77 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "f0701f57-4e5d-5783-bb2d-400e787620bd")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 284.48 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 284.48 77.47) (xy 284.48 82.55)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ba7e503f-2fbb-5009-8ba2-e463fb39e2ce")
+	)
+	(global_label "LP_KSP"
+		(shape passive)
+		(at 284.48 82.55 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "5f61ea0b-72b4-58ef-84d9-3e932fb2f301")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 284.48 82.55 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:LED")
+		(at 320.04 73.66 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ab2b508e-a5bc-526e-b6cc-649eab42fa35")
+		(property "Reference" "DL19"
+			(at 320.04 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "LED"
+			(at 320.04 76.2 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
+			(at 320.04 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 320.04 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "STEP indicator LED"
+			(at 320.04 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "8fd0248f-1000-5158-b5be-75e745d368f5")
+		)
+		(pin "2"
+			(uuid "93599ecf-7a5c-5f54-8a81-9c08631ee30e")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "DL19")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 316.23 73.66) (xy 311.15 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d1794d04-4ba8-50cd-b980-57f36c3b93bd")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 311.15 73.66 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "e2cd93fb-c0f3-5b01-bad5-a51b1aca2d48")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 311.15 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 323.85 73.66) (xy 328.93 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "378c3705-8ed3-58a2-8464-e80f1a42460e")
+	)
+	(global_label "LP_KSP"
+		(shape passive)
+		(at 328.93 73.66 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "9c5ca643-9738-5ab5-97bf-20c8b4cb5ed6")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 328.93 73.66 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Schottky")
+		(at 353.06 73.66 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "fec3ef36-866b-5f0e-8522-cb9781481892")
+		(property "Reference" "D26"
+			(at 353.06 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "BAT54 / SS14 Schottky"
+			(at 353.06 76.2 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 353.06 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 353.06 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "KSP: series Schottky (pin -> coil); the clamp is on the coil side"
+			(at 353.06 73.66 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "3b89f2f5-44d0-5204-b385-654060b3b63a")
+		)
+		(pin "2"
+			(uuid "f2b9cf12-33d3-5a1c-a801-add5e93cb1f9")
 		)
 		(instances
 			(project "sequencer"
@@ -5555,26 +5660,26 @@
 	)
 	(wire
 		(pts
-			(xy 303.53 73.66) (xy 298.45 73.66)
+			(xy 349.25 73.66) (xy 344.17 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "6c21f792-b911-5979-aa20-da9ee8c934f1")
+		(uuid "856940ec-543a-593f-b6cb-80cb5220dbb0")
 	)
-	(global_label "X_SL_C"
+	(global_label "SP_C"
 		(shape passive)
-		(at 298.45 73.66 180)
+		(at 344.17 73.66 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "1d2c2275-1667-5f3c-9fee-b41938ee766b")
+		(uuid "6579232f-0fe6-53b5-99a5-2b9f2b79a610")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 298.45 73.66 0)
+			(at 344.17 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5585,159 +5690,26 @@
 	)
 	(wire
 		(pts
-			(xy 311.15 73.66) (xy 316.23 73.66)
+			(xy 356.87 73.66) (xy 361.95 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "9912c274-52e7-59b9-bf5f-6593e8649cc6")
+		(uuid "434d6fc4-645d-503f-b1f9-edc0b818b516")
 	)
-	(global_label "GND"
+	(global_label "STEP"
 		(shape passive)
-		(at 316.23 73.66 0)
+		(at 361.95 73.66 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "5681dd48-e109-59cf-8f6b-b80657a1d501")
+		(uuid "b041bc27-fa19-5991-bc7b-290eb5a871b2")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 316.23 73.66 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:D_Zener")
-		(at 340.36 73.66 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "c868e18a-b08f-5774-b763-1cae83d9e392")
-		(property "Reference" "DZ3"
-			(at 340.36 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "BZT52C30"
-			(at 340.36 76.2 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 340.36 73.66 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Datasheet" ""
-			(at 340.36 73.66 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Description" "SL_C: coil clamp zener 30 V"
-			(at 340.36 73.66 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(pin "1"
-			(uuid "31d26e04-fddb-5a89-9f1a-724ffcb270cb")
-		)
-		(pin "2"
-			(uuid "4f76bcde-9ab1-538c-bbe9-8cf1f87df680")
-		)
-		(instances
-			(project "sequencer"
-				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "DZ3")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 336.55 73.66) (xy 331.47 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b93de2fd-2469-574a-b128-a96428cc73f3")
-	)
-	(global_label "X_SL_C"
-		(shape passive)
-		(at 331.47 73.66 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "3c7b5f5c-3e1d-5fd7-a84a-c7970c0f4ca7")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 331.47 73.66 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 344.17 73.66) (xy 349.25 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3ca8fd9c-c9ad-54e9-b4e7-7f73e3c33ba0")
-	)
-	(global_label "SL_C"
-		(shape passive)
-		(at 349.25 73.66 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "d0b5e552-c0ab-56dd-86d4-2741d160d67c")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 349.25 73.66 0)
+			(at 361.95 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5748,15 +5720,15 @@
 	)
 	(symbol
 		(lib_id "Relay:G6S-2")
-		(at 388.62 86.36 0)
+		(at 401.32 86.36 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "9b2f34e1-dbc0-50b0-9dd1-86649f399731")
-		(property "Reference" "K3"
-			(at 405.13 82.55 0)
+		(uuid "670e6b2f-3499-545f-8456-b6275bb5f7ac")
+		(property "Reference" "K1"
+			(at 417.83 82.55 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5764,8 +5736,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "G6S-2 KHM"
-			(at 405.13 85.09 0)
+		(property "Value" "G6S-2 KR"
+			(at 417.83 85.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5774,7 +5746,7 @@
 			)
 		)
 		(property "Footprint" "Relay_THT:Relay_DPDT_Omron_G6S-2"
-			(at 388.62 86.36 0)
+			(at 401.32 86.36 0)
 			(hide yes)
 			(effects
 				(font
@@ -5784,7 +5756,7 @@
 			)
 		)
 		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
-			(at 388.62 86.36 0)
+			(at 401.32 86.36 0)
 			(hide yes)
 			(effects
 				(font
@@ -5793,8 +5765,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "KHM: HOME follower. NO: HOME accept chain; NC: standby hold"
-			(at 388.62 86.36 0)
+		(property "Description" "KR: RUN follower. pole 1: SW -> KRX coil (NO), SW -> RN = RUN low (NC: feeds the step latch holds, so RUN dominates a step); pole 2: ring state Q6 -> sample drive of the CK decision relay KCKH while RUN is high"
+			(at 401.32 86.36 0)
 			(hide yes)
 			(effects
 				(font
@@ -5804,99 +5776,35 @@
 			)
 		)
 		(pin "1"
-			(uuid "79842326-35dd-515e-b0d7-b5b5f839881b")
+			(uuid "f1b450de-c414-5703-b26b-2fe2cd970470")
 		)
 		(pin "3"
-			(uuid "3dea3303-693e-5cc4-a01c-f66f27fbb7be")
+			(uuid "8ca0d46d-cc54-5e9a-937e-f997b36f4a7f")
 		)
 		(pin "4"
-			(uuid "e23581e0-44f0-5765-b1bf-fae86066927c")
+			(uuid "6bab1e61-0e61-5ad1-9aed-f9941713089a")
 		)
 		(pin "5"
-			(uuid "64b3727e-ac19-5850-956f-eb5f87242d4b")
+			(uuid "ae567259-b888-5e81-ab5c-88d395e62c7b")
 		)
 		(pin "8"
-			(uuid "3243b915-3994-5d96-9e92-4c323b989d73")
+			(uuid "c06515a3-ae37-51d7-b21d-f374abebe0f9")
 		)
 		(pin "9"
-			(uuid "3f73bbf0-84d4-5f57-aa03-599d16a077e3")
+			(uuid "f128079f-5b92-5732-af8e-9020be306cc9")
 		)
 		(pin "10"
-			(uuid "789754b3-edaf-5e26-8b3b-42a346456096")
+			(uuid "1335469b-88b8-5825-9d60-3bde7b52eb7b")
 		)
 		(pin "12"
-			(uuid "d3a51efb-2948-5057-8455-d9b1807f6eef")
+			(uuid "259929af-7ab0-5c5e-9be7-18167887eeb9")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "K3")
+					(reference "K1")
 					(unit 1)
 				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 378.46 78.74) (xy 378.46 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "789b40ae-d1a7-51f0-b135-b970ad3cda83")
-	)
-	(global_label "HM_C"
-		(shape passive)
-		(at 378.46 71.12 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "c879ecab-d1af-5220-b74d-5871b785a3ee")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 378.46 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(no_connect
-		(at 386.08 78.74)
-		(uuid "d32289fc-fec4-5a0a-b291-618b5347ed56")
-	)
-	(wire
-		(pts
-			(xy 388.62 93.98) (xy 388.62 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b82efa8f-706b-5f0e-8a22-fdb927215a49")
-	)
-	(global_label "SW"
-		(shape passive)
-		(at 388.62 101.6 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "e9d891a4-455d-56fa-a442-644b9c1ef165")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 388.62 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
 			)
 		)
 	)
@@ -5908,9 +5816,9 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "3f461fbd-5b14-5494-9b55-b3c368b17e0a")
+		(uuid "9912c274-52e7-59b9-bf5f-6593e8649cc6")
 	)
-	(global_label "HA1"
+	(global_label "RUN_C"
 		(shape passive)
 		(at 391.16 71.12 90)
 		(effects
@@ -5919,7 +5827,7 @@
 			)
 			(justify left)
 		)
-		(uuid "f2731082-4e2e-57fe-9eba-f467443d8e89")
+		(uuid "5681dd48-e109-59cf-8f6b-b80657a1d501")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 391.16 71.12 0)
 			(effects
@@ -5930,62 +5838,28 @@
 			)
 		)
 	)
-	(no_connect
-		(at 401.32 78.74)
-		(uuid "fe6881c9-f334-5c48-bb57-1b69adfeb1bd")
-	)
 	(wire
 		(pts
-			(xy 398.78 93.98) (xy 398.78 101.6)
+			(xy 398.78 78.74) (xy 398.78 71.12)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "a10d911b-e60b-59db-a6aa-adc6657ca8f8")
+		(uuid "a38507bc-f63c-5461-b7cf-e0ca31c82161")
 	)
-	(global_label "SW"
+	(global_label "RN"
 		(shape passive)
-		(at 398.78 101.6 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "c41cf55c-a00d-5331-a6d2-9292472a5595")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 398.78 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 396.24 78.74) (xy 396.24 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "56bd8231-d0e8-5a3f-b1a5-61503cd1470a")
-	)
-	(global_label "SBH1"
-		(shape passive)
-		(at 396.24 71.12 90)
+		(at 398.78 71.12 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "7d9c37a6-9998-5c49-b2c1-a0d36bb63f93")
+		(uuid "7275295b-5f74-5906-868e-f994f0bb6e3b")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 396.24 71.12 0)
+			(at 398.78 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5996,26 +5870,150 @@
 	)
 	(wire
 		(pts
-			(xy 378.46 93.98) (xy 378.46 101.6)
+			(xy 401.32 93.98) (xy 401.32 101.6)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "43f84a2d-c97b-5fa0-a6e8-6fe280f76bd3")
+		(uuid "46884c95-cafe-5884-8b35-2be29dfa9c5a")
 	)
-	(global_label "GND"
+	(global_label "SW"
 		(shape passive)
-		(at 378.46 101.6 270)
+		(at 401.32 101.6 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "657968eb-5738-5b24-b012-54699e009ef3")
+		(uuid "0b087a61-f714-59e0-a13e-58d7e52f84fa")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 378.46 101.6 0)
+			(at 401.32 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 403.86 78.74) (xy 403.86 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2bfb7155-d0e2-574d-9a7a-4287b93293b9")
+	)
+	(global_label "KRX_C"
+		(shape passive)
+		(at 403.86 71.12 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "16a70cff-5110-5212-9b40-1f321abc5025")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 403.86 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 414.02 78.74) (xy 414.02 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1b5d99d0-29f2-5cca-bd40-e1040b2dff7c")
+	)
+	(global_label "KHS"
+		(shape passive)
+		(at 414.02 71.12 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "38883aca-d8d5-59ed-a06d-a7b2faad3730")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 414.02 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 411.48 93.98) (xy 411.48 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "316ff794-672a-51e8-839e-7206dfe0434f")
+	)
+	(global_label "Q6"
+		(shape passive)
+		(at 411.48 101.6 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "f61b42db-420d-5fd2-a5ee-ba4bbfd4861b")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 411.48 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 408.94 78.74)
+		(uuid "aa676996-8516-5ba4-a217-b96ad7cf85ff")
+	)
+	(wire
+		(pts
+			(xy 391.16 93.98) (xy 391.16 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "de5db662-65aa-5c18-b01d-979366c5a7d3")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 391.16 101.6 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "6a7faf97-016b-5cb3-bc0f-454220e5e777")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 391.16 101.6 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6026,15 +6024,15 @@
 	)
 	(symbol
 		(lib_id "Device:D")
-		(at 436.88 73.66 0)
+		(at 449.58 73.66 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "3b1c7701-fe05-5846-a82a-43bc00ff3ba7")
+		(uuid "f30d37fe-cdc4-5fc4-ad01-f2db2d2931d0")
 		(property "Reference" "D27"
-			(at 436.88 71.12 0)
+			(at 449.58 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6043,7 +6041,7 @@
 			)
 		)
 		(property "Value" "1N4148W"
-			(at 436.88 76.2 0)
+			(at 449.58 76.2 0)
 			(hide yes)
 			(effects
 				(font
@@ -6053,7 +6051,7 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 436.88 73.66 0)
+			(at 449.58 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6063,7 +6061,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 436.88 73.66 0)
+			(at 449.58 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6072,8 +6070,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "HM_C: coil clamp diode (with the zener: fast release)"
-			(at 436.88 73.66 0)
+		(property "Description" "RUN_C: coil clamp diode (with the zener: fast release)"
+			(at 449.58 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6083,10 +6081,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "f42e578d-cc0d-5b98-ae40-2cdf109df3c4")
+			(uuid "789754b3-edaf-5e26-8b3b-42a346456096")
 		)
 		(pin "2"
-			(uuid "4c5a1d51-e4da-5d0e-b413-7bfc115f1192")
+			(uuid "d3a51efb-2948-5057-8455-d9b1807f6eef")
 		)
 		(instances
 			(project "sequencer"
@@ -6099,26 +6097,26 @@
 	)
 	(wire
 		(pts
-			(xy 433.07 73.66) (xy 427.99 73.66)
+			(xy 445.77 73.66) (xy 440.69 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "1b628124-6306-5aa4-a22b-36fbd11f5d6a")
+		(uuid "789b40ae-d1a7-51f0-b135-b970ad3cda83")
 	)
-	(global_label "X_HM_C"
+	(global_label "X_RUN_C"
 		(shape passive)
-		(at 427.99 73.66 180)
+		(at 440.69 73.66 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "b710ca3b-cf7a-5e31-a9af-2511b14c5847")
+		(uuid "c879ecab-d1af-5220-b74d-5871b785a3ee")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 427.99 73.66 0)
+			(at 440.69 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6129,26 +6127,26 @@
 	)
 	(wire
 		(pts
-			(xy 440.69 73.66) (xy 445.77 73.66)
+			(xy 453.39 73.66) (xy 458.47 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "e78daf6d-3293-505e-acc7-b6e3c75b5a37")
+		(uuid "8884da7f-9e0a-51e0-be5d-d5fc10daef41")
 	)
 	(global_label "GND"
 		(shape passive)
-		(at 445.77 73.66 0)
+		(at 458.47 73.66 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "d462b59e-ad66-5c15-a3d5-8f373340b087")
+		(uuid "34f8c15f-690a-53eb-868a-6b0dea291ec3")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 445.77 73.66 0)
+			(at 458.47 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6159,15 +6157,15 @@
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
-		(at 469.9 73.66 0)
+		(at 482.6 73.66 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "be74416c-3e0e-57f7-baf2-7204944b3aa6")
-		(property "Reference" "DZ4"
-			(at 469.9 71.12 0)
+		(uuid "71b236c0-c28c-56a9-a112-3c155e04beda")
+		(property "Reference" "DZ2"
+			(at 482.6 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6176,7 +6174,7 @@
 			)
 		)
 		(property "Value" "BZT52C30"
-			(at 469.9 76.2 0)
+			(at 482.6 76.2 0)
 			(hide yes)
 			(effects
 				(font
@@ -6186,7 +6184,7 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 469.9 73.66 0)
+			(at 482.6 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6196,7 +6194,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 469.9 73.66 0)
+			(at 482.6 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6205,8 +6203,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "HM_C: coil clamp zener 30 V"
-			(at 469.9 73.66 0)
+		(property "Description" "RUN_C: coil clamp zener 30 V"
+			(at 482.6 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6216,15 +6214,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "46e38aff-3675-5f47-8744-28a486301942")
+			(uuid "d797ffd7-8ef4-5f7e-8e88-1e692b283d8a")
 		)
 		(pin "2"
-			(uuid "45644a9f-f61d-5b2b-b808-959a644f5778")
+			(uuid "7d775ce5-bb4c-54b4-a21c-806dc9589943")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "DZ4")
+					(reference "DZ2")
 					(unit 1)
 				)
 			)
@@ -6232,26 +6230,26 @@
 	)
 	(wire
 		(pts
-			(xy 466.09 73.66) (xy 461.01 73.66)
+			(xy 478.79 73.66) (xy 473.71 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "a4959fa1-e7bb-51e4-a896-870f61c3e155")
+		(uuid "23b2a146-1b84-5536-8a6f-ece5ce191524")
 	)
-	(global_label "X_HM_C"
+	(global_label "X_RUN_C"
 		(shape passive)
-		(at 461.01 73.66 180)
+		(at 473.71 73.66 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "7814d36f-f61a-53d3-83c1-da5b692f9694")
+		(uuid "9581aec2-ab10-5706-904e-d7cd9e4ec3cd")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 461.01 73.66 0)
+			(at 473.71 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6262,26 +6260,26 @@
 	)
 	(wire
 		(pts
-			(xy 473.71 73.66) (xy 478.79 73.66)
+			(xy 486.41 73.66) (xy 491.49 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "11922f49-337a-566d-9b92-f9da51db1891")
+		(uuid "f4b0a40a-6c44-524c-b1be-7c4a7c0d4527")
 	)
-	(global_label "HM_C"
+	(global_label "RUN_C"
 		(shape passive)
-		(at 478.79 73.66 0)
+		(at 491.49 73.66 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "004e5ea5-278d-591b-b691-566ccc39680a")
+		(uuid "dff50cf5-d03a-5e2f-b833-d6c87412d338")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 478.79 73.66 0)
+			(at 491.49 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6292,15 +6290,15 @@
 	)
 	(symbol
 		(lib_id "Relay:G6S-2")
-		(at 518.16 86.36 0)
+		(at 530.86 86.36 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "3f78ae75-2891-5a79-993d-2f437c45222a")
-		(property "Reference" "K4"
-			(at 534.67 82.55 0)
+		(uuid "5cd76031-727b-5b0b-832f-fa9f898b47b3")
+		(property "Reference" "K2"
+			(at 547.37 82.55 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6308,8 +6306,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "G6S-2 KP0"
-			(at 534.67 85.09 0)
+		(property "Value" "G6S-2 KSL"
+			(at 547.37 85.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6318,7 +6316,7 @@
 			)
 		)
 		(property "Footprint" "Relay_THT:Relay_DPDT_Omron_G6S-2"
-			(at 518.16 86.36 0)
+			(at 530.86 86.36 0)
 			(hide yes)
 			(effects
 				(font
@@ -6328,7 +6326,7 @@
 			)
 		)
 		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
-			(at 518.16 86.36 0)
+			(at 530.86 86.36 0)
 			(hide yes)
 			(effects
 				(font
@@ -6337,8 +6335,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "KP0: r bit 0 follower: r = 25 chain contact (SW -> E1)"
-			(at 518.16 86.36 0)
+		(property "Description" "KSL: STOP_LATCH follower. pole 1 NC: SW -> GA1 (head of the GO chain and the quiet chain, both through KRX); pole 2 NC: Q6 -> Q6S = sample of the step-cycle CK decision (a step never advances past a register stop)"
+			(at 530.86 86.36 0)
 			(hide yes)
 			(effects
 				(font
@@ -6348,99 +6346,35 @@
 			)
 		)
 		(pin "1"
-			(uuid "eb044bf4-65c2-5241-9a35-08b006f52a23")
+			(uuid "84b5496e-18ad-5aba-acb8-6f53e8a54005")
 		)
 		(pin "3"
-			(uuid "458b5f8c-cf4d-5ae0-bed1-11bebb390f5d")
+			(uuid "78ec4b66-ba93-5a64-b1f2-a9eeec0fe974")
 		)
 		(pin "4"
-			(uuid "132dcb44-59cb-5452-82c6-07c92307abef")
+			(uuid "5ee34d9d-fe66-5828-9fd1-e7f65cb488b2")
 		)
 		(pin "5"
-			(uuid "33285d88-33ef-5f56-b3d7-171a9b4badfa")
+			(uuid "f42e578d-cc0d-5b98-ae40-2cdf109df3c4")
 		)
 		(pin "8"
-			(uuid "c824dfb7-acc1-5cc0-b668-4d1a1d89b014")
+			(uuid "4c5a1d51-e4da-5d0e-b413-7bfc115f1192")
 		)
 		(pin "9"
-			(uuid "84669641-c9f8-55dc-aca0-029d52cd7618")
+			(uuid "e24e1ded-a6f6-5cc1-a683-80745d724e2e")
 		)
 		(pin "10"
-			(uuid "45a129af-6d1a-5458-b825-f2060ab7f967")
+			(uuid "d9c9d6aa-3916-5547-9f88-8848e10e6617")
 		)
 		(pin "12"
-			(uuid "6d558c4c-6e10-5b73-bc08-aae40f690e04")
+			(uuid "d563905f-c2f0-5793-ba5b-9283c7ce635e")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "K4")
+					(reference "K2")
 					(unit 1)
 				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 508 78.74) (xy 508 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "55e98b30-5c90-5b93-a524-154dce371253")
-	)
-	(global_label "P0_C"
-		(shape passive)
-		(at 508 71.12 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "8cefdd9a-98c9-5692-8137-8b2ced11e403")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 508 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(no_connect
-		(at 515.62 78.74)
-		(uuid "6abb6651-457e-5236-806c-f35950b67346")
-	)
-	(wire
-		(pts
-			(xy 518.16 93.98) (xy 518.16 101.6)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "25047db0-a178-5806-96c0-08984252bdd3")
-	)
-	(global_label "SW"
-		(shape passive)
-		(at 518.16 101.6 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "34db371e-3980-5030-b167-462338766259")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 518.16 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
 			)
 		)
 	)
@@ -6452,9 +6386,9 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "95ff15cb-beb8-593d-8a43-38e648467af3")
+		(uuid "773afe75-fe20-5f20-8ed7-62afb6bf7516")
 	)
-	(global_label "E1"
+	(global_label "SL_C"
 		(shape passive)
 		(at 520.7 71.12 90)
 		(effects
@@ -6463,7 +6397,7 @@
 			)
 			(justify left)
 		)
-		(uuid "dd7f903d-ff59-57e1-9a50-24791800fc9c")
+		(uuid "80560035-0026-5a84-88d8-b7162a3fb788")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 520.7 71.12 0)
 			(effects
@@ -6474,40 +6408,156 @@
 			)
 		)
 	)
-	(no_connect
-		(at 530.86 78.74)
-		(uuid "c0b9f81f-6f80-5ebb-9f51-ce4e2dd9b658")
-	)
-	(no_connect
-		(at 528.32 93.98)
-		(uuid "08cf14e6-821b-5f26-b26d-e2ba00d4a66c")
-	)
-	(no_connect
-		(at 525.78 78.74)
-		(uuid "a311f035-1711-5414-8682-2c0e31784cad")
-	)
 	(wire
 		(pts
-			(xy 508 93.98) (xy 508 101.6)
+			(xy 528.32 78.74) (xy 528.32 71.12)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "5844fc3b-c3d6-5cf1-98ee-e057d0d73dcd")
+		(uuid "9e8fac6d-a169-50cd-8c76-5b5fedb22ce0")
 	)
-	(global_label "GND"
+	(global_label "GA1"
 		(shape passive)
-		(at 508 101.6 270)
+		(at 528.32 71.12 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "5f5b52f6-26bc-5ea7-944e-96b5a7d56436")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 528.32 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 530.86 93.98) (xy 530.86 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a4959fa1-e7bb-51e4-a896-870f61c3e155")
+	)
+	(global_label "SW"
+		(shape passive)
+		(at 530.86 101.6 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "e375ba3e-82b6-5f49-892e-71483b45a07e")
+		(uuid "7814d36f-f61a-53d3-83c1-da5b692f9694")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 508 101.6 0)
+			(at 530.86 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 533.4 78.74)
+		(uuid "9c2bd6f1-8fcf-52c0-a9e9-1d9fcc828c46")
+	)
+	(no_connect
+		(at 543.56 78.74)
+		(uuid "f99e2ad7-2467-5f95-87ce-431107564949")
+	)
+	(wire
+		(pts
+			(xy 541.02 93.98) (xy 541.02 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ab5a2fb7-75e1-5657-8a2e-7477a349488b")
+	)
+	(global_label "Q6"
+		(shape passive)
+		(at 541.02 101.6 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "8f4b8ef1-e0c4-5809-a09c-6867f045d0e5")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 541.02 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 538.48 78.74) (xy 538.48 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "43b3425d-a935-5c3e-8792-ab3a4f326e53")
+	)
+	(global_label "Q6S"
+		(shape passive)
+		(at 538.48 71.12 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ddaf5137-d061-593b-ae35-6206575a2782")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 538.48 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 520.7 93.98) (xy 520.7 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e05c67cd-ed2d-550c-9fc0-62506a304764")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 520.7 101.6 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "049f0430-a2a8-56f4-ae49-aa9418d7af83")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 520.7 101.6 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6518,15 +6568,15 @@
 	)
 	(symbol
 		(lib_id "Device:D")
-		(at 566.42 73.66 0)
+		(at 579.12 73.66 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "4a00e35f-f68e-5583-a5c9-4dac8bfbdfc1")
+		(uuid "e95d0443-d940-51f7-a163-fa6e8e7fbc0d")
 		(property "Reference" "D28"
-			(at 566.42 71.12 0)
+			(at 579.12 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6535,7 +6585,7 @@
 			)
 		)
 		(property "Value" "1N4148W"
-			(at 566.42 76.2 0)
+			(at 579.12 76.2 0)
 			(hide yes)
 			(effects
 				(font
@@ -6545,7 +6595,7 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 566.42 73.66 0)
+			(at 579.12 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6555,7 +6605,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 566.42 73.66 0)
+			(at 579.12 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6564,8 +6614,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "P0_C: coil clamp diode (with the zener: fast release)"
-			(at 566.42 73.66 0)
+		(property "Description" "SL_C: coil clamp diode (with the zener: fast release)"
+			(at 579.12 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6575,10 +6625,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "5f74246b-0102-5f19-82b7-c55df29a2785")
+			(uuid "45a129af-6d1a-5458-b825-f2060ab7f967")
 		)
 		(pin "2"
-			(uuid "5e55c785-3307-5627-a1c4-fc6e65b64904")
+			(uuid "6d558c4c-6e10-5b73-bc08-aae40f690e04")
 		)
 		(instances
 			(project "sequencer"
@@ -6591,26 +6641,26 @@
 	)
 	(wire
 		(pts
-			(xy 562.61 73.66) (xy 557.53 73.66)
+			(xy 575.31 73.66) (xy 570.23 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "700d1c18-295d-5ec1-bcc9-d38ded98ea9c")
+		(uuid "55e98b30-5c90-5b93-a524-154dce371253")
 	)
-	(global_label "X_P0_C"
+	(global_label "X_SL_C"
 		(shape passive)
-		(at 557.53 73.66 180)
+		(at 570.23 73.66 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "674e1251-c06b-52d5-a81f-0980f2040a3b")
+		(uuid "8cefdd9a-98c9-5692-8137-8b2ced11e403")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 557.53 73.66 0)
+			(at 570.23 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6621,26 +6671,26 @@
 	)
 	(wire
 		(pts
-			(xy 570.23 73.66) (xy 575.31 73.66)
+			(xy 582.93 73.66) (xy 588.01 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "5121e892-fbbf-51d9-9b54-43b1a830aad4")
+		(uuid "c67d1b3c-3e2d-5156-98e3-ec333e83c65d")
 	)
 	(global_label "GND"
 		(shape passive)
-		(at 575.31 73.66 0)
+		(at 588.01 73.66 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "29fc1e0e-b870-5ce4-a370-40ae72b46f4b")
+		(uuid "f24941da-dd11-58b2-bc65-0750ac68ed9e")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 575.31 73.66 0)
+			(at 588.01 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6651,15 +6701,15 @@
 	)
 	(symbol
 		(lib_id "Device:D_Zener")
-		(at 601.98 73.66 0)
+		(at 612.14 73.66 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "20dde41d-e165-5d5d-9258-4c23986e1ee0")
-		(property "Reference" "DZ5"
-			(at 601.98 71.12 0)
+		(uuid "e04e9fbb-c96b-560c-bb23-d7ffbbf9424e")
+		(property "Reference" "DZ3"
+			(at 612.14 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6668,7 +6718,7 @@
 			)
 		)
 		(property "Value" "BZT52C30"
-			(at 601.98 76.2 0)
+			(at 612.14 76.2 0)
 			(hide yes)
 			(effects
 				(font
@@ -6678,7 +6728,7 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 601.98 73.66 0)
+			(at 612.14 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6688,7 +6738,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 601.98 73.66 0)
+			(at 612.14 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6697,8 +6747,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "P0_C: coil clamp zener 30 V"
-			(at 601.98 73.66 0)
+		(property "Description" "SL_C: coil clamp zener 30 V"
+			(at 612.14 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -6708,15 +6758,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "07c64f92-aea1-5d32-9853-6826c9d7ea77")
+			(uuid "d4cd0b36-c23c-57c7-89d2-36f61d0dc09b")
 		)
 		(pin "2"
-			(uuid "22e3a78a-deb9-50f7-80fa-d00993b39b43")
+			(uuid "2891c194-f028-5c04-84e0-3d786ecb6d51")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "DZ5")
+					(reference "DZ3")
 					(unit 1)
 				)
 			)
@@ -6724,26 +6774,26 @@
 	)
 	(wire
 		(pts
-			(xy 598.17 73.66) (xy 593.09 73.66)
+			(xy 608.33 73.66) (xy 603.25 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "33e71900-d372-564f-830c-939d2df89c24")
+		(uuid "aeb295c9-8c58-59e7-9ea1-4821b1f135e8")
 	)
-	(global_label "X_P0_C"
+	(global_label "X_SL_C"
 		(shape passive)
-		(at 593.09 73.66 180)
+		(at 603.25 73.66 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "02a7577b-879c-5fc3-a689-9980d0024fc4")
+		(uuid "6c56f4c3-0688-57ae-bd44-638a7517c85c")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 593.09 73.66 0)
+			(at 603.25 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6754,26 +6804,26 @@
 	)
 	(wire
 		(pts
-			(xy 605.79 73.66) (xy 610.87 73.66)
+			(xy 615.95 73.66) (xy 621.03 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "e682142c-f400-5c01-8d0e-dfa0d338f35b")
+		(uuid "d634db25-15ca-5115-844b-dfe052543bc7")
 	)
-	(global_label "P0_C"
+	(global_label "SL_C"
 		(shape passive)
-		(at 610.87 73.66 0)
+		(at 621.03 73.66 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "7cae33b1-0661-58cb-bce8-26405cb30d28")
+		(uuid "4798fa0f-f8cb-5043-98a4-b19f9bbf5dcf")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 610.87 73.66 0)
+			(at 621.03 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6784,15 +6834,15 @@
 	)
 	(symbol
 		(lib_id "Relay:G6S-2")
-		(at 650.24 86.36 0)
+		(at 660.4 86.36 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "a86a0a74-fb9c-5f1b-b96e-d2a6d3801f8e")
-		(property "Reference" "K5"
-			(at 666.75 82.55 0)
+		(uuid "10ff08db-98e6-50ee-8b3b-4f0c9acb6e88")
+		(property "Reference" "K3"
+			(at 676.91 82.55 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6800,8 +6850,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "G6S-2 KP3"
-			(at 666.75 85.09 0)
+		(property "Value" "G6S-2 KOBS"
+			(at 676.91 85.09 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6810,7 +6860,7 @@
 			)
 		)
 		(property "Footprint" "Relay_THT:Relay_DPDT_Omron_G6S-2"
-			(at 650.24 86.36 0)
+			(at 660.4 86.36 0)
 			(hide yes)
 			(effects
 				(font
@@ -6820,7 +6870,7 @@
 			)
 		)
 		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
-			(at 650.24 86.36 0)
+			(at 660.4 86.36 0)
 			(hide yes)
 			(effects
 				(font
@@ -6829,8 +6879,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "KP3: r bit 3 follower: r = 25 chain contact (E1 -> E2)"
-			(at 650.24 86.36 0)
+		(property "Description" "KOBS: Speed selector follower (observation).  pole 1 NC: shorts the observation resistor of the 555 (with KSCb) in fast mode"
+			(at 660.4 86.36 0)
 			(hide yes)
 			(effects
 				(font
@@ -6840,33 +6890,33 @@
 			)
 		)
 		(pin "1"
-			(uuid "afc0b4ea-fae6-54a2-a0a8-8ac11141b605")
+			(uuid "e057f666-81aa-5c3b-b3c3-4e8aa36dccbf")
 		)
 		(pin "3"
-			(uuid "93911110-c266-5e94-88ed-e6ee9caf1934")
+			(uuid "5f74246b-0102-5f19-82b7-c55df29a2785")
 		)
 		(pin "4"
-			(uuid "ae2af319-ea6c-5656-a861-e808887f36e9")
+			(uuid "5e55c785-3307-5627-a1c4-fc6e65b64904")
 		)
 		(pin "5"
-			(uuid "2c10dde1-f208-5c7c-90ca-744a5fa602a1")
+			(uuid "b4066f05-ba8f-5d1a-a2b0-e01f12136c4b")
 		)
 		(pin "8"
-			(uuid "0a736fdc-5fc7-501c-8e17-9b86dee3b54c")
+			(uuid "909c6f1f-a7d3-5bf7-97ca-77a62e85f1d5")
 		)
 		(pin "9"
-			(uuid "369e9cc9-89e7-57f4-952d-cb9ae5b3498e")
+			(uuid "16ba890e-f27e-5db4-8a18-932adf945fa1")
 		)
 		(pin "10"
-			(uuid "1a572136-64b0-5318-a591-fa3b4a18b2a8")
+			(uuid "b084086c-142e-5e10-870e-1ee936b62f51")
 		)
 		(pin "12"
-			(uuid "10e92572-b507-5663-b90c-f0aa38f303ea")
+			(uuid "b6f9202e-8985-5fd7-8863-8a60abecc120")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "K5")
+					(reference "K3")
 					(unit 1)
 				)
 			)
@@ -6874,26 +6924,26 @@
 	)
 	(wire
 		(pts
-			(xy 640.08 78.74) (xy 640.08 71.12)
+			(xy 650.24 78.74) (xy 650.24 71.12)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "e3abfd22-00d3-56d0-b938-8ca91a469f93")
+		(uuid "451e602b-878a-50ad-b89b-e0bf0c64184f")
 	)
-	(global_label "P3_C"
+	(global_label "OBS_C"
 		(shape passive)
-		(at 640.08 71.12 90)
+		(at 650.24 71.12 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "01412ed1-ed21-5a93-b2bb-f6b687f8ca28")
+		(uuid "e7387b0f-811a-5cf1-8af9-5d9e89398063")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 640.08 71.12 0)
+			(at 650.24 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6902,62 +6952,58 @@
 			)
 		)
 	)
-	(no_connect
-		(at 647.7 78.74)
-		(uuid "a916c084-d0aa-5d23-93ec-1de24a5028f1")
-	)
 	(wire
 		(pts
-			(xy 650.24 93.98) (xy 650.24 101.6)
+			(xy 657.86 78.74) (xy 657.86 71.12)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "602e0d1a-9e0f-5259-b8a8-344d3f99786b")
+		(uuid "33e71900-d372-564f-830c-939d2df89c24")
 	)
-	(global_label "E1"
+	(global_label "RSM"
 		(shape passive)
-		(at 650.24 101.6 270)
+		(at 657.86 71.12 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "02a7577b-879c-5fc3-a689-9980d0024fc4")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 657.86 71.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 660.4 93.98) (xy 660.4 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e682142c-f400-5c01-8d0e-dfa0d338f35b")
+	)
+	(global_label "DIS"
+		(shape passive)
+		(at 660.4 101.6 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "db987321-e684-5dfa-85a3-a8ef14f73693")
+		(uuid "7cae33b1-0661-58cb-bce8-26405cb30d28")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 650.24 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 652.78 78.74) (xy 652.78 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ddb55a35-75c7-5d1b-8ad8-2575e8070777")
-	)
-	(global_label "E2"
-		(shape passive)
-		(at 652.78 71.12 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "674c446b-9611-5cb5-97c1-5f2e027c2101")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 652.78 71.12 0)
+			(at 660.4 101.6 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6968,38 +7014,42 @@
 	)
 	(no_connect
 		(at 662.94 78.74)
-		(uuid "1a044fa8-8d90-58dd-9b10-59021fae3817")
+		(uuid "7cfca0f8-a2f7-5315-b92f-05b5e1b6313d")
 	)
 	(no_connect
-		(at 660.4 93.98)
-		(uuid "878b350b-bdd2-506b-82bc-2fffbfba5702")
+		(at 673.1 78.74)
+		(uuid "e16cfd9e-c112-5c9b-8255-21bebf3b77e7")
 	)
 	(no_connect
-		(at 657.86 78.74)
-		(uuid "bfe69893-158d-5248-a6d9-1f6630973657")
+		(at 670.56 93.98)
+		(uuid "4cd8921c-03a0-5d43-b05f-99f20ddbaa39")
+	)
+	(no_connect
+		(at 668.02 78.74)
+		(uuid "8709822b-6dec-54d5-b608-97cc3402f80f")
 	)
 	(wire
 		(pts
-			(xy 640.08 93.98) (xy 640.08 101.6)
+			(xy 650.24 93.98) (xy 650.24 101.6)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "8630df89-e21c-58d0-a69a-941fb109a382")
+		(uuid "20be4ea0-fff2-5f4d-8559-94aad7eaa721")
 	)
 	(global_label "GND"
 		(shape passive)
-		(at 640.08 101.6 270)
+		(at 650.24 101.6 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "8b3933d2-ed98-57d8-be40-9657f1f506bb")
+		(uuid "5af3c9fb-83dc-5c1b-863f-60e1a5df8d53")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 640.08 101.6 0)
+			(at 650.24 101.6 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7010,15 +7060,15 @@
 	)
 	(symbol
 		(lib_id "Device:D")
-		(at 695.96 73.66 0)
+		(at 708.66 73.66 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "c1d46070-dc53-5992-a55e-e3b8dd913965")
+		(uuid "cf0b7390-ccb5-5f91-8ef3-8dfd719e372e")
 		(property "Reference" "D29"
-			(at 695.96 71.12 0)
+			(at 708.66 71.12 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7027,7 +7077,7 @@
 			)
 		)
 		(property "Value" "1N4148W"
-			(at 695.96 76.2 0)
+			(at 708.66 76.2 0)
 			(hide yes)
 			(effects
 				(font
@@ -7037,7 +7087,7 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 695.96 73.66 0)
+			(at 708.66 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -7047,7 +7097,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 695.96 73.66 0)
+			(at 708.66 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -7056,8 +7106,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "P3_C: coil clamp diode (with the zener: fast release)"
-			(at 695.96 73.66 0)
+		(property "Description" "OBS_C: coil flyback diode"
+			(at 708.66 73.66 0)
 			(hide yes)
 			(effects
 				(font
@@ -7067,10 +7117,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "7fd5976d-e851-5efb-b9ce-32f03fe68d4a")
+			(uuid "1a572136-64b0-5318-a591-fa3b4a18b2a8")
 		)
 		(pin "2"
-			(uuid "4b1ab4fb-9cc3-5fea-9ab5-df6a3554985f")
+			(uuid "10e92572-b507-5663-b90c-f0aa38f303ea")
 		)
 		(instances
 			(project "sequencer"
@@ -7083,26 +7133,26 @@
 	)
 	(wire
 		(pts
-			(xy 692.15 73.66) (xy 687.07 73.66)
+			(xy 704.85 73.66) (xy 699.77 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "40e0b2ae-338a-57b8-8a58-a3251e0f9002")
+		(uuid "e3abfd22-00d3-56d0-b938-8ca91a469f93")
 	)
-	(global_label "X_P3_C"
+	(global_label "OBS_C"
 		(shape passive)
-		(at 687.07 73.66 180)
+		(at 699.77 73.66 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "4546a686-dfcd-5d8e-b8b6-82b003b7e3c2")
+		(uuid "01412ed1-ed21-5a93-b2bb-f6b687f8ca28")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 687.07 73.66 0)
+			(at 699.77 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7113,159 +7163,26 @@
 	)
 	(wire
 		(pts
-			(xy 699.77 73.66) (xy 704.85 73.66)
+			(xy 712.47 73.66) (xy 717.55 73.66)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "4f786eb3-b6cb-5a39-bed0-8791034c76ee")
+		(uuid "c313b880-0247-5ff6-908b-2001c40c51c7")
 	)
 	(global_label "GND"
 		(shape passive)
-		(at 704.85 73.66 0)
+		(at 717.55 73.66 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "df28727f-7229-5fa4-839a-98c2435bcb09")
+		(uuid "76c9ceeb-5303-525a-b479-aa480b9ce032")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 704.85 73.66 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:D_Zener")
-		(at 731.52 73.66 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "d905af14-6e36-5121-98ac-012a6f3c46e9")
-		(property "Reference" "DZ6"
-			(at 731.52 71.12 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "BZT52C30"
-			(at 731.52 76.2 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 731.52 73.66 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Datasheet" ""
-			(at 731.52 73.66 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Description" "P3_C: coil clamp zener 30 V"
-			(at 731.52 73.66 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(pin "1"
-			(uuid "79c6bfbd-19e1-502b-8287-ce75357a9e7f")
-		)
-		(pin "2"
-			(uuid "ec9e9330-0295-58aa-b863-f4ba9d865e85")
-		)
-		(instances
-			(project "sequencer"
-				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "DZ6")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 727.71 73.66) (xy 722.63 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2dc1c4d7-4561-51be-834a-3731ab732f91")
-	)
-	(global_label "X_P3_C"
-		(shape passive)
-		(at 722.63 73.66 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "41d54c3d-2549-5ae7-8525-e70edef51958")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 722.63 73.66 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 735.33 73.66) (xy 740.41 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "11172bf7-5be0-58b1-8000-8d7e4e0349bd")
-	)
-	(global_label "P3_C"
-		(shape passive)
-		(at 740.41 73.66 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "144808c8-aa84-58a6-a0dc-b0ff94fa90c1")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 740.41 73.66 0)
+			(at 717.55 73.66 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7282,8 +7199,8 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "97dbe04f-256f-5db8-be92-7e24a79afac1")
-		(property "Reference" "K6"
+		(uuid "a623b753-8201-5d7c-84a6-f77872bf54dd")
+		(property "Reference" "K4"
 			(at 77.47 135.89 0)
 			(effects
 				(font
@@ -7292,7 +7209,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "G6S-2 KP4"
+		(property "Value" "G6S-2 KSP"
 			(at 77.47 138.43 0)
 			(effects
 				(font
@@ -7321,7 +7238,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "KP4: r bit 4 follower: r = 25 chain contact (E2 -> KR25 coil)"
+		(property "Description" "KSP: STEP button follower.  Plain flyback clamp (release 3-10 ms): contact bounce shorter than that never releases it.  pole 1: step arm (parked -> KSA coil); pole 2: KSA hold while the button is held (no repeat)"
 			(at 60.96 139.7 0)
 			(hide yes)
 			(effects
@@ -7332,33 +7249,33 @@
 			)
 		)
 		(pin "1"
-			(uuid "dd00de1d-cae8-5006-83e9-b72b46318387")
+			(uuid "2de3fe3d-5e13-516e-a82d-57f6b5b11f18")
 		)
 		(pin "3"
-			(uuid "1fd7d508-fb7a-537c-ad80-c801d4dec834")
+			(uuid "743651b8-ba15-54dc-ab64-ea3d2cbb327a")
 		)
 		(pin "4"
-			(uuid "41eef0b4-d9dc-5c98-a5e0-cf08b275138c")
+			(uuid "cc1dd9b3-56a2-5eb5-8575-f8c09df29afe")
 		)
 		(pin "5"
-			(uuid "34d940c5-e34b-5437-8470-fb309de9495e")
+			(uuid "d64d672a-e7b0-5622-9dc3-765bd131c630")
 		)
 		(pin "8"
-			(uuid "8c07c65e-7803-5704-a151-45a2ca077e2d")
+			(uuid "dd3b8f8c-63e3-56df-bfe6-98b383cc659a")
 		)
 		(pin "9"
-			(uuid "9bd0f77e-551b-5748-b10b-4138006069a5")
+			(uuid "d02374de-2116-5116-8116-409884c9c3d4")
 		)
 		(pin "10"
-			(uuid "68c061cc-768d-5462-a8d6-03296a21500e")
+			(uuid "a15c4374-5438-55bc-87b6-a06a7abdaa16")
 		)
 		(pin "12"
-			(uuid "0bdeeb11-082a-5f3b-8b6f-ef43fcc0a836")
+			(uuid "001cb1a0-1682-561c-bbf6-b7a3e4f4d2fb")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "K6")
+					(reference "K4")
 					(unit 1)
 				)
 			)
@@ -7372,9 +7289,9 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "5c7536fb-25d8-58c6-87c5-acd8121bfacd")
+		(uuid "911fe133-8eb6-5fd5-b235-5a077fe143c1")
 	)
-	(global_label "P4_C"
+	(global_label "SP_C"
 		(shape passive)
 		(at 50.8 124.46 90)
 		(effects
@@ -7383,7 +7300,7 @@
 			)
 			(justify left)
 		)
-		(uuid "3754a974-7a6f-5b00-8e7a-f527d6e445dc")
+		(uuid "a9c1a875-495e-58f5-bbce-84e59e596c47")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 50.8 124.46 0)
 			(effects
@@ -7396,7 +7313,7 @@
 	)
 	(no_connect
 		(at 58.42 132.08)
-		(uuid "9e85386d-b594-5b7e-8b44-edd5557a8344")
+		(uuid "3c79197a-23e6-5b31-8d49-b3597f9b9df4")
 	)
 	(wire
 		(pts
@@ -7406,9 +7323,9 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "13d95f2a-4818-5e86-9a1f-d93854f5bbfe")
+		(uuid "371615b0-3a0b-5fec-be23-b94859644ed0")
 	)
-	(global_label "E2"
+	(global_label "SAP"
 		(shape passive)
 		(at 60.96 154.94 270)
 		(effects
@@ -7417,7 +7334,7 @@
 			)
 			(justify right)
 		)
-		(uuid "7721ea9a-cede-5ca9-8260-bd6bb49ed2ad")
+		(uuid "8435890b-3ac0-5726-97c3-27cbda835545")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 60.96 154.94 0)
 			(effects
@@ -7436,9 +7353,9 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "ad4f1f8d-7841-5e70-8e11-b60280fcf6ae")
+		(uuid "987960f6-d638-54b4-9461-7b19b7adff11")
 	)
-	(global_label "R25_C"
+	(global_label "SAS"
 		(shape passive)
 		(at 63.5 124.46 90)
 		(effects
@@ -7447,7 +7364,7 @@
 			)
 			(justify left)
 		)
-		(uuid "eb36a0df-cbca-5a0a-ad3e-a9178b4c7416")
+		(uuid "5dc7bd4f-b119-58f2-afac-996de1b0084f")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 63.5 124.46 0)
 			(effects
@@ -7458,17 +7375,69 @@
 			)
 		)
 	)
-	(no_connect
-		(at 73.66 132.08)
-		(uuid "fe2d91a0-6a10-531e-a347-c31f3d3feeb2")
+	(wire
+		(pts
+			(xy 73.66 132.08) (xy 73.66 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fbe413b0-cf16-550a-8d76-107658cf2dc0")
 	)
-	(no_connect
-		(at 71.12 147.32)
-		(uuid "c39a5889-67fb-5262-a203-7e842ddfeffc")
+	(global_label "SA_C"
+		(shape passive)
+		(at 73.66 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "a713c045-2cd4-561a-956c-241b3bc70db3")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 73.66 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 71.12 147.32) (xy 71.12 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2dc1c4d7-4561-51be-834a-3731ab732f91")
+	)
+	(global_label "SAH1"
+		(shape passive)
+		(at 71.12 154.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "41d54c3d-2549-5ae7-8525-e70edef51958")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 71.12 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 	)
 	(no_connect
 		(at 68.58 132.08)
-		(uuid "5c045327-92f8-5ac9-9261-3b2ad77d164f")
+		(uuid "59621661-5152-5360-bc58-7333dbc7c71f")
 	)
 	(wire
 		(pts
@@ -7478,7 +7447,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "38a740fd-9f3d-5a99-8b71-3d3fed7805aa")
+		(uuid "bb6119ff-69b2-5cdc-9616-d01abb16056c")
 	)
 	(global_label "GND"
 		(shape passive)
@@ -7489,7 +7458,7 @@
 			)
 			(justify right)
 		)
-		(uuid "4f76db8f-ee5f-572a-b280-ec8582ce5a35")
+		(uuid "cbafa868-4d0a-5575-85c4-523faada55df")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 50.8 154.94 0)
 			(effects
@@ -7508,7 +7477,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "0fae89c3-d115-57dc-aae8-6c30661d8f29")
+		(uuid "300f488c-78f0-5241-935d-7c43904d7efb")
 		(property "Reference" "D30"
 			(at 109.22 121.92 0)
 			(effects
@@ -7548,7 +7517,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "P4_C: coil clamp diode (with the zener: fast release)"
+		(property "Description" "SP_C: coil flyback diode"
 			(at 109.22 124.46 0)
 			(hide yes)
 			(effects
@@ -7559,10 +7528,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "61803c3e-4d90-5ae1-a04f-b24235a79f4d")
+			(uuid "1fd7d508-fb7a-537c-ad80-c801d4dec834")
 		)
 		(pin "2"
-			(uuid "839f3b27-e5dc-58df-a425-b91c2df18d8a")
+			(uuid "41eef0b4-d9dc-5c98-a5e0-cf08b275138c")
 		)
 		(instances
 			(project "sequencer"
@@ -7581,9 +7550,9 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "55070813-4d93-5ce8-b7dc-57de72fc9bbd")
+		(uuid "f10e7ee3-fb2e-5278-83a3-a8739aa279ba")
 	)
-	(global_label "X_P4_C"
+	(global_label "SP_C"
 		(shape passive)
 		(at 100.33 124.46 180)
 		(effects
@@ -7592,7 +7561,7 @@
 			)
 			(justify right)
 		)
-		(uuid "1d1ae252-307f-5a24-8aa6-e9f320103f36")
+		(uuid "9fb8f21c-e752-510e-8228-5e1271c1a098")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 100.33 124.46 0)
 			(effects
@@ -7611,7 +7580,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "22747f07-09d7-5fcf-bef0-ecd6d99fe09c")
+		(uuid "7892e155-c7f7-5daf-999b-3f87b209a1c5")
 	)
 	(global_label "GND"
 		(shape passive)
@@ -7622,7 +7591,7 @@
 			)
 			(justify left)
 		)
-		(uuid "6bfbbb31-d2e3-5422-ac32-b2d6a97f5f36")
+		(uuid "108dd6dc-9dc6-5188-90f9-f666827b64b7")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 118.11 124.46 0)
 			(effects
@@ -7634,149 +7603,16 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:D_Zener")
-		(at 142.24 124.46 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "6e37ad4c-d260-5c27-aeda-9c9f5ca3e45b")
-		(property "Reference" "DZ7"
-			(at 142.24 121.92 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "BZT52C30"
-			(at 142.24 127 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 142.24 124.46 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Datasheet" ""
-			(at 142.24 124.46 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Description" "P4_C: coil clamp zener 30 V"
-			(at 142.24 124.46 0)
-			(hide yes)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(pin "1"
-			(uuid "946a74cd-80bb-571d-8c4d-15c660a6b8a1")
-		)
-		(pin "2"
-			(uuid "af6d11ed-4936-5d16-ab83-2e4f78f10abf")
-		)
-		(instances
-			(project "sequencer"
-				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "DZ7")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 138.43 124.46) (xy 133.35 124.46)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "93130f20-dce2-58d7-adf4-1b580044f1e8")
-	)
-	(global_label "X_P4_C"
-		(shape passive)
-		(at 133.35 124.46 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "5b41f665-3ae9-5250-acb9-b88e941bfb9d")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 133.35 124.46 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 146.05 124.46) (xy 151.13 124.46)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bdb27cdb-95f1-5d86-8250-52958ff92731")
-	)
-	(global_label "P4_C"
-		(shape passive)
-		(at 151.13 124.46 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "1a1a835f-5c25-58d2-b146-78b90a24be8a")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 151.13 124.46 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Relay:G6S-2")
-		(at 190.5 139.7 0)
+		(at 157.48 139.7 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "2b444d64-0031-555b-ac2d-be6d236ea57e")
-		(property "Reference" "K7"
-			(at 207.01 135.89 0)
+		(uuid "5c547ac8-499c-58e9-bacf-4c74dc91cc14")
+		(property "Reference" "K5"
+			(at 173.99 135.89 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7784,8 +7620,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "G6S-2 KHT"
-			(at 207.01 138.43 0)
+		(property "Value" "G6S-2 KHM"
+			(at 173.99 138.43 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7794,7 +7630,7 @@
 			)
 		)
 		(property "Footprint" "Relay_THT:Relay_DPDT_Omron_G6S-2"
-			(at 190.5 139.7 0)
+			(at 157.48 139.7 0)
 			(hide yes)
 			(effects
 				(font
@@ -7804,7 +7640,7 @@
 			)
 		)
 		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
-			(at 190.5 139.7 0)
+			(at 157.48 139.7 0)
 			(hide yes)
 			(effects
 				(font
@@ -7813,8 +7649,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "KHT: Thermostat follower: NC in the GO chain; NO = hot -> standby request"
-			(at 190.5 139.7 0)
+		(property "Description" "KHM: HOME follower. NO: HOME accept chain; NC: standby hold"
+			(at 157.48 139.7 0)
 			(hide yes)
 			(effects
 				(font
@@ -7824,33 +7660,33 @@
 			)
 		)
 		(pin "1"
-			(uuid "ece807cb-6e7d-502a-b022-1fc6a87ce7c9")
+			(uuid "953281b0-a024-5727-a889-08221c8a86da")
 		)
 		(pin "3"
-			(uuid "071a75ee-69bb-5e1f-aa96-b9901b3e65c8")
+			(uuid "5b013a0d-457d-525f-a686-5e2a8ee9520b")
 		)
 		(pin "4"
-			(uuid "4d6fc17e-4bbf-5c6c-b814-9844be00c0fa")
+			(uuid "fbdb9abd-090b-5f6f-ac45-be25f958b838")
 		)
 		(pin "5"
-			(uuid "c48ac35e-8c78-529e-888e-bd165f253e4b")
+			(uuid "771e7122-563f-519b-94d8-0ad7dea8b479")
 		)
 		(pin "8"
-			(uuid "8bc62579-ba29-5b66-9856-3db145c03df3")
+			(uuid "9b3eb3c7-3e42-5fb9-9406-9ef0358fa2cc")
 		)
 		(pin "9"
-			(uuid "8c5ec546-58f0-5b6f-87f2-51c35df1e886")
+			(uuid "98dd5dfc-a390-5650-bd94-d3e999ef4243")
 		)
 		(pin "10"
-			(uuid "7f0b0952-d740-522c-8668-792ae334f754")
+			(uuid "d413ba66-d075-5283-b37f-6cdebfe0723c")
 		)
 		(pin "12"
-			(uuid "82662b15-042a-594a-a338-03513b4593ab")
+			(uuid "af7ec846-c516-5f17-a38e-ed4ea3302619")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "K7")
+					(reference "K5")
 					(unit 1)
 				)
 			)
@@ -7858,86 +7694,26 @@
 	)
 	(wire
 		(pts
-			(xy 180.34 132.08) (xy 180.34 124.46)
+			(xy 147.32 132.08) (xy 147.32 124.46)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "38a11cd0-876a-50d6-90ce-05f037134615")
+		(uuid "90986942-21e6-54f5-85b4-b4c69ec4ca06")
 	)
-	(global_label "HT_C"
+	(global_label "HM_C"
 		(shape passive)
-		(at 180.34 124.46 90)
+		(at 147.32 124.46 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "4c8a70d2-f522-5b6f-8b52-d86418c9fadd")
+		(uuid "76937deb-dd9f-5fe6-82b4-d2c8a2907a0f")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 180.34 124.46 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 187.96 132.08) (xy 187.96 124.46)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6343fe37-36ab-5792-8416-630ed3bf9530")
-	)
-	(global_label "GA6"
-		(shape passive)
-		(at 187.96 124.46 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "414276ff-0c44-5d25-b949-ba5a199eec07")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 187.96 124.46 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 190.5 147.32) (xy 190.5 154.94)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "99262153-0cd3-57e5-8105-2333bcf99b0b")
-	)
-	(global_label "GA4"
-		(shape passive)
-		(at 190.5 154.94 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "6cd8ee40-db4e-565f-852e-d4b435c02316")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 190.5 154.94 0)
+			(at 147.32 124.46 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7947,61 +7723,61 @@
 		)
 	)
 	(no_connect
-		(at 193.04 132.08)
-		(uuid "51e02133-ccbe-59ba-a7be-0dd5d8009cd4")
+		(at 154.94 132.08)
+		(uuid "8973218b-3109-5ea2-a457-4ec6df8f090e")
 	)
 	(wire
 		(pts
-			(xy 203.2 132.08) (xy 203.2 124.46)
+			(xy 157.48 147.32) (xy 157.48 154.94)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "85a49828-cf98-54ef-81c9-d63fbc29b625")
-	)
-	(global_label "HOTS1"
-		(shape passive)
-		(at 203.2 124.46 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "f1eb6867-7299-5eac-a952-9460f47b3e59")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 203.2 124.46 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 200.66 147.32) (xy 200.66 154.94)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5c00ae09-30f8-5df1-84a7-5951201bec4c")
+		(uuid "fb7eea88-80ea-5bda-87cf-8b0db07002af")
 	)
 	(global_label "SW"
 		(shape passive)
-		(at 200.66 154.94 270)
+		(at 157.48 154.94 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "167b5cec-731a-50f1-a8e9-94dbec8bd428")
+		(uuid "2c9e56ff-8a4e-51c5-b17f-8e801a65a0f1")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 200.66 154.94 0)
+			(at 157.48 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 160.02 132.08) (xy 160.02 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "489b2c6f-efc6-5919-9bc4-579f03a1e5a2")
+	)
+	(global_label "HA1"
+		(shape passive)
+		(at 160.02 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "90c15654-833b-509f-86f7-84920ca7f7b7")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 160.02 124.46 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8011,31 +7787,91 @@
 		)
 	)
 	(no_connect
-		(at 198.12 132.08)
-		(uuid "5fdab566-925a-5dfe-a5ce-5bd72a9ef900")
+		(at 170.18 132.08)
+		(uuid "f4ad21f2-6b06-5611-bef1-6105c5bb3a4a")
 	)
 	(wire
 		(pts
-			(xy 180.34 147.32) (xy 180.34 154.94)
+			(xy 167.64 147.32) (xy 167.64 154.94)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "e2dbda67-51d4-58d7-a95e-7dc6fc97f392")
+		(uuid "a1a92a61-f75f-5ac3-8c36-b4a9bb7cb899")
 	)
-	(global_label "GND"
+	(global_label "SW"
 		(shape passive)
-		(at 180.34 154.94 270)
+		(at 167.64 154.94 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "b62254e4-e2b5-565f-b105-6fff264c9440")
+		(uuid "b793c969-11ac-53b6-afbd-49415d5eef61")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 180.34 154.94 0)
+			(at 167.64 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 165.1 132.08) (xy 165.1 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "22a7d467-504a-58b6-a2f7-be98d0e5b1fb")
+	)
+	(global_label "SBH1"
+		(shape passive)
+		(at 165.1 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "8eb8c045-1fa5-5a4f-bc31-ac1e85816415")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 165.1 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 147.32 147.32) (xy 147.32 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e0b55b34-e76a-52cc-9542-56c7d8cc3832")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 147.32 154.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0b01b6b7-043a-5c57-8421-030835b5af52")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 147.32 154.94 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8046,15 +7882,15 @@
 	)
 	(symbol
 		(lib_id "Device:D")
-		(at 238.76 124.46 0)
+		(at 205.74 124.46 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "1f138a6e-63dd-57d1-8597-a51919fc18e8")
+		(uuid "1ccf9ee5-8b15-511a-901d-b8548c14c853")
 		(property "Reference" "D31"
-			(at 238.76 121.92 0)
+			(at 205.74 121.92 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8063,6 +7899,139 @@
 			)
 		)
 		(property "Value" "1N4148W"
+			(at 205.74 127 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 205.74 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 205.74 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "HM_C: coil clamp diode (with the zener: fast release)"
+			(at 205.74 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "b1ccc5f1-1598-53d9-9255-fe4d1cae4678")
+		)
+		(pin "2"
+			(uuid "3b159bfb-b04d-5d96-a654-9dd4b31239d6")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "D31")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 201.93 124.46) (xy 196.85 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "72ca8271-0e00-5ae7-860d-edf539502892")
+	)
+	(global_label "X_HM_C"
+		(shape passive)
+		(at 196.85 124.46 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d131f6a3-1e67-5f6a-be03-f5450f39566b")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 196.85 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 209.55 124.46) (xy 214.63 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4c12f913-d832-5213-8047-ab22c8b2c166")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 214.63 124.46 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ac7c7139-b9c2-5157-addb-cb7332afc5fc")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 214.63 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 238.76 124.46 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ac7c35c5-f8aa-57b1-a9d8-c651580808b3")
+		(property "Reference" "DZ4"
+			(at 238.76 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "BZT52C30"
 			(at 238.76 127 0)
 			(hide yes)
 			(effects
@@ -8092,7 +8061,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "HT_C: coil flyback diode"
+		(property "Description" "HM_C: coil clamp zener 30 V"
 			(at 238.76 124.46 0)
 			(hide yes)
 			(effects
@@ -8103,15 +8072,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "a5d0d193-5894-5b39-8924-659e1b7da276")
+			(uuid "c48ac35e-8c78-529e-888e-bd165f253e4b")
 		)
 		(pin "2"
-			(uuid "5f634184-5bf6-545c-a31d-9c7db42e64f7")
+			(uuid "8bc62579-ba29-5b66-9856-3db145c03df3")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "D31")
+					(reference "DZ4")
 					(unit 1)
 				)
 			)
@@ -8125,9 +8094,9 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "96baf529-439d-5ecf-81f6-aa63aa6ea5d1")
+		(uuid "ae9f6533-6ecc-5772-8f84-200133d6fea6")
 	)
-	(global_label "HT_C"
+	(global_label "X_HM_C"
 		(shape passive)
 		(at 229.87 124.46 180)
 		(effects
@@ -8136,7 +8105,7 @@
 			)
 			(justify right)
 		)
-		(uuid "d833e70e-e9f2-5217-ad5d-bee0f4771551")
+		(uuid "7a027d28-e434-5ec7-82d3-2dd8eac9b726")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 229.87 124.46 0)
 			(effects
@@ -8155,9 +8124,9 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "fb7887f6-eae8-59c3-bc79-e9047262e0f3")
+		(uuid "da0b8af3-ab32-573e-a592-abf8f431777c")
 	)
-	(global_label "GND"
+	(global_label "HM_C"
 		(shape passive)
 		(at 247.65 124.46 0)
 		(effects
@@ -8166,7 +8135,7 @@
 			)
 			(justify left)
 		)
-		(uuid "12a2e28d-e363-5f55-b4c4-df6fec44499e")
+		(uuid "8f6ab574-a229-52fa-93f4-445d53db1dcc")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 247.65 124.46 0)
 			(effects
@@ -8178,16 +8147,16 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:R_US")
-		(at 271.78 124.46 0)
+		(lib_id "Relay:G6S-2")
+		(at 287.02 139.7 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "27f2c3a3-b241-5504-81d8-1dddd7123d39")
-		(property "Reference" "R45"
-			(at 274.32 124.46 0)
+		(uuid "6b63860c-3434-57c2-8468-ea3b31f85a32")
+		(property "Reference" "K6"
+			(at 303.53 135.89 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8195,8 +8164,8 @@
 				(justify left)
 			)
 		)
-		(property "Value" "4.7k"
-			(at 269.24 124.46 0)
+		(property "Value" "G6S-2 KP0"
+			(at 303.53 138.43 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8204,8 +8173,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 271.78 124.46 0)
+		(property "Footprint" "Relay_THT:Relay_DPDT_Omron_G6S-2"
+			(at 287.02 139.7 0)
 			(hide yes)
 			(effects
 				(font
@@ -8214,8 +8183,8 @@
 				(justify left)
 			)
 		)
-		(property "Datasheet" ""
-			(at 271.78 124.46 0)
+		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
+			(at 287.02 139.7 0)
 			(hide yes)
 			(effects
 				(font
@@ -8224,8 +8193,8 @@
 				(justify left)
 			)
 		)
-		(property "Description" "HOT (thermostat): indicator resistor"
-			(at 271.78 124.46 0)
+		(property "Description" "KP0: r bit 0 follower: r = 25 chain contact (SW -> E1)"
+			(at 287.02 139.7 0)
 			(hide yes)
 			(effects
 				(font
@@ -8235,15 +8204,33 @@
 			)
 		)
 		(pin "1"
-			(uuid "a864e7ca-efd0-5b77-9e94-e9dd7b50f203")
+			(uuid "d69c7a47-7b7d-5410-bd63-abca9051f845")
 		)
-		(pin "2"
-			(uuid "0933a87c-4ecb-50b5-b54b-0e122ae1990b")
+		(pin "3"
+			(uuid "ed4fa2dd-a8cb-53ed-9424-315f272cedbc")
+		)
+		(pin "4"
+			(uuid "7bd43c2e-761d-50b2-b2fe-adc92ffbaa06")
+		)
+		(pin "5"
+			(uuid "583e0e30-2c62-5bb3-843d-73c6dc5193e7")
+		)
+		(pin "8"
+			(uuid "fda4b2b8-1428-5bdc-88d6-6593c3163f98")
+		)
+		(pin "9"
+			(uuid "016f9c32-4828-524c-9de5-686820bb10cb")
+		)
+		(pin "10"
+			(uuid "6295b6ac-29b5-50ff-8c6b-6a506c866ddb")
+		)
+		(pin "12"
+			(uuid "24dd5bdc-6c9c-5164-84ed-51cb677937ce")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "R45")
+					(reference "K6")
 					(unit 1)
 				)
 			)
@@ -8251,26 +8238,60 @@
 	)
 	(wire
 		(pts
-			(xy 271.78 120.65) (xy 271.78 115.57)
+			(xy 276.86 132.08) (xy 276.86 124.46)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "1a8e79f3-2c51-55c6-9db3-34aa341ab4ff")
+		(uuid "e1f48dbc-bf61-5550-b0db-06c97cf3a835")
 	)
-	(global_label "HT_C"
+	(global_label "P0_C"
 		(shape passive)
-		(at 271.78 115.57 90)
+		(at 276.86 124.46 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "b7c6a95c-abd8-554e-8a71-40ead8d3596b")
+		(uuid "785cac96-d58d-55ed-8e82-92fb282644e5")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 271.78 115.57 0)
+			(at 276.86 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 284.48 132.08)
+		(uuid "b0d8f070-82f4-512d-840b-1d1efd02ec86")
+	)
+	(wire
+		(pts
+			(xy 287.02 147.32) (xy 287.02 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "30ac0fe6-f1ee-584c-be88-b27c0ca686e2")
+	)
+	(global_label "SW"
+		(shape passive)
+		(at 287.02 154.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "4a49a957-df26-5a50-a842-159de47a211d")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 287.02 154.94 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8281,26 +8302,1861 @@
 	)
 	(wire
 		(pts
-			(xy 271.78 128.27) (xy 271.78 133.35)
+			(xy 289.56 132.08) (xy 289.56 124.46)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "d4560d5f-aeb2-5e1c-8b83-636a872f7294")
+		(uuid "df6f9cc5-fd7b-5b26-a89d-555afb7cdc94")
 	)
-	(global_label "LED_11"
+	(global_label "E1"
 		(shape passive)
-		(at 271.78 133.35 270)
+		(at 289.56 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "23a7badb-d76b-5bc0-b765-69008b24bdd1")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 289.56 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 299.72 132.08)
+		(uuid "057e78ae-fb2f-536b-8a42-76dd0108b1a0")
+	)
+	(no_connect
+		(at 297.18 147.32)
+		(uuid "e3ea46f9-6c16-5bcd-9ad0-eee9cbd0a310")
+	)
+	(no_connect
+		(at 294.64 132.08)
+		(uuid "20ae4427-1f29-50d1-a274-9fb46bc705cb")
+	)
+	(wire
+		(pts
+			(xy 276.86 147.32) (xy 276.86 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "80e4ee33-5955-51e9-a774-4ad759774207")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 276.86 154.94 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "f58fa45b-8e53-5d17-8c68-ab70b8ddadfc")
+		(uuid "5b6b2e8f-590b-5651-bcf5-de1b8f898b78")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 271.78 133.35 0)
+			(at 276.86 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D")
+		(at 335.28 124.46 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "786d6ef1-0044-5943-b308-1bc693039be7")
+		(property "Reference" "D32"
+			(at 335.28 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1N4148W"
+			(at 335.28 127 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 335.28 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 335.28 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "P0_C: coil clamp diode (with the zener: fast release)"
+			(at 335.28 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "0933a87c-4ecb-50b5-b54b-0e122ae1990b")
+		)
+		(pin "2"
+			(uuid "ff8bdab3-64be-5101-9107-b4912b70d353")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "D32")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 331.47 124.46) (xy 326.39 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d4a6bf12-2cfe-5610-9a0b-25f3c26ccc5b")
+	)
+	(global_label "X_P0_C"
+		(shape passive)
+		(at 326.39 124.46 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "7ef5f71e-a232-5625-a9ec-f2889ba0b7f8")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 326.39 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 339.09 124.46) (xy 344.17 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ec3cc9f2-0c6c-5659-b78f-13b72ba5b220")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 344.17 124.46 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "f851c77a-659d-59c0-a671-05a0812671f4")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 344.17 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 368.3 124.46 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c97d1e18-d4dc-55ba-a5d5-40cc8a10be02")
+		(property "Reference" "DZ5"
+			(at 368.3 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "BZT52C30"
+			(at 368.3 127 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 368.3 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 368.3 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "P0_C: coil clamp zener 30 V"
+			(at 368.3 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "57283f93-6a62-5800-bd02-6b25abd817f5")
+		)
+		(pin "2"
+			(uuid "0f099dbf-cae3-5e02-a029-d41c29972681")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "DZ5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 364.49 124.46) (xy 359.41 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0e175b8a-2149-500e-8819-1cf19ddd6b8c")
+	)
+	(global_label "X_P0_C"
+		(shape passive)
+		(at 359.41 124.46 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "db2638da-c0a1-5349-9b56-9fc3488a0b3a")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 359.41 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 372.11 124.46) (xy 377.19 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3587e582-abae-5b8c-ba3b-c97531487c7b")
+	)
+	(global_label "P0_C"
+		(shape passive)
+		(at 377.19 124.46 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "cc34adc6-a952-5e8f-832e-e16bf7757067")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 377.19 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Relay:G6S-2")
+		(at 416.56 139.7 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "64b87b1a-0e46-54c8-bf1c-eb7bbb2ba281")
+		(property "Reference" "K7"
+			(at 433.07 135.89 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "G6S-2 KP3"
+			(at 433.07 138.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Relay_THT:Relay_DPDT_Omron_G6S-2"
+			(at 416.56 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
+			(at 416.56 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "KP3: r bit 3 follower: r = 25 chain contact (E1 -> E2)"
+			(at 416.56 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "543de92f-2a6c-51a8-8608-3cc9f6728ebd")
+		)
+		(pin "3"
+			(uuid "56a61a9e-e92b-5804-b248-33ff82edd1e6")
+		)
+		(pin "4"
+			(uuid "3e5e9dfa-904d-56f8-b59e-b6b746e06ab9")
+		)
+		(pin "5"
+			(uuid "9d8300e9-8a8d-55d5-9ad6-3b2829e88b52")
+		)
+		(pin "8"
+			(uuid "93b6550d-bad7-502d-94ba-b74131241d63")
+		)
+		(pin "9"
+			(uuid "386f2e0b-a3f2-5a6b-ae05-0a69627e6294")
+		)
+		(pin "10"
+			(uuid "9e5487c4-dc1c-51da-9541-6db7b56d70c6")
+		)
+		(pin "12"
+			(uuid "e719d45c-a264-5506-936b-774c356b7a91")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "K7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 406.4 132.08) (xy 406.4 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "82cc5ce5-7569-55c3-a621-989f01329d4d")
+	)
+	(global_label "P3_C"
+		(shape passive)
+		(at 406.4 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "35b97fcf-ccb2-5eaf-b15e-3defdd6bc634")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 406.4 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 414.02 132.08)
+		(uuid "da821eab-bbbe-50cf-a46a-bb9b76addba8")
+	)
+	(wire
+		(pts
+			(xy 416.56 147.32) (xy 416.56 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c3f83b55-1aca-5663-93e4-851387186bbf")
+	)
+	(global_label "E1"
+		(shape passive)
+		(at 416.56 154.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "18a7a2a1-1f5a-5cbb-ab09-440cdc590632")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 416.56 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 419.1 132.08) (xy 419.1 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e641276b-b6a5-5387-b961-4a8d00041b0c")
+	)
+	(global_label "E2"
+		(shape passive)
+		(at 419.1 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "9975b869-b567-59da-b1bf-3be43a2ce68f")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 419.1 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 429.26 132.08)
+		(uuid "29bd0834-ff0b-543e-8d03-7cd74aa8e21f")
+	)
+	(no_connect
+		(at 426.72 147.32)
+		(uuid "5534facc-a364-5658-9a5d-73daa01d4f03")
+	)
+	(no_connect
+		(at 424.18 132.08)
+		(uuid "779494fa-5648-5719-924b-430275522981")
+	)
+	(wire
+		(pts
+			(xy 406.4 147.32) (xy 406.4 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d0c089fa-4744-5f84-a1a9-b4c8ba76480b")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 406.4 154.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "1622f877-f6ae-55f3-893f-a96df12bd9b8")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 406.4 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D")
+		(at 464.82 124.46 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "410b3381-236d-5b6f-b493-29288689aa6c")
+		(property "Reference" "D33"
+			(at 464.82 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1N4148W"
+			(at 464.82 127 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 464.82 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 464.82 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "P3_C: coil clamp diode (with the zener: fast release)"
+			(at 464.82 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "2a2f3b5a-c73e-5d99-aad8-6ebcf5f282e0")
+		)
+		(pin "2"
+			(uuid "158bea33-1462-5198-ae7d-d4021d2713ae")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "D33")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 461.01 124.46) (xy 455.93 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3d66a8f9-b5b0-566d-b385-5b19f21155cb")
+	)
+	(global_label "X_P3_C"
+		(shape passive)
+		(at 455.93 124.46 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "f313ed6a-e554-5e2f-9582-a554630b4cc5")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 455.93 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 468.63 124.46) (xy 473.71 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1794eaff-71ea-59b7-adae-439e3aa8d808")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 473.71 124.46 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "f9aac7e0-8384-5e56-8c8d-5e00bb94cf37")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 473.71 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 497.84 124.46 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "a49be17c-a83c-5b1f-92a2-51438568bed0")
+		(property "Reference" "DZ6"
+			(at 497.84 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "BZT52C30"
+			(at 497.84 127 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 497.84 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 497.84 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "P3_C: coil clamp zener 30 V"
+			(at 497.84 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "26640a66-b0b0-5c58-920d-2935dcf4c797")
+		)
+		(pin "2"
+			(uuid "8307a651-df10-546d-aac6-da0dc29d9a89")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "DZ6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 494.03 124.46) (xy 488.95 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ddcfaefe-5844-5a95-8fd3-789ca77c6f4b")
+	)
+	(global_label "X_P3_C"
+		(shape passive)
+		(at 488.95 124.46 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "2b9498eb-cc7a-55b0-8105-9e9bf92fcfc7")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 488.95 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 501.65 124.46) (xy 506.73 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "be8c65bd-1e2c-5408-9372-4432d73d7d7b")
+	)
+	(global_label "P3_C"
+		(shape passive)
+		(at 506.73 124.46 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "2e0abe20-f475-5370-b466-3d3ffe4283eb")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 506.73 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Relay:G6S-2")
+		(at 546.1 139.7 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "007f3172-25a7-550b-b716-7d666688fc92")
+		(property "Reference" "K8"
+			(at 562.61 135.89 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "G6S-2 KP4"
+			(at 562.61 138.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Relay_THT:Relay_DPDT_Omron_G6S-2"
+			(at 546.1 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
+			(at 546.1 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "KP4: r bit 4 follower: r = 25 chain contact (E2 -> KR25 coil)"
+			(at 546.1 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "0c55fcc1-8d85-5c4e-8e1c-e5546e1c6345")
+		)
+		(pin "3"
+			(uuid "5c674be9-afe0-5252-9cac-cb26f2f2f776")
+		)
+		(pin "4"
+			(uuid "63e73148-26a6-54a1-b1d0-4f58fe2c3f3c")
+		)
+		(pin "5"
+			(uuid "79eb5403-fdad-58c8-bac7-adbb515c810b")
+		)
+		(pin "8"
+			(uuid "5d4fa590-2f51-52a7-b37a-22aebe064fce")
+		)
+		(pin "9"
+			(uuid "300ab026-23fd-57c6-95f0-973bb92e8452")
+		)
+		(pin "10"
+			(uuid "02ae4243-abde-5d65-8333-8f50dfcecc3e")
+		)
+		(pin "12"
+			(uuid "81634036-b37c-56df-9b64-af627a12c656")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "K8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 535.94 132.08) (xy 535.94 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6d9e8013-f8b0-5fd1-bcad-e78fdaa440ad")
+	)
+	(global_label "P4_C"
+		(shape passive)
+		(at 535.94 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "01bd3d28-2fbf-5428-8bc8-1a47a3a9f17d")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 535.94 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 543.56 132.08)
+		(uuid "10e8e639-0bd2-5dc4-9df1-74023c80bac9")
+	)
+	(wire
+		(pts
+			(xy 546.1 147.32) (xy 546.1 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a70076b0-1b7e-55da-9323-8f51dca152d2")
+	)
+	(global_label "E2"
+		(shape passive)
+		(at 546.1 154.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "f018c61b-c61e-5f5c-8a3b-f1f4f21bbd3a")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 546.1 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 548.64 132.08) (xy 548.64 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "43df085b-141a-5419-b963-a319ba9994ad")
+	)
+	(global_label "R25_C"
+		(shape passive)
+		(at 548.64 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "60b68bba-5c47-5a5c-9510-f30bca688527")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 548.64 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 558.8 132.08)
+		(uuid "c13f1fea-66c7-5d26-88d8-fec62f476e90")
+	)
+	(no_connect
+		(at 556.26 147.32)
+		(uuid "3a0561cb-7fc1-5bbe-be49-797fcb29d785")
+	)
+	(no_connect
+		(at 553.72 132.08)
+		(uuid "78e3e954-70e7-5508-a27f-f2bad9e6c87e")
+	)
+	(wire
+		(pts
+			(xy 535.94 147.32) (xy 535.94 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5cd25301-27e9-5c39-bfbe-03a04f26ccfc")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 535.94 154.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "b4d60402-6244-51c5-bc7d-3d77840f3703")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 535.94 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D")
+		(at 594.36 124.46 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "09797c31-e1a1-52f6-9f00-7aa9bafd2738")
+		(property "Reference" "D34"
+			(at 594.36 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1N4148W"
+			(at 594.36 127 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 594.36 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 594.36 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "P4_C: coil clamp diode (with the zener: fast release)"
+			(at 594.36 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "7ff5faa4-1d27-5588-8007-978b0719545d")
+		)
+		(pin "2"
+			(uuid "1347ce28-ca0f-5ee2-a069-16954d2460d9")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "D34")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 590.55 124.46) (xy 585.47 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "568700df-eabc-5c9c-bc32-d812d07f605e")
+	)
+	(global_label "X_P4_C"
+		(shape passive)
+		(at 585.47 124.46 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "192ea42a-6ad5-5474-9b66-cf93232e8a86")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 585.47 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 598.17 124.46) (xy 603.25 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "eaefe88f-0ade-5a0a-9437-516a7d0d81aa")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 603.25 124.46 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "3bfd2321-fda3-5216-be48-428ab8071122")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 603.25 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Zener")
+		(at 629.92 124.46 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8544f494-63a1-5af0-aa17-eeeaca6f8401")
+		(property "Reference" "DZ7"
+			(at 629.92 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "BZT52C30"
+			(at 629.92 127 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 629.92 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 629.92 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "P4_C: coil clamp zener 30 V"
+			(at 629.92 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "64e5fa72-869c-55b3-884d-8f5763d86aa2")
+		)
+		(pin "2"
+			(uuid "d35993c5-cb6f-55aa-a28d-547bcfc2dfc0")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "DZ7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 626.11 124.46) (xy 621.03 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b3a6bd4b-3266-5a41-b91f-cfad908fd353")
+	)
+	(global_label "X_P4_C"
+		(shape passive)
+		(at 621.03 124.46 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "31d2b1fc-bda5-517b-895b-dc6aa8efc972")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 621.03 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 633.73 124.46) (xy 638.81 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2e98fa41-e907-5005-afa5-315160d91f86")
+	)
+	(global_label "P4_C"
+		(shape passive)
+		(at 638.81 124.46 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "b1b93b1a-9e51-5383-a06b-19a33d057f00")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 638.81 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Relay:G6S-2")
+		(at 678.18 139.7 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2a43691f-cea2-5fd0-a831-f5cc572b9fb7")
+		(property "Reference" "K9"
+			(at 694.69 135.89 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "G6S-2 KHT"
+			(at 694.69 138.43 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Relay_THT:Relay_DPDT_Omron_G6S-2"
+			(at 678.18 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" "http://omronfs.omron.com/en_US/ecb/products/pdf/en-g6s.pdf"
+			(at 678.18 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "KHT: Thermostat follower: NC in the GO chain; NO = hot -> standby request"
+			(at 678.18 139.7 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "26ef0b68-df29-5036-8c42-ecda07f2bb35")
+		)
+		(pin "3"
+			(uuid "d397fefa-22b9-59d4-9e74-c082fa432570")
+		)
+		(pin "4"
+			(uuid "22955c06-aced-5d13-aa7f-dc83b002d197")
+		)
+		(pin "5"
+			(uuid "58113473-2718-5553-a06e-3765c7decea6")
+		)
+		(pin "8"
+			(uuid "b025b957-3b4b-5e4e-8752-b157c88866f7")
+		)
+		(pin "9"
+			(uuid "170893aa-8107-54dd-90cf-ddc9509d4fdc")
+		)
+		(pin "10"
+			(uuid "3c9585fc-fcab-5161-ab85-ef6abce047bb")
+		)
+		(pin "12"
+			(uuid "26d76ea6-8f79-5094-b48d-01f33600ca26")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "K9")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 668.02 132.08) (xy 668.02 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9be2835c-8f37-5f3b-b7de-d29f5ddd2422")
+	)
+	(global_label "HT_C"
+		(shape passive)
+		(at 668.02 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "5e39a899-7ab9-504d-9993-8b74a3f103f7")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 668.02 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 675.64 132.08) (xy 675.64 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "86a2a96e-03be-5682-938f-ac05516386c2")
+	)
+	(global_label "GA6"
+		(shape passive)
+		(at 675.64 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "9962e4cb-863b-5016-b0bb-1b01d146b9b0")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 675.64 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 678.18 147.32) (xy 678.18 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "120e7c4a-2a2f-5200-9c31-2c9be6d56b64")
+	)
+	(global_label "GA4"
+		(shape passive)
+		(at 678.18 154.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "68ee4ff5-d9b6-5d3b-b1df-10dd4a32c760")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 678.18 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 680.72 132.08)
+		(uuid "f63828ee-0816-5c12-ab2c-993bdbc1d8bf")
+	)
+	(wire
+		(pts
+			(xy 690.88 132.08) (xy 690.88 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "39fad5a2-908e-5ae3-b711-797546f8788f")
+	)
+	(global_label "HOTS1"
+		(shape passive)
+		(at 690.88 124.46 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "605e3b81-46da-55db-a55a-7ba74603f2ed")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 690.88 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 688.34 147.32) (xy 688.34 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f619b413-dfcd-5807-bd96-7a75313307ed")
+	)
+	(global_label "SW"
+		(shape passive)
+		(at 688.34 154.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "81acf018-7fa8-5503-bbce-143f5e0017d6")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 688.34 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(no_connect
+		(at 685.8 132.08)
+		(uuid "8cb9c4f6-b8dd-5cc2-9f09-2fdfa76a29db")
+	)
+	(wire
+		(pts
+			(xy 668.02 147.32) (xy 668.02 154.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1891ba8a-7ab4-50c5-8903-e13a3ce6ff4d")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 668.02 154.94 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "cf91c228-8eb1-5249-b089-e7c83cd7cba1")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 668.02 154.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D")
+		(at 723.9 124.46 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c3f3053f-67e2-508a-8c81-968260d94ae9")
+		(property "Reference" "D35"
+			(at 723.9 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1N4148W"
+			(at 723.9 127 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 723.9 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 723.9 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "HT_C: coil flyback diode"
+			(at 723.9 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "bffa5958-c7cb-552f-9c03-a353db97d786")
+		)
+		(pin "2"
+			(uuid "63362451-0e20-5671-af3c-2e21e3efd1c4")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "D35")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 720.09 124.46) (xy 715.01 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d1306896-c28c-5cea-a4f2-0b2202514a72")
+	)
+	(global_label "HT_C"
+		(shape passive)
+		(at 715.01 124.46 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d5fb25e8-6e00-543a-9d3e-801ca6855135")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 715.01 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 727.71 124.46) (xy 732.79 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "99250390-4667-554f-a81e-56f94dfa0c54")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 732.79 124.46 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "341e17a6-c6d9-5a6f-8bf2-1df20ec2d464")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 732.79 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R_US")
+		(at 759.46 124.46 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b027870c-e200-5ca7-b40f-feee33218097")
+		(property "Reference" "R51"
+			(at 762 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "4.7k"
+			(at 756.92 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 759.46 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Datasheet" ""
+			(at 759.46 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Description" "HOT (thermostat): indicator resistor"
+			(at 759.46 124.46 0)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "1"
+			(uuid "3574ba8d-ac95-5e30-a316-f4304e2dd83a")
+		)
+		(pin "2"
+			(uuid "efa8bf87-ec00-5c31-a34a-08362bd16f05")
+		)
+		(instances
+			(project "sequencer"
+				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
+					(reference "R51")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 759.46 120.65) (xy 759.46 115.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3571c944-dcdf-5020-910d-2b1110649720")
+	)
+	(global_label "HT_C"
+		(shape passive)
+		(at 759.46 115.57 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "070f8cef-c949-5abf-81eb-753f25b860b6")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 759.46 115.57 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 759.46 128.27) (xy 759.46 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c5208f18-8cf3-5205-8a03-464020f97b79")
+	)
+	(global_label "LED_11"
+		(shape passive)
+		(at 759.46 133.35 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "8b851cb6-7e31-5e34-adb5-9581c8ad8f70")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 759.46 133.35 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8311,15 +10167,15 @@
 	)
 	(symbol
 		(lib_id "Device:LED")
-		(at 307.34 124.46 0)
+		(at 48.26 177.8 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "f8254e58-cf5e-5966-ba5d-96db7be3c58e")
-		(property "Reference" "DL18"
-			(at 307.34 121.92 0)
+		(uuid "925a3bff-5df3-5f48-ada5-600d16f99fcb")
+		(property "Reference" "DL20"
+			(at 48.26 175.26 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8328,7 +10184,7 @@
 			)
 		)
 		(property "Value" "LED"
-			(at 307.34 127 0)
+			(at 48.26 180.34 0)
 			(hide yes)
 			(effects
 				(font
@@ -8338,7 +10194,7 @@
 			)
 		)
 		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
-			(at 307.34 124.46 0)
+			(at 48.26 177.8 0)
 			(hide yes)
 			(effects
 				(font
@@ -8348,7 +10204,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 307.34 124.46 0)
+			(at 48.26 177.8 0)
 			(hide yes)
 			(effects
 				(font
@@ -8358,7 +10214,7 @@
 			)
 		)
 		(property "Description" "HOT (thermostat): indicator LED"
-			(at 307.34 124.46 0)
+			(at 48.26 177.8 0)
 			(hide yes)
 			(effects
 				(font
@@ -8368,15 +10224,15 @@
 			)
 		)
 		(pin "1"
-			(uuid "b7ca97b0-efce-5c7f-b4d4-5ceafcfad719")
+			(uuid "7e985808-a9a7-5f7c-87d0-a342e00809d4")
 		)
 		(pin "2"
-			(uuid "57283f93-6a62-5800-bd02-6b25abd817f5")
+			(uuid "91faae1f-adb7-5071-837b-da2e6197f273")
 		)
 		(instances
 			(project "sequencer"
 				(path "/8cc8c467-4e71-5e7e-9700-c9c179a24c1e/12aea962-b33c-5437-b662-c89016021cd7"
-					(reference "DL18")
+					(reference "DL20")
 					(unit 1)
 				)
 			)
@@ -8384,26 +10240,26 @@
 	)
 	(wire
 		(pts
-			(xy 303.53 124.46) (xy 298.45 124.46)
+			(xy 44.45 177.8) (xy 39.37 177.8)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "bade3ae8-ff23-5adc-a704-c1b0888853e9")
+		(uuid "3005e568-e6ea-5008-aaf7-d0635aba1cce")
 	)
 	(global_label "GND"
 		(shape passive)
-		(at 298.45 124.46 180)
+		(at 39.37 177.8 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "be4c5096-7367-563d-b7e6-71af86f44162")
+		(uuid "64027476-ae6d-55aa-880d-293be99ef618")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 298.45 124.46 0)
+			(at 39.37 177.8 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8414,26 +10270,26 @@
 	)
 	(wire
 		(pts
-			(xy 311.15 124.46) (xy 316.23 124.46)
+			(xy 52.07 177.8) (xy 57.15 177.8)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "a6126bd9-addf-54fa-a5ca-8793f6f66444")
+		(uuid "c3a92916-44a2-5c2a-aca2-9ad7907ba8ad")
 	)
 	(global_label "LED_11"
 		(shape passive)
-		(at 316.23 124.46 0)
+		(at 57.15 177.8 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "0775f9f1-97db-5427-b42e-c25a85b2531f")
+		(uuid "ff3db2fb-19d7-5e6c-8e53-bfdc252f0c57")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 316.23 124.46 0)
+			(at 57.15 177.8 0)
 			(effects
 				(font
 					(size 1.27 1.27)
