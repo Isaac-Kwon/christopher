@@ -1,31 +1,37 @@
-% 대각선 보드 다섯 장의 나눔 (그림 fig:hw-diag-split). 길이는 비례(mm). 값은 부록 D·E의 대각선 보드 절과
-% hardware/common/diagonal-board/ (보드 안 잭 간격 110, 보드 경계를 사이에 둔 잭 간격 149.3, 끝 여유 42.25).
+% 대각선 보드 다섯 장의 나눔 (그림 fig:hw-diag-split). 길이는 비례(mm), x는 D1의 왼쪽 끝에서. 값은 부록 D·E의
+% 대각선 보드 절과 hardware/common/diagonal-board/ (13열 모두 잭 간격 110, 첫 열 42.25, 보드 사이 2.4,
+% 헤더 묶음은 엇갈림: 왼쪽 보드의 XR3..XR1은 오른쪽 끝의 경계 틈에, 오른쪽 보드의 XL1..XL3은 자기 첫째와 둘째 열 사이에).
 \begin{tikzpicture}[x=0.0092cm,y=0.0092cm,
     lt/.style={font=\scriptsize\ttfamily},
     nt/.style={font=\scriptsize,text=cgray,align=center}]
   % 보드
-  \foreach \xa/\xb/\n in {0/336.9/D1, 336.9/706.2/D2, 706.2/1075.5/D3, 1075.5/1334.8/D4, 1334.8/1561.7/D5} {
-    \draw[draw=cgray,fill=clight,line width=0.6pt] ({\xa+3},0) rectangle ({\xb-3},130);
+  \foreach \xa/\xb/\n in {0/331.58/D1, 334/661.58/D2, 664/991.58/D3, 994/1211.58/D4, 1214/1404.49/D5} {
+    \draw[draw=cgray,fill=clight,line width=0.6pt] (\xa,0) rectangle (\xb,130);
     \node[font=\footnotesize\bfseries] at ({(\xa+\xb)/2},-22) {\n};
   }
-  % 글자 잭(열마다 위 글자 A--M, 아래 글자 N--Z, 글자마다 잭 둘)
-  \foreach \x/\u/\d in {42.25/A/N, 152.25/B/O, 262.25/C/P, 411.55/D/Q, 521.55/E/R, 631.55/F/S,
-                         780.85/G/T, 890.85/H/U, 1000.85/I/V, 1150.15/J/W, 1260.15/K/X, 1409.45/L/Y, 1519.45/M/Z} {
+  % 글자 잭(열마다 위 글자 A--M, 아래 글자 N--Z, 글자마다 잭 둘), 열 가운데 42.25 + 110 j
+  \foreach \j/\u/\d in {0/A/N, 1/B/O, 2/C/P, 3/D/Q, 4/E/R, 5/F/S, 6/G/T, 7/H/U, 8/I/V, 9/J/W, 10/K/X, 11/L/Y, 12/M/Z} {
+    \pgfmathsetmacro{\x}{42.25+110*\j}
     \foreach \y in {97,112} { \draw[draw=corange,fill=corangebg,line width=0.3pt] ({\x-17},{\y-6}) rectangle ({\x+17},{\y+6}); }
     \foreach \y in {18,33} { \draw[draw=corange,fill=corangebg,line width=0.3pt] ({\x-17},{\y-6}) rectangle ({\x+17},{\y+6}); }
     \node[lt] at (\x,77) {\u};
     \node[lt] at (\x,53) {\d};
   }
-  % 경계의 리본 헤더(양쪽 보드에 셋씩)와 경계를 넘는 넷의 수
-  \foreach \xb/\k/\kk/\nk in {336.9/6/20/120, 706.2/12/14/168, 1075.5/18/8/144, 1334.8/22/4/88} {
-    \foreach \s in {-1,1} {
-      \foreach \j in {0,1,2} { \fill[cblue!70] ({\xb+\s*(9+\j*10.8)-2.5},40) rectangle ++(5,50); }
+  % 경계의 리본 헤더(엇갈린 묶음)와 포개진 리본, 경계를 넘는 넷의 수
+  \foreach \xr/\xl/\xb/\k/\kk/\nk in {303.48/416.44/332.8/6/20/120, 633.48/746.44/662.8/12/14/168,
+                                      963.48/1076.44/992.8/18/8/144, 1183.48/1296.44/1212.8/22/4/88} {
+    \foreach \i in {0,1,2} {
+      \fill[cblue!70] ({\xr+\i*10.8-2.5},40) rectangle ++(5,50);
+      \fill[cblue!70] ({\xl+\i*10.8-2.5},40) rectangle ++(5,50);
     }
-    \draw[cblue,line width=0.8pt] ({\xb-30},150) -- ({\xb+30},150);
-    \node[font=\scriptsize,text=cblue,anchor=south] at (\xb,152) {$\k \times \kk = \nk$};
+    % 리본: XR1-XL1이 가장 안쪽
+    \foreach \i/\h in {0/138, 1/146, 2/154} {
+      \draw[cblue,line width=0.5pt,rounded corners=2pt] ({\xr+(2-\i)*10.8},90) -- ({\xr+(2-\i)*10.8},\h) -- ({\xl+\i*10.8},\h) -- ({\xl+\i*10.8},90);
+    }
+    \node[font=\scriptsize,text=cblue,anchor=south] at (\xb,157) {$\k \times \kk = \nk$};
   }
   % 간격
   \draw[<->,cgray,line width=0.4pt] (42.25,-55) -- (152.25,-55) node[midway,below,font=\scriptsize] {110};
-  \draw[<->,cgray,line width=0.4pt] (262.25,-55) -- (411.55,-55) node[midway,below,font=\scriptsize] {149.3};
-  \draw[<->,cgray,line width=0.4pt] (0,-105) -- (1561.7,-105) node[midway,fill=white,font=\scriptsize] {다섯 장의 합 1,561.7 (계획 1,430)};
+  \draw[<->,cgray,line width=0.4pt] (262.25,-55) -- (372.25,-55) node[midway,below,font=\scriptsize] {110 (경계에서도)};
+  \draw[<->,cgray,line width=0.4pt] (0,-105) -- (1404.49,-105) node[midway,fill=white,font=\scriptsize] {다섯 장 1,404.5 (뱅크 구간 1,440 안)};
 \end{tikzpicture}

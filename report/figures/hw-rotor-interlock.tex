@@ -1,0 +1,77 @@
+% 로터를 바꾸는 동안의 인터록: 릴레이식 카트리지 검출 고리(가), 기어식 브레이크(나). 그림 fig:hw-rotor-interlock
+% 근거: hardware/common/rotor-cartridge.md 3.8절, 4.3절, hardware/common/power-unit.md 4.1절, docs/decisions/0003-interfaces.md 4.6절.
+\begin{tikzpicture}[x=1cm,y=1cm,
+    el/.style={draw,rounded corners=1pt,minimum height=6.5mm,minimum width=8mm,inner sep=1.5pt,font=\tiny,align=center,fill=white},
+    det/.style={el,draw=corange,fill=corangebg},
+    lid/.style={el,draw=cblue,fill=cbluebg},
+    fu/.style={el,draw=cgray,fill=clight},
+    coil/.style={el,draw=black,fill=cyellowbg},
+    kc/.style={el,draw=cred,fill=credbg},
+    ln/.style={line width=0.6pt},
+    lab/.style={font=\tiny,align=left,inner sep=1pt}]
+  % ================= (가) 릴레이식 =================
+  \node[font=\footnotesize\bfseries,anchor=west] at (-0.7,0.95) {(가) 릴레이식: 카트리지의 검출 고리가 클럭 순서기의 전원을 끊는다};
+  \node[lab,anchor=east] (v1) at (0.45,0) {\code{+24V\_L}};
+  \node[fu] (f19) at (1.15,0) {F19\\0.5 A};
+  \node[det] (dl) at (2.4,0) {검출\\L};
+  \node[lid] (sl) at (3.4,0) {덮개\\L};
+  \node[det] (dm) at (4.4,0) {검출\\M};
+  \node[lid] (sm) at (5.4,0) {덮개\\M};
+  \node[det] (dr) at (6.4,0) {검출\\R};
+  \node[lid] (sr) at (7.4,0) {덮개\\R};
+  \draw[cgray,dashed,rounded corners=2pt] (1.9,-0.5) rectangle (7.9,0.5);
+  \node[lab,anchor=south west,text=cgray] at (1.9,0.5) {유닛 7의 받침 기판 (J16 입출력, J13--J15 덮개 스위치)};
+  \node[font=\scriptsize] (dots) at (8.3,0) {$\cdots$};
+  \node[el] (u12) at (9.1,0) {유닛\\12};
+  \node[el] (mt) at (10.3,0) {정비 덮개\\(점퍼)};
+  \node[el] (cc) at (12.2,0) {제어 커넥터 24\\$\Rightarrow$ 공통부 $\Rightarrow$ 25};
+  \node[coil] (ki) at (13.95,0) {K$_\mathrm{I}$\\코일};
+  \node[lab,anchor=west] (z1) at (14.55,0) {0 V};
+  \draw[ln] (v1) -- (f19) -- (dl) -- (sl) -- (dm) -- (sm) -- (dr) -- (sr) -- (dots) -- (u12) -- (mt) -- (cc) -- (ki) -- (z1);
+  % 순서기의 전원 갈래
+  \node[lab,anchor=east] (v2) at (0.45,-1.75) {PSU-SW};
+  \node[kc] (km) at (1.3,-1.75) {KM1·KM2};
+  \node[fu] (f38) at (2.65,-1.75) {F38\\3.15 A};
+  \node[el,draw=cred] (kic) at (3.9,-1.75) {K$_\mathrm{I}$\\a접점};
+  \node[el,draw=cblue,fill=cbluebg,minimum width=17mm] (seq) at (5.55,-1.75) {클럭 순서기};
+  \draw[ln] (v2) -- (km) -- (f38) -- (kic) -- (seq);
+  \node[lab,anchor=west] (out) at (7.0,-1.75) {\code{STROBE}, \code{JUDGE}, \code{CLEAR}, \code{CK}, \code{NCK}와\\한 걸음 버튼의 공급(패널 입력)이 함께 사라진다};
+  \draw[->,ln] (seq) -- (out);
+  \draw[->,cred,dashed,line width=0.6pt] (ki.south) -- (13.95,-0.95) -- (3.9,-0.95) -- (kic.north);
+  \node[lab,text=cred,anchor=south] at (10.6,-0.93) {고리가 열리면 K$_\mathrm{I}$가 놓인다 (다시 닫히면 스스로 붙지만 순서기는 원위치를 기다린다)};
+
+  % ================= (나) 기어식 =================
+  \node[font=\footnotesize\bfseries,anchor=west] at (-0.7,-2.85) {(나) 기어식: 덮개 스위치의 둘째 b접점이 빠른 라인 축 F의 브레이크를 놓는다};
+  \node[lab,anchor=east] (v3) at (0.45,-3.6) {\code{+24V\_L}};
+  \node[fu] (f19b) at (1.15,-3.6) {F19\\0.5 A};
+  \node[lid] (s1a) at (2.6,-3.6) {S$_\mathrm{I1}$ 덮개\\첫째 b};
+  \node[lid] (s2a) at (4.1,-3.6) {S$_\mathrm{I2}$ 덮개\\첫째 b};
+  \node[el] (s3) at (5.6,-3.6) {S$_\mathrm{I3}$\\크랭크 셔터};
+  \node[el] (cc2) at (7.3,-3.6) {제어 커넥터\\24 $\Rightarrow$ 25};
+  \node[coil] (ki2) at (8.75,-3.6) {K$_\mathrm{I}$\\코일};
+  \draw[ln] (v3) -- (f19b) -- (s1a) -- (s2a) -- (s3) -- (cc2) -- (ki2);
+  \node[lab,anchor=west] at (9.35,-3.6) {0 V. K$_\mathrm{I}$ $\to$ KM3: 모터의 48 V만 끊음(그대로)};
+  \node[lab,anchor=east] (v4) at (0.45,-4.85) {\code{+24V\_L}};
+  \node[fu] (f22) at (1.15,-4.85) {F22\\1 A};
+  \node[lid] (s1b) at (2.6,-4.85) {S$_\mathrm{I1}$ 덮개\\둘째 b};
+  \node[lid] (s2b) at (4.1,-4.85) {S$_\mathrm{I2}$ 덮개\\둘째 b};
+  \node[coil,minimum width=14mm] (brk) at (5.75,-4.85) {브레이크 코일\\(24 V)};
+  \node[lab,anchor=west] (z4) at (6.6,-4.85) {0 V};
+  \draw[ln] (v4) -- (f22) -- (s1b) -- (s2b) -- (brk) -- (z4);
+  \draw[cgray,dashed,line width=0.4pt] (s1a.south) -- (s1b.north);
+  \draw[cgray,dashed,line width=0.4pt] (s2a.south) -- (s2b.north);
+  \node[lab,text=cgray,anchor=west] at (4.6,-4.22) {같은 스위치의 두 접점};
+  \node[lab,anchor=west] at (7.25,-4.85) {덮개가 닫혀 있으면 코일에 전류가 흘러 브레이크가 풀린다.\\덮개를 열면 스프링이 F를 잡는다(4 N·m 이상).\\크랭크 셔터는 넣지 않는다: 덮개를 닫은 채 손 크랭크 시연};
+  % 브레이크가 없을 때 상태가 바뀌는 길
+  \node[el,minimum width=20mm] (drm) at (1.0,-6.45) {빠른 줄 드럼\\(관람객이 돌림)};
+  \node[el,draw=cgray,fill=clight,minimum width=16mm] (F) at (3.6,-6.45) {라인 축 F};
+  \node[el,draw=cgray,fill=clight,minimum width=16mm] (C) at (6.2,-6.45) {주기 축 C};
+  \node[el,draw=cgray,fill=clight,minimum width=18mm] (M) at (10.2,-6.45) {가운데 줄 M};
+  \draw[->,ln] (drm) -- node[above,lab] {마이터} (F);
+  \draw[->,ln] (F) -- node[above,lab] {26:30} (C);
+  \draw[->,ln] (C) -- node[above=2.5mm,lab,align=center] {자리올림 1\\(F 1.15바퀴에 한 칸)} (M);
+  \node[kc] (brk2) at (3.6,-7.35) {브레이크};
+  \draw[cred,line width=0.8pt] (brk2.north) -- (F.south);
+  \node[lab,anchor=west] at (11.2,-6.45) {브레이크가 없으면 M이 넘어가\\나중에 끼운 드럼의 글자가\\원위치와 어긋난다};
+  \node[lab,anchor=west,text=cred] at (4.25,-7.35) {잡으면 F, C가 서고 M, S는 잠금 원호가 잡는다};
+\end{tikzpicture}

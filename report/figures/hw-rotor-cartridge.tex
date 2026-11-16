@@ -1,0 +1,103 @@
+% 릴레이식 로터 카트리지: 유닛과 로터 띠(가), 카트리지 기판(나), 위치 핀과 키 구멍(다). 그림 fig:hw-cartridge
+% 근거: hardware/common/rotor-cartridge.md 3.3-3.7절, hardware/relay/wiring-cards/README.md 8절.
+% (나)의 좌표는 gen_cartridge.py의 기하 상수(mm): 패드 2.54 격자 4열 x 26행(가운데 기준 +-31.75),
+% 검출 패드 (+-1.27, 36), 키 구멍 O4.05 (-1, 42), O3.05 (1, -42), 외곽 34 x 118.
+\begin{tikzpicture}[x=1cm,y=1cm,
+    card/.style={draw,rounded corners=1pt,minimum width=9.5mm,minimum height=9mm,inner sep=1pt,font=\tiny,align=center},
+    lead/.style={corange,line width=0.9pt},
+    lab/.style={font=\tiny,align=left,inner sep=1pt},
+    nl/.style={font=\tiny,inner sep=0.8pt,fill=white}]
+  % ================= (가) 유닛과 로터 띠 =================
+  \node[font=\footnotesize\bfseries,anchor=west] at (-0.1,0.75) {(가) 카트리지식 유닛: 로터 카드의 자리 셋이 비고 리드가 로터 띠로 간다};
+  \node[card,draw=cblue,fill=cbluebg] (s4) at (0.8,-0.6) {S4\\$a_4$};
+  \node[card,draw=cred,fill=credbg] (u) at (2.05,-0.6) {U};
+  \node[card,draw=cgray,dashed,fill=white,text=cgray] (wl) at (3.3,-0.6) {빈 자리\\$W_L$};
+  \node[card,draw=cblue,fill=cbluebg] (s3) at (4.55,-0.6) {S3\\$a_3$};
+  \node[card,draw=cgray,dashed,fill=white,text=cgray] (wm) at (5.8,-0.6) {빈 자리\\$W_M$};
+  \node[card,draw=cblue,fill=cbluebg] (s2) at (7.05,-0.6) {S2\\$a_2$};
+  \node[card,draw=cgray,dashed,fill=white,text=cgray] (wr) at (8.3,-0.6) {빈 자리\\$W_R$};
+  \node[card,draw=cblue,fill=cbluebg] (s1) at (9.55,-0.6) {S1\\$a_1$};
+  \node[card,draw=cgreen,fill=cgreenbg] (c) at (10.8,-0.6) {C};
+  % 남은 점퍼 둘 (S4 - U)
+  \draw[lead] (s4.north) -- ++(0,0.18) -| (u.north);
+  \node[lab,anchor=south] at (1.42,0.05) {점퍼 2};
+  \node[lab,anchor=west] at (11.45,-0.6) {유닛 모듈의 겹침\\(카드식과 같은 아홉 자리,\\피치 25~mm)};
+  % 받침 기판과 카트리지 자리
+  \draw[draw=cgray,fill=clight,rounded corners=1pt] (2.5,-3.35) rectangle (9.1,-2.25);
+  \foreach \x/\r/\col/\b in {3.3/II/brown!75!red/L, 5.8/IV/yellow!85!orange/M, 8.3/V/brown!35!white/R} {
+    \draw[draw=cgray,fill=white] ({\x-0.42},-3.25) rectangle ({\x+0.42},-2.35);
+    \draw[draw=black!60,fill=\col] ({\x-0.28},-3.18) rectangle ({\x+0.28},-2.42);
+    \node[font=\tiny\bfseries] at (\x,-2.8) {\r};
+    \node[font=\tiny] at (\x,-3.5) {\b};
+  }
+  \node[lab,anchor=east,align=right] at (2.4,-2.8) {받침 기판\\(유닛마다 1장,\\$116 \times 166$~mm)};
+  \node[lab,anchor=west] at (9.25,-2.8) {로터 띠: 바닥에서 930--1,105~mm\\자리마다 스프링 핀 104 + 검출 2,\\위치 핀 둘, 투명 누름 덮개};
+  % 리드 12가닥 (숫자는 가닥 수)
+  \draw[lead] (0.9,-1.05) -- node[nl] {2} (3.15,-2.25);
+  \draw[lead] (4.45,-1.05) -- node[nl] {2} (3.45,-2.25);
+  \draw[lead] (4.65,-1.05) -- node[nl] {2} (5.65,-2.25);
+  \draw[lead] (6.95,-1.05) -- node[nl] {2} (5.95,-2.25);
+  \draw[lead] (7.15,-1.05) -- node[nl] {2} (8.15,-2.25);
+  \draw[lead] (9.45,-1.05) -- node[nl] {2} (8.45,-2.25);
+  \node[lab,align=center] at (5.8,-3.9) {리드 12가닥(1:1 리본, 0.3--1.0~m): 로터 카드로 가던 점퍼를 같은 시프터 커넥터에서 받침 기판의 같은 기능 커넥터로 늘린 것.\\
+    자리 $b$(L = 0, M = 1, R = 2)의 J$(4b+n)$ = 로터 카드의 J$n$};
+
+  % ================= (나) 카트리지 기판 =================
+  \node[font=\footnotesize\bfseries,anchor=west] at (-0.1,-4.45) {(나) 카트리지 기판의 뒷면 ($34 \times 118$~mm)};
+  \begin{scope}[shift={(1.3,-7.55)},x=0.042cm,y=0.042cm]
+    \draw[draw=corange,fill=corangebg,line width=0.5pt] (-17,-59) rectangle (17,59);
+    \draw[cgray,dashed,line width=0.3pt] (0,-63) -- (0,63);
+    \foreach \cx in {-3.81,-1.27,1.27,3.81} {
+      \foreach \k in {0,...,25} {
+        \filldraw[draw=black!45,fill=yellow!55!orange,line width=0.1pt] (\cx,{31.75-2.54*\k}) circle (0.9);
+      }
+    }
+    % 검출 패드 (카트리지 안에서 이어짐)
+    \draw[cgreen,line width=0.6pt] (-1.27,36) -- (1.27,36);
+    \fill[cgreen] (-1.27,36) circle (0.9);
+    \fill[cgreen] (1.27,36) circle (0.9);
+    % 키 구멍
+    \draw[draw=black,fill=white,line width=0.4pt] (-1,42) circle (2.025);
+    \draw[draw=black,fill=white,line width=0.4pt] (1,-42) circle (1.525);
+    % 설명
+    \draw[cgray,line width=0.3pt] (1.2,43) -- (22,50);
+    \node[lab,anchor=west] at (22,50) {\O 4.05 구멍\\(중심선 왼쪽 1, 42 위)};
+    \draw[cgray,line width=0.3pt] (2.2,36) -- (22,36);
+    \node[lab,anchor=west] at (22,36) {검출 패드 2 (서로 이어짐)};
+    \draw[cgray,line width=0.3pt] (4.8,12) -- (22,12);
+    \node[lab,anchor=west] at (22,12) {패드 \O 1.8, 4열 $\times$ 26행, 2.54 격자\\열은 왼쪽부터 OI, OO, RO, RI\\(가는 길 입력·출력, 오는 길 출력·입력)\\행은 위에서부터 A--Z};
+    \draw[cgray,line width=0.3pt] (2.6,-43) -- (22,-50);
+    \node[lab,anchor=west] at (22,-50) {\O 3.05 구멍\\(오른쪽 1, 42 아래)};
+    % 치수
+    \draw[<->,cgray,line width=0.4pt] (-17,-66) -- (17,-66) node[midway,below=0.5pt,font=\tiny,text=black] {34};
+    \draw[<->,cgray,line width=0.4pt] (-22,-59) -- (-22,59) node[midway,left=0.5pt,font=\tiny,text=black] {118};
+  \end{scope}
+
+  % ================= (다) 위치 핀과 키 구멍 =================
+  \node[font=\footnotesize\bfseries,anchor=west] at (7.7,-4.45) {(다) 틀의 위치 핀과 카트리지의 키 구멍};
+  % 핀: \O4 at (-1, +42), \O3 at (+1, -42). 비킴 1 mm -> 0.2 cm, 42 mm -> 1.6 cm (과장)
+  \foreach \cx/\name/\bx/\by/\sx/\sy/\res/\ok in {
+      8.6/{그대로}/-0.2/1.6/0.2/-1.6/{두 핀이 제 구멍에:\\들어간다}/1,
+      10.4/{180° 돌림}/0.2/-1.6/-0.2/1.6/{\O 4 핀 위에 \O 3.05\\구멍: 막힌다}/0,
+      12.2/{좌우 뒤집음}/0.2/1.6/-0.2/-1.6/{구멍이 핀 옆 2~mm:\\막힌다}/0,
+      14.0/{위아래 뒤집음}/-0.2/-1.6/0.2/1.6/{구멍이 핀 옆 2~mm:\\막힌다}/0} {
+    \begin{scope}[shift={(\cx,-7.45)}]
+      \node[font=\tiny] at (0,2.35) {\name};
+      \draw[draw=corange,fill=corangebg,line width=0.4pt] (-0.42,-1.95) rectangle (0.42,1.95);
+      \draw[cgray,dashed,line width=0.3pt] (0,-2.05) -- (0,2.05);
+      % 카트리지의 구멍 (큰 것, 작은 것)
+      \draw[draw=corange,fill=white,line width=0.8pt] (\bx,\by) circle (0.17);
+      \draw[draw=corange,fill=white,line width=0.8pt] (\sx,\sy) circle (0.125);
+      % 틀의 위치 핀
+      \fill[cgray,opacity=0.85] (-0.2,1.6) circle (0.145);
+      \fill[cgray,opacity=0.85] (0.2,-1.6) circle (0.105);
+      \ifnum\ok=1
+        \node[font=\tiny,align=center,text=cgreen] at (0,-2.45) {\res};
+      \else
+        \node[font=\tiny,align=center,text=cred] at (0,-2.45) {\res};
+      \fi
+    \end{scope}
+  }
+  \draw[cgray,line width=0.3pt] (8.25,-5.85) -- (7.95,-5.85) node[lab,anchor=east,text=black] {핀 \O 4};
+  \draw[cgray,line width=0.3pt] (8.69,-9.05) -- (7.95,-9.05) node[lab,anchor=east,text=black] {핀 \O 3};
+\end{tikzpicture}

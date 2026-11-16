@@ -1,7 +1,7 @@
 % 기어식 기계의 앞모습 (개념도. 사진이나 도면이 아니다). 그림 fig:hw-gear-front
 % 좌표는 mm, 원점은 바닥의 왼쪽 끝. 치수의 출처는 hardware/gear/layout.md 3.9--3.11절과
 % hardware/gear/cad/params.py(BANK_W 1,880, DRIVE_W 360, PLINTH_H 400, ROW_Y 980/1,100/1,220,
-% INDICATOR_D 70, 지시 드럼 축 = 구동부 시작 + 150). 대각선 보드의 잭 간격은 부록 E(110, 경계 149.3).
+% INDICATOR_D 70, 지시 드럼 축 = 구동부 시작 + 150). 대각선 보드의 잭 간격은 부록 E(13열 모두 110, 열 가운데 100 + 110 j).
 \begin{tikzpicture}[x=0.07mm,y=0.07mm,
     lab/.style={font=\tiny,align=center},
     jack/.style={draw=corange,fill=corangebg,line width=0.3pt},
@@ -64,15 +64,13 @@
     \draw[jack] ({\xc-35},778) rectangle ({\xc+35},806);
   }
   % 대각선 보드 다섯 장과 글자 잭(열마다 두 글자 × 잭 둘)
-  \foreach \xa/\xb/\n in {40/376.9/D1, 376.9/746.2/D2, 746.2/1115.5/D3, 1115.5/1374.8/D4, 1374.8/1601.7/D5} {
+  \foreach \xa/\xb/\n in {57.75/389.33/D1, 391.75/719.34/D2, 721.75/1049.34/D3, 1051.76/1269.34/D4, 1271.76/1462.25/D5} {
     \draw[draw=cgray,fill=clight!70] (\xa,640) rectangle (\xb,770);
     \node[font=\tiny,text=cgray] at ({(\xa+\xb)/2},628) {\n};
   }
-  \foreach \x in {82.25,192.25,302.25,451.55,561.55,671.55,820.85,930.85,1040.85,1190.15,1300.15,1449.45,1559.45} {
+  \foreach \x in {100,210,320,430,540,650,760,870,980,1090,1200,1310,1420} {
     \foreach \y in {655,685,715,745} { \draw[jack] ({\x-18},{\y-9}) rectangle ({\x+18},{\y+9}); }
   }
-  \draw[cred,line width=0.6pt] (1480,636) rectangle (1601.7,774);
-  \node[lab,text=cred,anchor=north] at (1541,632) {넘침};
   % 표시 릴레이 26개(투명 케이스)와 레지스터 램프 26개
   \draw[draw=cgray,fill=white] (300,585) rectangle (1080,620);
   \foreach \i in {0,...,25} { \draw[draw=cgray,fill=cyellowbg] ({305+\i*30},589) rectangle ++(20,27); }

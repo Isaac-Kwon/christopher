@@ -1,11 +1,13 @@
 % 릴레이식 기계의 개략 치수(앞, 옆). 단위 mm. 그림 fig:hw-relay-dim-machine
-% 근거: hardware/relay/layout.md 3.5, 3.7, 3.11절. 프레임 1,880 = 40 + 6 x 240 + 360 + 40, 뱅크 660 = 60 + 290 x 2 + 20.
+% 근거: hardware/relay/layout.md 3.5, 3.7, 3.11, 3.12절. 프레임 1,880 = 40 + 6 x 240 + 360 + 40,
+% 뱅크 835 = 60 + 175(로터 띠) + 290 x 2 + 20 (카트리지식, 2026-11-16; 카드식은 660).
+% 로터 띠 930-1,105: 유닛마다 폭 120에 카트리지 자리 셋(피치 39), 카트리지 약 958-1,077 (common/rotor-cartridge.md 3.3절).
 \begin{tikzpicture}[x=0.0052cm,y=0.0052cm,
     dim/.style={<->,cgray,line width=0.4pt},
     dl/.style={font=\tiny,text=black,inner sep=1pt},
     lab/.style={font=\tiny,align=center}]
   % ================= (가) 앞 =================
-  \node[font=\footnotesize\bfseries,anchor=west] at (0,1680) {(가) 앞};
+  \node[font=\footnotesize\bfseries,anchor=west] at (0,1860) {(가) 앞};
   \draw[cgray,line width=0.6pt] (-330,0) -- (2620,0);
   % 받침대
   \draw[draw=cgray,dashed] (20,0) rectangle (1860,400);
@@ -21,46 +23,62 @@
   \draw[draw=cgray] (1480,450) rectangle (1840,870);
   \node[lab] at (1660,640) {조작부\\비상 정지};
   % 뱅크 틀
-  \draw[draw=cgray,fill=clight,line width=0.6pt] (0,870) rectangle (1880,1530);
+  \draw[draw=cgray,fill=clight,line width=0.6pt] (0,870) rectangle (1880,1705);
   % 다이얼 띠
   \draw[draw=cgray,fill=white] (40,870) rectangle (1840,930);
   \foreach \i in {0,...,11} { \draw[draw=cgray,fill=cyellowbg] ({40+\i*120+60},900) circle (20); }
+  % 로터 띠: 유닛마다 카트리지 자리 셋 (L, M, R, 피치 39). 1-6번은 빈 자리, 7-12번은 예로 II, IV, V
+  \draw[draw=cgray,fill=white] (40,930) rectangle (1480,1105);
+  \foreach \i in {0,...,11} {
+    \draw[draw=cgray,line width=0.3pt] ({40+\i*120},930) -- ({40+\i*120},1105);
+  }
+  \foreach \i in {0,...,5} {
+    \foreach \b in {-1,0,1} {
+      \draw[draw=cgray,dashed,line width=0.3pt] ({40+\i*120+60+\b*39-15},958) rectangle ++(30,119);
+    }
+  }
+  \foreach \i in {6,...,11} {
+    \foreach \b/\col in {-1/brown!75!red, 0/yellow!85!orange, 1/brown!35!white} {
+      \draw[draw=black!60,fill=\col,line width=0.3pt] ({40+\i*120+60+\b*39-15},958) rectangle ++(30,119);
+    }
+  }
   % 유닛 자리: 1-3열은 빈 자리, 4-6열은 채움
   \foreach \c in {0,1,2} {
     \foreach \r in {0,1} {
-      \draw[draw=cgray,dashed,fill=white] ({40+\c*240},{930+\r*290}) rectangle ++(240,290);
+      \draw[draw=cgray,dashed,fill=white] ({40+\c*240},{1105+\r*290}) rectangle ++(240,290);
       \pgfmathtruncatemacro{\n}{2*\c+1+\r}
-      \node[lab,text=cgray] at ({40+\c*240+120},{930+\r*290+145}) {\n};
+      \node[lab,text=cgray] at ({40+\c*240+120},{1105+\r*290+145}) {\n};
     }
   }
   \foreach \c in {3,4,5} {
     \foreach \r in {0,1} {
-      \draw[draw=cgray,fill=white] ({40+\c*240},{930+\r*290}) rectangle ++(240,290);
-      \draw[draw=cblue,fill=cbluebg] ({40+\c*240+6},{930+\r*290+20}) rectangle ++(228,250);
+      \draw[draw=cgray,fill=white] ({40+\c*240},{1105+\r*290}) rectangle ++(240,290);
+      \draw[draw=cblue,fill=cbluebg] ({40+\c*240+6},{1105+\r*290+20}) rectangle ++(228,250);
       \foreach \b in {0,...,4} {
-        \draw[cblue,line width=1.2pt] ({40+\c*240+18},{930+\r*290+58+\b*38}) -- ++(204,0);
+        \draw[cblue,line width=1.2pt] ({40+\c*240+18},{1105+\r*290+58+\b*38}) -- ++(204,0);
       }
       \pgfmathtruncatemacro{\n}{2*\c+1+\r}
-      \node[lab,fill=cbluebg,inner sep=1pt] at ({40+\c*240+120},{930+\r*290+153}) {\n};
+      \node[lab,fill=cbluebg,inner sep=1pt] at ({40+\c*240+120},{1105+\r*290+153}) {\n};
     }
   }
-  % 제어 칸
-  \draw[draw=cgray,fill=white] (1480,930) rectangle (1840,1510);
-  \draw[draw=cgreen,fill=cgreenbg] (1487,1250) rectangle (1737,1478);
-  \node[lab] at (1612,1364) {공통\\계수기};
-  \draw[draw=cgray,fill=cyellowbg] (1487,960) rectangle (1737,1188);
-  \node[lab] at (1612,1074) {순서기};
+  % 제어 칸 (보드 자리는 유닛과 함께 175 올림)
+  \draw[draw=cgray,fill=white] (1480,930) rectangle (1840,1685);
+  \draw[draw=cgreen,fill=cgreenbg] (1487,1425) rectangle (1737,1653);
+  \node[lab] at (1612,1539) {공통\\계수기};
+  \draw[draw=cgray,fill=cyellowbg] (1487,1135) rectangle (1737,1363);
+  \node[lab] at (1612,1249) {순서기};
   % 위치 표시 보드 88 x 294 (글자 세 줄 l, m, r)
-  \draw[draw=corange,fill=corangebg] (1746,1080) rectangle (1834,1374);
+  \draw[draw=corange,fill=corangebg] (1746,1255) rectangle (1834,1549);
   \foreach \j in {0,1,2} {
     \foreach \k in {0,...,25} {
-      \fill[cgray!60] ({1760+\j*29},{1095+\k*10.5}) circle (2.5);
+      \fill[cgray!60] ({1760+\j*29},{1270+\k*10.5}) circle (2.5);
     }
   }
-  \node[lab] at (1790,1030) {위치\\표시};
+  \node[lab] at (1790,1205) {위치\\표시};
+  \node[lab,text=corange] at (1660,1017) {$\leftarrow$ 로터 띠\\(카트리지 3 × 12)};
   % 화면
-  \draw[draw=cgray,dashed] (1540,1535) rectangle (1780,1690);
-  \node[dl] at (1660,1612) {화면};
+  \draw[draw=cgray,dashed] (1540,1710) rectangle (1780,1865);
+  \node[dl] at (1660,1787) {화면};
   % 손이 닿는 범위
   \draw[cred,line width=0.4pt,dashed] (-330,380) -- (0,380);
   \draw[cred,line width=0.4pt,dashed] (-330,1220) -- (1880,1220);
@@ -76,47 +94,64 @@
   \draw[cgray,line width=0.3pt] (1880,-150) -- (1880,-290);
   \draw[dim] (0,-250) -- (1880,-250) node[midway,dl,fill=white] {1,880};
   % 치수: 세로 (왼쪽)
-  \foreach \h in {0,400,870,930,1220,1510,1530} { \draw[cgray,line width=0.3pt] (-10,\h) -- (-150,\h); }
+  \foreach \h in {0,400,870,930,1105,1395,1685,1705} { \draw[cgray,line width=0.3pt] (-10,\h) -- (-150,\h); }
   \draw[dim] (-110,0) -- (-110,400) node[midway,dl,fill=white] {400};
   \draw[dim] (-110,400) -- (-110,870) node[midway,dl,fill=white] {470};
-  \draw[dim] (-110,930) -- (-110,1220) node[midway,dl,fill=white] {290};
-  \draw[dim] (-110,1220) -- (-110,1510) node[midway,dl,fill=white] {290};
+  \draw[dim] (-110,930) -- (-110,1105) node[midway,dl,fill=white] {175};
+  \draw[dim] (-110,1105) -- (-110,1395) node[midway,dl,fill=white] {290};
+  \draw[dim] (-110,1395) -- (-110,1685) node[midway,dl,fill=white] {290};
   \node[dl,anchor=east] at (-20,900) {60};
-  \node[dl,anchor=east] at (-20,1520) {20};
+  \node[dl,anchor=east] at (-20,1695) {20};
   \draw[cgray,line width=0.3pt] (-150,0) -- (-270,0);
-  \draw[cgray,line width=0.3pt] (-150,1530) -- (-270,1530);
-  \draw[dim] (-230,0) -- (-230,1530) node[midway,dl,fill=white,rotate=90] {1,530};
+  \draw[cgray,line width=0.3pt] (-150,1705) -- (-270,1705);
+  \draw[dim] (-230,0) -- (-230,1705) node[midway,dl,fill=white,rotate=90] {1,705};
   % ================= (나) 옆 =================
   \begin{scope}[shift={(2080,0)}]
-    \node[font=\footnotesize\bfseries,anchor=west] at (-40,1680) {(나) 옆 (공기의 길)};
+    \node[font=\footnotesize\bfseries,anchor=west] at (-40,1860) {(나) 옆 (공기, 리드)};
     \draw[draw=cgray,dashed] (20,0) rectangle (380,400);
     \draw[draw=cgray,fill=white,line width=0.6pt] (0,400) rectangle (400,870);
     \node[lab] at (170,560) {패널};
     \draw[draw=cgray,dashed] (240,440) rectangle (390,840);
     \node[lab,text=cgray] at (315,690) {전원부};
-    \draw[draw=cgray,fill=clight,line width=0.6pt] (70,870) rectangle (400,1530);
-    \draw[cblue,line width=0.8pt] (73,930) -- (73,1510);
-    % 카드 겹침
+    \draw[draw=cgray,fill=clight,line width=0.6pt] (70,870) rectangle (400,1705);
+    % 유닛 앞 덮개 (로터 띠 위만)
+    \draw[cblue,line width=0.8pt] (73,1105) -- (73,1685);
+    % 카드 겹침: 로터 카드의 자리(150, 200, 250)는 빈다
     \foreach \r in {0,1} {
-      \foreach \z in {100,125,150,175,200,225,250,275,315} {
-        \draw[cblue,line width=0.5pt] (\z,{930+\r*290+20}) -- (\z,{930+\r*290+270});
+      \foreach \z in {100,125,175,225,275,315} {
+        \draw[cblue,line width=0.5pt] (\z,{1105+\r*290+20}) -- (\z,{1105+\r*290+270});
+      }
+      \foreach \z in {150,200,250} {
+        \draw[cgray,dashed,line width=0.3pt] (\z,{1105+\r*290+20}) -- (\z,{1105+\r*290+270});
       }
     }
-    \draw[cgray,line width=0.5pt] (328,930) -- (328,1490);
+    \draw[cgray,line width=0.5pt] (328,930) -- (328,1665);
+    % 로터 띠: 틀, 받침 기판, 뒷면 D-sub, 앞의 카트리지
+    \draw[draw=cgray,fill=clight] (78,940) rectangle (84,1095);
+    \draw[cgreen,line width=0.8pt] (86,938) -- (86,1097);
+    \draw[draw=cgray,fill=white] (88,960) rectangle (100,1000);
+    \draw[draw=cgray,fill=white] (88,1035) rectangle (100,1075);
+    \draw[draw=black!60,fill=yellow!85!orange] (63,958) rectangle (77,1077);
+    \node[dl,anchor=east] at (58,1017) {카트리지};
+    % 리드: 겹침의 빈 자리 옆 시프터에서 뒤 배선 공간으로 내려와 받침 기판 뒤로
+    \draw[corange,line width=0.8pt] (225,1105) -- (225,1090) -- (360,1090);
+    \draw[corange,line width=0.8pt] (225,1395) -- (225,1385) -- (360,1385);
+    \draw[corange,line width=0.8pt] (360,1385) -- (360,1040) -- (100,1040);
+    \node[dl,anchor=west,text=corange] at (405,1200) {리드};
     % 팬과 흡기구
-    \draw[draw=cgray,fill=cyellowbg] (372,1395) rectangle (397,1505);
-    \node[dl,anchor=west] at (405,1410) {팬};
+    \draw[draw=cgray,fill=cyellowbg] (372,1570) rectangle (397,1680);
+    \node[dl,anchor=west] at (405,1585) {팬};
     \node[dl,anchor=west] at (405,930) {흡기 (필터)};
     % 공기
-    \draw[->,cred,line width=0.8pt] (470,880) -- (340,880) -- (110,905);
-    \foreach \z in {137,212,262} { \draw[->,cred,line width=0.6pt] (\z,935) -- (\z,1500); }
-    \draw[->,cred,line width=0.8pt] (200,1518) -- (350,1518) -- (372,1470) -- (470,1470);
+    \draw[->,cred,line width=0.8pt] (470,880) -- (340,880) -- (130,915);
+    \foreach \z in {137,212,262} { \draw[->,cred,line width=0.6pt] (\z,935) -- (\z,1675); }
+    \draw[->,cred,line width=0.8pt] (200,1693) -- (350,1693) -- (372,1645) -- (470,1645);
     % 깊이
     \draw[cgray,line width=0.3pt] (0,-10) -- (0,-150);
     \draw[cgray,line width=0.3pt] (400,-10) -- (400,-150);
     \draw[dim] (0,-110) -- (400,-110) node[midway,dl,fill=white] {400};
-    \draw[cgray,line width=0.3pt] (70,1535) -- (70,1630);
-    \draw[cgray,line width=0.3pt] (400,1535) -- (400,1630);
-    \draw[dim] (70,1590) -- (400,1590) node[midway,dl,fill=white] {330};
+    \draw[cgray,line width=0.3pt] (70,1710) -- (70,1805);
+    \draw[cgray,line width=0.3pt] (400,1710) -- (400,1805);
+    \draw[dim] (70,1765) -- (400,1765) node[midway,dl,fill=white] {330};
   \end{scope}
 \end{tikzpicture}

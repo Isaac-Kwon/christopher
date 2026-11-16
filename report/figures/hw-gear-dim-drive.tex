@@ -57,6 +57,9 @@
     \draw[shaft] (-20,-120) -- (252,-120);
     % 라인 축 커플링 (뱅크 쪽 칸)
     \foreach \y in {120,0,-120} { \draw[draw=cgray,fill=cgray] (4,\y-14) rectangle (44,\y+14); }
+    % 빠른 라인 축 F의 브레이크 (뱅크 쪽 칸, 커플링과 옆판 A 사이, 지름 64 이하; rotor-cartridge.md 4.3절)
+    \draw[draw=cred,fill=credbg] (48,88) rectangle (86,152);
+    \node[lab,anchor=south,text=cred] at (67,153) {브레이크};
     % 자리올림 2 (뱅크 쪽 칸)
     \draw[one,fill=corangebg] (56,-81) rectangle (80,81);
     \draw[pc,fill opacity=1] (56,-159) rectangle (80,-81);

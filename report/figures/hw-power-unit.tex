@@ -20,7 +20,7 @@
   % +24V_L
   \draw[rail,cblue] (pl.east) -- (13.4,2.6);
   \node[lbl,text=cblue,anchor=south west] at (4.3,2.65) {\code{+24V\_L}};
-  \node[ld,anchor=south] (l1) at (11.6,3.25) {테스트 레지스터, 표시 릴레이\\감시 장치, 센서, 팬, 조작부};
+  \node[ld,anchor=south] (l1) at (11.6,3.25) {테스트 레지스터, 표시 릴레이\\감시 장치, 센서, 팬, 조작부\\F 축 브레이크(기어식, 덮개 스위치 경유)};
   \draw[wire] (11.6,2.6) -- (l1.south);
   \node[lbl,anchor=west] at (11.65,2.93) {갈래마다 퓨즈};
   % 안전 릴레이
@@ -38,7 +38,7 @@
   \draw[rail,corange] (k1.east) -- (9.2,0);
   \node[lbl,text=corange,anchor=south west] at (6.3,0.05) {\code{+24V\_SW}};
   \node[ld,anchor=west] (s1) at (9.4,0.32) {퓨즈 5 A × 6 → 계수기 유닛 보드 → 시프터 4장};
-  \node[ld,anchor=west] (s2) at (9.4,-0.32) {퓨즈 → 공통 계수기, 클럭 순서기};
+  \node[ld,anchor=west] (s2) at (9.4,-0.32) {퓨즈 → 공통 계수기; 퓨즈 → K$_\mathrm{I}$ 접점 → 클럭 순서기};
   \draw[wire] (9.2,0) |- (s1.west);
   \draw[wire] (9.2,0) |- (s2.west);
   % +48V_M
@@ -55,7 +55,7 @@
   \draw[->,cred,dashed,line width=0.6pt] (5.6,-1.3) -- (k1.south);
   \draw[->,cred,dashed,line width=0.6pt] (ki.south) -- (8.7,-1.7) -- (7.7,-1.7) -- (k3.north);
   \node[lbl,text=cred,anchor=north west] at (5.7,-1.36) {비상 정지: 접촉기 둘을 직렬로};
-  \node[lbl,text=cred,anchor=west] at (8.8,-1.5) {덮개: 모터만};
+  \node[lbl,text=cred,anchor=west,align=left] at (8.8,-1.5) {덮개: 모터만 (릴레이식: 카트리지 고리, 순서기만)};
   % 0 V와 PE
   \draw[rail,cgray] (1.6,-4.4) -- (7.0,-4.4);
   \node[lbl,anchor=south west] at (1.6,-4.35) {0 V 모선: 모든 전원 장치의 0 V};
